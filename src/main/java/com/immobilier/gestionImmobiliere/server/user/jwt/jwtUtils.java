@@ -24,6 +24,16 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 @Component
 public class jwtUtils {
+
+//    À améliorer pour production
+//    Remplacer ConcurrentHashMap par Redis (persistance, partagé entre instances)
+//
+//    Ajouter rate limiting sur les tentatives de refresh
+//
+//    Implémenter blacklist d'IP en cas de détection de vol
+//
+//    Ajouter WebSocket pour déconnecter l'utilisateur en temps réel
+
     @Value("${jwtSecretAccessKey}")
     private String accessSecret;  // Clé secrète pour signer les access tokens
 
@@ -146,7 +156,7 @@ public class jwtUtils {
         }
     }
 
-    public boolean validateRefreshToken(String token, String expectedFingerprint) {
+    public boolean validateRefreshToken(String token, HttpServletRequest request, HttpServletResponse response) {
         try {
             Claims claims = Jwts.parserBuilder()
                     .setSigningKey(getRefreshKey())
@@ -159,9 +169,12 @@ public class jwtUtils {
                 return false;
             }
 
+            // Utiliser le service fingerprint
+            String currentFingerprint = fingerprintService.generateFingerprint(request, response);
+
             // Vérifier le fingerprint (anti-vol)
             String tokenFingerprint = (String) claims.get("fingerprint");
-            if (!expectedFingerprint.equals(tokenFingerprint)) {
+            if (!currentFingerprint.equals(tokenFingerprint)) {
                 log.warn("Fingerprint mismatch - possible vol de token");
                 return false;
             }
@@ -183,8 +196,8 @@ public class jwtUtils {
     }
 
     // 🔹 ROTATION DU REFRESH TOKEN (sécurité maximale)
-    public Map<String, Object> refreshTokens(String oldRefreshToken, String fingerprint, HttpServletRequest request,HttpServletResponse response) {
-        if (!validateRefreshToken(oldRefreshToken, fingerprint)) {
+    public Map<String, Object> refreshTokens(String oldRefreshToken, HttpServletRequest request,HttpServletResponse response) {
+        if (!validateRefreshToken(oldRefreshToken, request, response)) {
             throw new SecurityException("Refresh token invalide");
         }
 
@@ -203,9 +216,6 @@ public class jwtUtils {
             oldToken.setUsed(true);
         }
 
-        // Générer nouveau fingerprint (user-agent + IP)
-        String newFingerprint = generateFingerprint(request);
-
         // Générer nouveau refresh token + cookie
         ResponseCookie newRefreshCookie = generateRefreshTokenCookie(username, request,response);
 
@@ -220,12 +230,6 @@ public class jwtUtils {
         );
     }
 
-    // 🔹 FINGERPRINT (anti-vol de token)
-    private String generateFingerprint(HttpServletRequest request) {
-        String userAgent = request.getHeader("User-Agent");
-        String ip = request.getRemoteAddr();
-        return UUID.nameUUIDFromBytes((userAgent + ip).getBytes()).toString();
-    }
 
     // 🔹 NETTOYAGE REFRESH TOKEN (logout)
     public ResponseCookie revokeRefreshToken(String refreshToken) {
