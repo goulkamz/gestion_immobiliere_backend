@@ -23,7 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Component
-public class jwtUtils {
+public class JwtUtils {
 
 //    À améliorer pour production
 //    Remplacer ConcurrentHashMap par Redis (persistance, partagé entre instances)
@@ -78,6 +78,11 @@ public class jwtUtils {
                 .setExpiration(new Date(System.currentTimeMillis() + accessExpiration))
                 .signWith(getAccessKey(), SignatureAlgorithm.HS256)
                 .compact();
+    }
+
+    public String getUserNameFromJwtToken(String token) {
+        return Jwts.parserBuilder().setSigningKey(getAccessKey()).build()
+                .parseClaimsJws(token).getBody().getSubject();
     }
 
     // 🔹 GÉNÉRATION REFRESH TOKEN (Cookie)
