@@ -1,0 +1,146 @@
+package com.immobilier.gestionImmobiliere.exceptions;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.*;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+
+    // ========== EXCEPTIONS D'AUTHENTIFICATION ==========
+
+    @ExceptionHandler(DisabledException.class)
+    public ResponseEntity<?> handleDisabledException(DisabledException ex) {
+        return buildErrorResponse(HttpStatus.FORBIDDEN, "Votre compte est désactivé. Veuillez contacter l'administrateur.", "ACCOUNT_DISABLED", ex);
+    }
+
+    @ExceptionHandler(LockedException.class)
+    public ResponseEntity<?> handleLockedException(LockedException ex) {
+        return buildErrorResponse(HttpStatus.FORBIDDEN, "Votre compte est verrouillé. Veuillez réessayer plus tard.", "ACCOUNT_LOCKED", ex);
+    }
+
+    @ExceptionHandler(AccountExpiredException.class)
+    public ResponseEntity<?> handleAccountExpiredException(AccountExpiredException ex) {
+        return buildErrorResponse(HttpStatus.FORBIDDEN, "Votre compte a expiré. Veuillez contacter l'administrateur.", "ACCOUNT_EXPIRED", ex);
+    }
+
+    @ExceptionHandler(CredentialsExpiredException.class)
+    public ResponseEntity<?> handleCredentialsExpiredException(CredentialsExpiredException ex) {
+        return buildErrorResponse(HttpStatus.FORBIDDEN, "Votre mot de passe a expiré. Veuillez le réinitialiser.", "CREDENTIALS_EXPIRED", ex);
+    }
+
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<?> handleBadCredentialsException(BadCredentialsException ex) {
+        return buildErrorResponse(HttpStatus.UNAUTHORIZED, "Email ou mot de passe invalide", "INVALID_CREDENTIALS", ex);
+    }
+
+    @ExceptionHandler(UsernameNotFoundException.class)
+    public ResponseEntity<?> handleUsernameNotFoundException(UsernameNotFoundException ex) {
+        return buildErrorResponse(HttpStatus.UNAUTHORIZED, "Aucun compte associé à cet email", "USER_NOT_FOUND", ex);
+    }
+
+    @ExceptionHandler(InternalAuthenticationServiceException.class)
+    public ResponseEntity<?> handleInternalAuthenticationServiceException(InternalAuthenticationServiceException ex) {
+        return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Une erreur technique est survenue. Veuillez réessayer.", "INTERNAL_AUTH_ERROR", ex);
+    }
+
+    @ExceptionHandler(AuthenticationServiceException.class)
+    public ResponseEntity<?> handleAuthenticationServiceException(AuthenticationServiceException ex) {
+        return buildErrorResponse(HttpStatus.SERVICE_UNAVAILABLE, "Le service d'authentification est temporairement indisponible.", "AUTH_SERVICE_UNAVAILABLE", ex);
+    }
+
+    @ExceptionHandler(AuthenticationCredentialsNotFoundException.class)
+    public ResponseEntity<?> handleAuthenticationCredentialsNotFoundException(AuthenticationCredentialsNotFoundException ex) {
+        return buildErrorResponse(HttpStatus.UNAUTHORIZED, "Vous devez vous connecter pour accéder à cette ressource.", "NOT_AUTHENTICATED", ex);
+    }
+
+    @ExceptionHandler(InsufficientAuthenticationException.class)
+    public ResponseEntity<?> handleInsufficientAuthenticationException(InsufficientAuthenticationException ex) {
+        return buildErrorResponse(HttpStatus.FORBIDDEN, "Vous n'avez pas les droits nécessaires pour accéder à cette ressource.", "INSUFFICIENT_PRIVILEGES", ex);
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<?> handleValidationExceptions(MethodArgumentNotValidException ex) {
+        Map<String, String> errors = new HashMap<>();
+        ex.getBindingResult().getFieldErrors().forEach(error ->
+                errors.put(error.getField(), error.getDefaultMessage())
+        );
+        if ("dev".equals(System.getProperty("spring.profiles.active"))) {
+            ex.printStackTrace();
+        }
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", false);
+        response.put("message", "Erreur de validation des champs");
+        response.put("code", "VALIDATION_ERROR");
+        response.put("timestamp", Instant.now().toString());
+        response.put("errors", errors);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<?> handleIllegalArgument(IllegalArgumentException ex) {
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), "INVALID_ARGUMENT",ex);
+    }
+
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<?> handleRuntime(RuntimeException ex) {
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), "RUNTIME_ERROR",ex);
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<?> handleGenericException(Exception ex) {
+        ex.printStackTrace();
+        return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Une erreur interne est survenue", "INTERNAL_ERROR",ex);
+    }
+
+
+    @ExceptionHandler(EmailAlreadyExistsException.class)
+    public ResponseEntity<?> handleEmailExists(EmailAlreadyExistsException ex) {
+        return  buildErrorResponse(HttpStatus.CONFLICT,ex.getMessage(),"EMAIL_ALREADY_EXISTS",ex);
+    }
+
+    @ExceptionHandler(InvalidEmailException.class)
+    public ResponseEntity<?> handleInvalidEmail(InvalidEmailException ex) {
+        return  buildErrorResponse(HttpStatus.BAD_REQUEST,ex.getMessage(),"INVALID_EMAIL",ex);
+    }
+
+    @ExceptionHandler(InvalidPasswordException.class)
+    public ResponseEntity<?> handleInvalidPassword(InvalidPasswordException ex) {
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), "INVALID_PASSWORD",ex);
+    }
+
+    @ExceptionHandler(RoleNotFoundException.class)
+    public ResponseEntity<?> handleRoleNotFound(RoleNotFoundException ex) {
+        return  buildErrorResponse(HttpStatus.BAD_REQUEST,ex.getMessage(),"ROLE_NOT_FOUND",ex);
+    }
+
+    private ResponseEntity<?> buildErrorResponse(HttpStatus status, String message, String code,Exception ex) {
+        // Afficher la stack trace pour le debug
+        if (ex != null && !(ex instanceof IllegalArgumentException) && !(ex instanceof BadCredentialsException) && "dev".equals(System.getProperty("spring.profiles.active"))) {
+            ex.printStackTrace();
+        }
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", false);
+        response.put("message", message);
+        response.put("code", code);
+        response.put("timestamp", Instant.now().toString());
+
+        // En développement, ajouter les détails de l'erreur
+        if (ex != null && System.getProperty("spring.profiles.active", "").equals("dev")) {
+            response.put("debug_message", ex.getMessage());
+            response.put("exception_type", ex.getClass().getSimpleName());
+        }
+
+        return ResponseEntity.status(status).body(response);
+    }
+}

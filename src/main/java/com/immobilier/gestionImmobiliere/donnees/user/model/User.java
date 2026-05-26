@@ -24,7 +24,7 @@ import java.util.Date;
 
         @Id
         @GeneratedValue(strategy = GenerationType.IDENTITY)
-        @Column(name = "idUser")
+        @Column(name = "id_user")
         private Integer idUser;
 
         @Column(name = "nom", length = 254)

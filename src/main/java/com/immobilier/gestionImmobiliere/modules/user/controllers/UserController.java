@@ -34,19 +34,13 @@ public class UserController implements AuthentificationAPI {
 
 
     @Override
-    public ResponseEntity<?> createUser(@Valid @RequestBody CreateUserDTO createUserDTO) {
+    public ResponseEntity<?> createUser(@Valid @RequestBody CreateUserDTO createUserDTO) throws Exception {
         Map<String, Object> response = new HashMap<>();
-        try {
-            if(userService.checkIfExistsByUsername((createUserDTO.getEmail())))
-                return ResponseEntity.badRequest().body("Nom d'utilisateur déjà utilisé");
+           return userService.createUser(createUserDTO);
+    }
 
-            userService.createUser(createUserDTO);
-
-            response.put("success", true);
-            response.put("message", "Utilisateur enregistré");
-            return ResponseEntity.ok(response);
-        } catch(Exception ex) {
-            return ResponseEntity.badRequest().body(ex.getMessage());
-        }
+    @Override
+    public ResponseEntity<?> activateUser(@Valid @RequestBody Map<String, String> activationCode) {
+        return userService.activation(activationCode);
     }
 }

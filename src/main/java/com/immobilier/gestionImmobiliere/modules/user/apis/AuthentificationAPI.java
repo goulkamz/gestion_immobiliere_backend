@@ -8,13 +8,18 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 
+import java.util.Map;
+
 @RequestMapping("/auth")
 public interface AuthentificationAPI {
 
         @PostMapping("/signin")
-        ResponseEntity<?> authenticateUser(@Valid @RequestBody AuthenticateDTO authenticateDTO);
+        ResponseEntity<?> authenticateUser(@Valid AuthenticateDTO authenticateDTO);
 
         @PostMapping("/signup")
-        ResponseEntity<?> createUser(@Valid @RequestBody CreateUserDTO createUserDTO);
+        ResponseEntity<?> createUser(@Valid CreateUserDTO createUserDTO) throws Exception;
 
-    }
+        @PostMapping("/activation")
+        ResponseEntity<?> activateUser(@Valid Map<String,String> activationCode);
+
+}
