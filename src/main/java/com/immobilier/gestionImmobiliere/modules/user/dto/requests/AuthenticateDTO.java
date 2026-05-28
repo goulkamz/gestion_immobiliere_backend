@@ -13,7 +13,7 @@ import lombok.Data;
 public class AuthenticateDTO {
 
     @NotBlank(message = "L'email est obligatoire")
-    @JsonAlias({"username", "userName", "email", "mail"})
+    @JsonAlias({"username", "userName", "email", "telephone"})
     private String email;  // ← utiliser "email" au lieu de "username"
 
     @NotBlank(message = "Le mot de passe est obligatoire")

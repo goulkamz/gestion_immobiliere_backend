@@ -22,4 +22,7 @@ public interface AuthentificationAPI {
         @PostMapping("/activation")
         ResponseEntity<?> activateUser(@Valid Map<String,String> activationCode);
 
+        @PostMapping("/resend-code")
+        ResponseEntity<?> resendCode(@Valid String email);
+
 }

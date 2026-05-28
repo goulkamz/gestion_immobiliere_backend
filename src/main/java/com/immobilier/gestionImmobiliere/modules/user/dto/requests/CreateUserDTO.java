@@ -27,9 +27,9 @@ import java.util.Date;
         @Size(max = 254, message = "Le prénom ne doit pas dépasser 254 caractères")
         private String prenom;
 
-        @Pattern(regexp = SEXE_REGEX, message = "Le sexe doit être 'M' ou 'F'")
-        @Size(min = 1, max = 1, message = "Le sexe doit être un seul caractère")
-        private String sexe;
+        //@NotBlank( message = "Le sexe doit être 'M' ou 'F'")
+        //@Size(min = 1, max = 1, message = "Le sexe doit être un seul caractère")
+        private Character sexe;
 
         @NotBlank(message = "L'email est obligatoire")
         @Email(message = "Format d'email invalide")

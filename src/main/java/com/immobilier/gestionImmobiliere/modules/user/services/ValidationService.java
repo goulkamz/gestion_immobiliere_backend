@@ -33,7 +33,7 @@ public class ValidationService {
 
         validation.setCode(code);
         validationaRepository.save(validation);
-        notificationService.envoyer(validation);
+        //notificationService.envoyer(validation);
     }
 
     public Validation lireEnFontionDuCode(String code){
