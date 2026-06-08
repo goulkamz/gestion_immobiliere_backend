@@ -49,8 +49,11 @@ public class JwtUtils {
     @Value("${jwt.refresh.cookie.name:refresh_token}")
     private String refreshCookieName;
 
-    @Autowired
-    private FingerPrintService fingerprintService;
+    private final FingerPrintService fingerprintService;
+
+    public JwtUtils(FingerPrintService fingerprintService) {
+        this.fingerprintService = fingerprintService;
+    }
 
     @Data
     @Builder

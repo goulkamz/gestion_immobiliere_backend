@@ -1,9 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.user.apis;
 
-import com.immobilier.gestionImmobiliere.modules.user.dto.requests.ActivateUserDTO;
-import com.immobilier.gestionImmobiliere.modules.user.dto.requests.AuthenticateDTO;
-import com.immobilier.gestionImmobiliere.modules.user.dto.requests.CreateUserDTO;
-import com.immobilier.gestionImmobiliere.modules.user.dto.requests.ResendCodeEmailDTO;
+import com.immobilier.gestionImmobiliere.modules.user.dto.requests.*;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,5 +23,14 @@ public interface AuthentificationAPI {
 
         @PostMapping("/resend-code")
         ResponseEntity<?> resendCode(@Valid ResendCodeEmailDTO email);
+
+        @PostMapping("/forgot-password")
+        ResponseEntity<?> forgotPassword(@Valid ForgotPasswordRequestDTO forgotPasswordRequestDTO);
+
+        @PostMapping("/reset-password")
+        ResponseEntity<?> resetPassword(@Valid ResetPasswordRequestDTO resetPasswordRequestDTO);
+
+        @PostMapping("/forgot-password/resend")
+        ResponseEntity<?> resendResetToken(@Valid ForgotPasswordRequestDTO forgotPasswordRequestDTO);
 
 }

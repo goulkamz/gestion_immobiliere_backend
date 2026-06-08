@@ -5,7 +5,6 @@ import com.immobilier.gestionImmobiliere.donnees.roles.model.Role;
 import com.immobilier.gestionImmobiliere.donnees.roles.repository.RoleRepository;
 import com.immobilier.gestionImmobiliere.donnees.user.model.PendingRegistration;
 import com.immobilier.gestionImmobiliere.donnees.user.model.User;
-import com.immobilier.gestionImmobiliere.donnees.user.model.Validation;
 import com.immobilier.gestionImmobiliere.donnees.user.repository.PendingRegistrationRepository;
 import com.immobilier.gestionImmobiliere.donnees.user.repository.UserRepository;
 import com.immobilier.gestionImmobiliere.exceptions.EmailAlreadyExistsException;
@@ -19,7 +18,7 @@ import com.immobilier.gestionImmobiliere.modules.user.dto.requests.ResendCodeEma
 import com.immobilier.gestionImmobiliere.modules.user.dto.responses.UserInfoDTO;
 import com.immobilier.gestionImmobiliere.modules.user.jwt.JwtUtils;
 import com.immobilier.gestionImmobiliere.modules.user.jwtService.UserDetailsImpl;
-import org.springframework.beans.factory.annotation.Autowired;
+import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -41,29 +40,24 @@ public class UserService {
     private static final int CODE_EXPIRATION_MINUTES = 10;
     private static final int MAX_RESEND_ATTEMPTS = 3;
 
-    @Autowired
-    AuthenticationManager authenticationManager;
+    private final AuthenticationManager authenticationManager;
+    private final JwtUtils jwtUtils;
+    private final RoleRepository roleRepository;
+    private final PasswordEncoder encoder;
+    private final UserRepository userRepository;
+    private final PendingRegistrationRepository pendingRegistrationRepository;
+    private final NotificationService notificationService;
 
-    @Autowired
-    JwtUtils jwtUtils;
 
-    @Autowired
-    RoleRepository roleRepository;
-
-    @Autowired
-    PasswordEncoder encoder;
-
-    @Autowired
-    UserRepository userRepository;
-
-    @Autowired
-    PendingRegistrationRepository pendingRegistrationRepository;
-
-    @Autowired
-    ValidationService validationService;
-
-    @Autowired
-    NotificationService notificationService;
+    public UserService(AuthenticationManager authenticationManager, JwtUtils jwtUtils, RoleRepository roleRepository, PasswordEncoder encoder, UserRepository userRepository, PendingRegistrationRepository pendingRegistrationRepository, NotificationService notificationService) {
+        this.authenticationManager = authenticationManager;
+        this.jwtUtils = jwtUtils;
+        this.roleRepository = roleRepository;
+        this.encoder = encoder;
+        this.userRepository = userRepository;
+        this.pendingRegistrationRepository = pendingRegistrationRepository;
+        this.notificationService = notificationService;
+    }
 
 
     public ResponseEntity<?> authenticateUser(AuthenticateDTO authenticateDTO) {
@@ -139,7 +133,7 @@ public class UserService {
         pendingRegistrationRepository.save(pending);
 
         // Envoyer le code (toujours)
-        notificationService.envoyer(pending.getEmail(),pending.getNom(), pending.getCode());
+        notificationService.envoyerCodeActivation(pending.getEmail(),pending.getNom(), pending.getCode());
 
         return buildSuccessResponse(HttpStatus.CREATED,"Utilisateur temporaire "+" créé avec succès. Un code d'activation vous a été envoyé sur "+createUserDTO.getEmail(), "TEMP_USER_CREATED",null);
     }
@@ -190,20 +184,7 @@ public class UserService {
         return optionalUser.isPresent();
     }
 
-    private ResponseEntity<?> buildSuccessResponse(HttpStatus status, String message, String code, Object data) {
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("message", message);
-        response.put("code", code);
-        response.put("timestamp", Instant.now().toString());
 
-        // Si des données supplémentaires sont fournies, les ajouter
-        if (data != null) {
-            response.put("data", data);
-        }
-
-        return ResponseEntity.status(status).body(response);
-    }
 
     private String generateCode() {
         Random random = new Random();
@@ -233,8 +214,8 @@ public class UserService {
         pendingRegistrationRepository.save(pending);
 
         // Renvoyer le code
-        notificationService.envoyer(pending.getEmail(),pending.getNom(), newCode);
-        return buildSuccessResponse(HttpStatus.OK,"Un nouveau code a été envoyé à " +resendCodeEmailDTO.getEmail(),"CODE_RESENT",newCode);
+        notificationService.envoyerCodeActivation(pending.getEmail(),pending.getNom(), newCode);
+        return buildSuccessResponse(HttpStatus.OK,"Un nouveau code a été envoyé à " +resendCodeEmailDTO.getEmail(),"CODE_RESENT",null);
     }
 
     @Transactional

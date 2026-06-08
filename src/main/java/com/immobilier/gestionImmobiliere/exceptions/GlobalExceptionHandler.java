@@ -124,6 +124,29 @@ public class GlobalExceptionHandler {
         return  buildErrorResponse(HttpStatus.BAD_REQUEST,ex.getMessage(),"ROLE_NOT_FOUND",ex);
     }
 
+
+
+    @ExceptionHandler(InvalidTokenException.class)
+    public ResponseEntity<?> handleInvalidToken(InvalidTokenException e) {
+        return buildErrorResponse(HttpStatus.BAD_REQUEST,e.getMessage(),"INVALID_TOKEN", e );
+    }
+
+        @ExceptionHandler(TokenAlreadyUsedException.class)
+        public ResponseEntity<?> handleTokenUsed(TokenAlreadyUsedException e) {
+            return buildErrorResponse(HttpStatus.BAD_REQUEST,e.getMessage(),"TOKEN_ALREADY_USED", e);
+        }
+
+        @ExceptionHandler(TokenExpiredException.class)
+        public ResponseEntity<?> handleTokenExpired(TokenExpiredException e) {
+            return buildErrorResponse(HttpStatus.BAD_REQUEST,e.getMessage(),"TOKEN_EXPIRED", e);
+        }
+
+        @ExceptionHandler(SamePasswordException.class)
+        public ResponseEntity<?> handleSamePassword(SamePasswordException e) {
+            return buildErrorResponse(HttpStatus.BAD_REQUEST,e.getMessage(),"SAME_PASSWORD",e);
+        }
+
+
     private ResponseEntity<?> buildErrorResponse(HttpStatus status, String message, String code,Exception ex) {
         // Afficher la stack trace pour le debug
         if (ex != null && !(ex instanceof IllegalArgumentException) && !(ex instanceof BadCredentialsException) && "dev".equals(System.getProperty("spring.profiles.active"))) {
