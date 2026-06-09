@@ -28,7 +28,7 @@ public class PasswordResetService {
     private final PasswordEncoder passwordEncoder;
     private final NotificationService notificationService;
 
-    private static final int TOKEN_EXPIRATION_MINUTES = 15;
+    private static final int TOKEN_EXPIRATION_MINUTES = 10;
     private static final int MAX_RESEND_ATTEMPTS = 3;
     private static final int RESEND_COOLDOWN_MINUTES = 5;
 
@@ -137,12 +137,9 @@ public class PasswordResetService {
         existingToken.setExpiration(Instant.now().plus(TOKEN_EXPIRATION_MINUTES, MINUTES));
         existingToken.setAttemptCount(existingToken.getAttemptCount() + 1);
 
-        tokenRepository.save(existingToken);
+        tokenRepository.upsertToken(existingToken);
 
-        User user = userRepository.findByEmail(email).orElse(null);
-        if (user != null) {
-            notificationService.envoyerCodeReinitialisation(email, user.getNom(), newToken);
-        }
+        userRepository.findByEmail(email).ifPresent(user -> notificationService.envoyerCodeReinitialisation(email, user.getNom(), newToken));
 
         return buildSuccessResponse(HttpStatus.OK,"Un nouveau lien de réinitialisation a été envoyé.","RESET_TOKEN_RESENT",null);
     }

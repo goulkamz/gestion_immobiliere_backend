@@ -19,6 +19,9 @@ import com.immobilier.gestionImmobiliere.modules.user.dto.responses.UserInfoDTO;
 import com.immobilier.gestionImmobiliere.modules.user.jwt.JwtUtils;
 import com.immobilier.gestionImmobiliere.modules.user.jwtService.UserDetailsImpl;
 import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -60,15 +63,15 @@ public class UserService {
     }
 
 
-    public ResponseEntity<?> authenticateUser(AuthenticateDTO authenticateDTO) {
+    public ResponseEntity<?> authenticateUser(AuthenticateDTO authenticateDTO,HttpServletRequest request, HttpServletResponse response) {
 
             Authentication authentication = authenticationManager
                     .authenticate(new UsernamePasswordAuthenticationToken(authenticateDTO.getUsername(), authenticateDTO.getPassword()));
 
                 UserDetailsImpl user = (UserDetailsImpl) authentication.getPrincipal();
-                Map<String, Object> extraClaims = new HashMap<>();
-                String jwtCookie = generateJwtCookie(user, extraClaims);
-                List<String> roles = getUserRoles(user);
+                List<String> roles=getUserRoles(user);
+
+            String jwtCookie = generateJwtCookie(user,roles, request,response);
 
             UserInfoDTO userInfo = UserInfoDTO.builder()
                 .username(user.getUsername())
@@ -175,8 +178,8 @@ public class UserService {
                 .toList();
     }
 
-    public String generateJwtCookie(UserDetailsImpl user, Map<String, Object> extraClaims) {
-        return jwtUtils.generateAccessToken(user.getUsername(),extraClaims);
+    public String generateJwtCookie(UserDetailsImpl user, List<String> roles, HttpServletRequest request, HttpServletResponse response) {
+        return jwtUtils.generateAccessToken(user.getUsername(),roles,request,response);
     }
 
     public Boolean checkIfExistsByUsername(String username) {

@@ -1,6 +1,8 @@
 package com.immobilier.gestionImmobiliere.modules.user.apis;
 
 import com.immobilier.gestionImmobiliere.modules.user.dto.requests.*;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -13,7 +15,7 @@ import java.util.Map;
 public interface AuthentificationAPI {
 
         @PostMapping("/signin")
-        ResponseEntity<?> authenticateUser(@Valid AuthenticateDTO authenticateDTO);
+        ResponseEntity<?> authenticateUser(@Valid AuthenticateDTO authenticateDTO, HttpServletRequest request, HttpServletResponse response);
 
         @PostMapping("/signup")
         ResponseEntity<?> createUser(@Valid CreateUserDTO createUserDTO) throws Exception;

@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.configurations;
 
+import com.immobilier.gestionImmobiliere.modules.user.jwt.JwtUtils;
 import com.immobilier.gestionImmobiliere.modules.user.services.PasswordResetService;
 import com.immobilier.gestionImmobiliere.modules.user.services.UserService;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +16,7 @@ public class CleanupScheduler {
 
     private final UserService userService;
     private final PasswordResetService passwordResetService;
+    private final JwtUtils jwtUtils;
 
     // Nettoyage toutes les heures
     @Scheduled(fixedRate = 3600000)
@@ -25,5 +27,10 @@ public class CleanupScheduler {
     @Scheduled(fixedRate = 3600000)
     public void cleanExpiredPasswordResetToken() {
         passwordResetService.cleanExpiredPassordResetToken();
+    }
+
+    @Scheduled(fixedRate = 3600000)
+    public void cleanExpiredToken() {
+        jwtUtils.cleanupExpiredTokens();
     }
 }
