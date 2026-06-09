@@ -2,10 +2,12 @@ package com.immobilier.gestionImmobiliere.modules.user.jwt;
 
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.security.SignatureException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -18,6 +20,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.util.WebUtils;
 
 import java.security.Key;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -34,70 +38,104 @@ public class JwtUtils {
 //
 //    Ajouter WebSocket pour déconnecter l'utilisateur en temps réel
 
-    @Value("${jwtSecretAccessKey}")
-    private String accessSecret;  // Clé secrète pour signer les access tokens
+    @Value("${jwt.secret.access}")
+    private String accessSecret;
 
-    @Value("${jwtSecretRefreshKey}")
-    private String refreshSecret;  // Clé différente pour les refresh tokens
+    @Value("${jwt.secret.refresh}")
+    private String refreshSecret;
 
-    @Value("${jwtAccesExpiration:900000}")  // 15 minutes en millisecondes
+    @Value("${jwt.access.expiration:900000}")
     private long accessExpiration;
 
-    @Value("${jwtRefreshExpiration:604800000}") // 7 jours
+    @Value("${jwt.refresh.expiration:604800000}")
     private long refreshExpiration;
 
-    @Value("${jwt.refresh.cookie.name:refresh_token}")
+    @Value("${jwt.cookie.access.name:access_token}")
+    private String accessCookieName;
+
+    @Value("${jwt.cookie.refresh.name:refresh_token}")
     private String refreshCookieName;
 
+    @Value("${jwt.cookie.secure:true}")
+    private boolean cookieSecure;
+
+    @Value("${jwt.cookie.same-site:Strict}")
+    private String cookieSameSite;
+
+    @Value("${jwt.redis.secure:true}")
+    private boolean useRedis;
+
+    private final RefreshTokenRedisService refreshTokenRedisService;
     private final FingerPrintService fingerprintService;
 
-    public JwtUtils(FingerPrintService fingerprintService) {
+    public JwtUtils(RefreshTokenRedisService refreshTokenRedisService, FingerPrintService fingerprintService) {
+        this.refreshTokenRedisService = refreshTokenRedisService;
         this.fingerprintService = fingerprintService;
     }
 
-    @Data
-    @Builder
-    private static class RefreshTokenData {
-        private String username;
-        private String fingerprint;
-        private Date expiration;
-        private boolean used;
-        private List<String> roles; // Optionnel
-    }
+
 
     // Stockage temporaire des refresh tokens valides (en production, utilisez Redis)
-    private final Map<String, RefreshTokenData> validRefreshTokens = new ConcurrentHashMap<>();
+    private final Map<String, RefreshTokenRedisService.RefreshTokenData> fallbackStore = new ConcurrentHashMap<>();
+    // ============================================================
+    // GÉNÉRATION DES TOKENS
+    // ============================================================
 
-    // 🔹 GÉNÉRATION ACCESS TOKEN (Bearer)
-    public String generateAccessToken(String username, Map<String, Object> extraClaims) {
-        Map<String, Object> claims = new HashMap<>(extraClaims);
+    /**
+     * Génère un access token et l'ajoute aux cookies
+     */
+    public String generateAccessToken(String username,
+                                      List<String> roles,
+                                      HttpServletRequest request,
+                                      HttpServletResponse response) {
+        String fingerprint = fingerprintService.generateFingerprint(request, response);
+        String tokenId = UUID.randomUUID().toString();
+
+        Map<String, Object> claims = new HashMap<>();
         claims.put("type", "access");
-        claims.put("tokenId", UUID.randomUUID().toString());
+        claims.put("tokenId", tokenId);
+        claims.put("fingerprint", fingerprint);
+        claims.put("roles", roles != null ? roles : Collections.emptyList());
 
-        return Jwts.builder()
+        String accessToken = Jwts.builder()
                 .setClaims(claims)
                 .setSubject(username)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + accessExpiration))
                 .signWith(getAccessKey(), SignatureAlgorithm.HS256)
                 .compact();
+
+        // Ajouter le cookie à la réponse
+        ResponseCookie cookie = buildAccessCookie(accessToken);
+        response.addHeader("Set-Cookie", cookie.toString());
+
+        log.debug("Access token généré pour l'utilisateur: {}", username);
+        return accessToken;
     }
 
-    public String getUserNameFromJwtToken(String token) {
-        return Jwts.parserBuilder().setSigningKey(getAccessKey()).build()
-                .parseClaimsJws(token).getBody().getSubject();
+    /**
+     * Version simplifiée sans rôles
+     */
+    public String generateAccessToken(String username,
+                                      HttpServletRequest request,
+                                      HttpServletResponse response) {
+        return generateAccessToken(username, null, request, response);
     }
 
-    // 🔹 GÉNÉRATION REFRESH TOKEN (Cookie)
-    public ResponseCookie generateRefreshTokenCookie(String username, HttpServletRequest request, HttpServletResponse response) {
+    /**
+     * Génère un refresh token et l'ajoute aux cookies
+     */
+    public ResponseCookie generateRefreshTokenCookie(String username,
+                                                     List<String> roles,
+                                                     HttpServletRequest request,
+                                                     HttpServletResponse response) {
         String refreshTokenId = UUID.randomUUID().toString();
-
         String fingerprint = fingerprintService.generateFingerprint(request, response);
 
         Map<String, Object> claims = new HashMap<>();
         claims.put("type", "refresh");
         claims.put("tokenId", refreshTokenId);
-        claims.put("fingerprint", fingerprint); // Sécurité : lie le token au device
+        claims.put("fingerprint", fingerprint);
 
         String refreshToken = Jwts.builder()
                 .setClaims(claims)
@@ -108,47 +146,102 @@ public class JwtUtils {
                 .compact();
 
         // Stocker pour vérification et rotation
-        validRefreshTokens.put(refreshTokenId, RefreshTokenData.builder()
+        RefreshTokenRedisService.RefreshTokenData tokenData = RefreshTokenRedisService.RefreshTokenData.builder()
                 .username(username)
                 .fingerprint(fingerprint)
                 .expiration(new Date(System.currentTimeMillis() + refreshExpiration))
                 .used(false)
-                .build());
+                .roles(roles)
+                .createdAt(new Date())
+                .build();
+        try {
+            if (useRedis) {
+                refreshTokenRedisService.save(refreshTokenId, tokenData);
+            } else {
+                fallbackStore.put(refreshTokenId, tokenData);
+            }
+        } catch (Exception e) {
+            log.error("Redis indisponible, passage en fallback mémoire", e);
+            useRedis = false;
+            fallbackStore.put(refreshTokenId, tokenData);
+        }
 
-        // Cookie httpOnly + Secure + SameSite=Strict
-        return ResponseCookie.from(refreshCookieName, refreshToken)
-                .httpOnly(true)          // ← Protège contre XSS
-                .secure(true)            // ← HTTPS uniquement
-                .sameSite("Strict")      // ← Protège contre CSRF
+        ResponseCookie cookie = buildRefreshCookie(refreshToken);
+        response.addHeader("Set-Cookie", cookie.toString());
+
+        log.debug("Refresh token généré pour l'utilisateur: {}", username);
+        return cookie;
+    }
+
+    /**
+     * Version simplifiée sans rôles
+     */
+    public ResponseCookie generateRefreshTokenCookie(String username,
+                                                     HttpServletRequest request,
+                                                     HttpServletResponse response) {
+        return generateRefreshTokenCookie(username, null, request, response);
+    }
+
+    // ============================================================
+    // CONSTRUCTION DES COOKIES
+    // ============================================================
+
+    private ResponseCookie buildAccessCookie(String token) {
+        return ResponseCookie.from(accessCookieName, token)
+                .httpOnly(true)
+                .secure(cookieSecure)
+                .sameSite(cookieSameSite)
                 .path("/")
-                .maxAge(refreshExpiration / 1000)
+                .maxAge(accessExpiration / 1000)
                 .build();
     }
 
+    private ResponseCookie buildRefreshCookie(String token) {
+        return ResponseCookie.from(refreshCookieName, token)
+                .httpOnly(true)
+                .secure(cookieSecure)
+                .sameSite(cookieSameSite)
+                .path("/api/auth/refresh-token")  // Limiter le chemin pour plus de sécurité
+                .maxAge(refreshExpiration / 1000)
+                .build();
+    }
     // 🔹 EXTRACTION DES TOKENS (Web + Mobile)
     public String extractAccessToken(HttpServletRequest request) {
-        // 1. D'abord chercher dans header (mobile + web)
+        // Priorité au header Authorization (mobile, API)
         String bearerToken = request.getHeader("Authorization");
         if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
+            log.debug("Access token extrait du header Authorization");
             return bearerToken.substring(7);
         }
 
-        // 2. Sinon chercher dans cookie (fallback pour web legacy)
-        Cookie cookie = WebUtils.getCookie(request, "access_token");
+        // Fallback sur le cookie (web)
+        Cookie cookie = WebUtils.getCookie(request, accessCookieName);
         if (cookie != null) {
+            log.debug("Access token extrait du cookie");
             return cookie.getValue();
         }
 
+        log.debug("Aucun access token trouvé");
         return null;
     }
 
-    public String extractRefreshTokenFromCookie(HttpServletRequest request) {
+    public String extractRefreshToken(HttpServletRequest request) {
         Cookie cookie = WebUtils.getCookie(request, refreshCookieName);
-        return cookie != null ? cookie.getValue() : null;
+        if (cookie == null) {
+            log.debug("Aucun refresh token trouvé dans les cookies");
+            return null;
+        }
+
+        log.debug("Refresh token extrait du cookie");
+        return cookie.getValue();
     }
 
     // 🔹 VALIDATION DES TOKENS
     public boolean validateAccessToken(String token) {
+        if (token == null) {
+            return false;
+        }
+
         try {
             Claims claims = Jwts.parserBuilder()
                     .setSigningKey(getAccessKey())
@@ -156,15 +249,37 @@ public class JwtUtils {
                     .parseClaimsJws(token)
                     .getBody();
 
-            // Vérifier que c'est bien un access token
-            return "access".equals(claims.get("type"));
+            // Vérifier le type
+            if (!"access".equals(claims.get("type"))) {
+                log.warn("Token n'est pas un access token");
+                return false;
+            }
+
+            // Vérifier l'expiration
+            if (claims.getExpiration().before(new Date())) {
+                log.warn("Access token expiré");
+                return false;
+            }
+
+            return true;
+
+        } catch (ExpiredJwtException e) {
+            log.warn("Access token expiré: {}", e.getMessage());
+            return false;
+        } catch (SignatureException e) {
+            log.error("Signature access token invalide: {}", e.getMessage());
+            return false;
         } catch (Exception e) {
-            log.error("Access token invalide: {}", e.getMessage());
+            log.error("Validation access token échouée: {}", e.getMessage());
             return false;
         }
     }
 
     public boolean validateRefreshToken(String token, HttpServletRequest request, HttpServletResponse response) {
+        if (token == null) {
+            return false;
+        }
+
         try {
             Claims claims = Jwts.parserBuilder()
                     .setSigningKey(getRefreshKey())
@@ -174,14 +289,20 @@ public class JwtUtils {
 
             // Vérifier le type
             if (!"refresh".equals(claims.get("type"))) {
+                log.warn("Token n'est pas un refresh token");
                 return false;
             }
 
-            // Utiliser le service fingerprint
-            String currentFingerprint = fingerprintService.generateFingerprint(request, response);
+            // Vérifier l'expiration
+            if (claims.getExpiration().before(new Date())) {
+                log.warn("Refresh token expiré");
+                return false;
+            }
 
             // Vérifier le fingerprint (anti-vol)
+            String currentFingerprint = fingerprintService.generateFingerprint(request, response);
             String tokenFingerprint = (String) claims.get("fingerprint");
+
             if (!currentFingerprint.equals(tokenFingerprint)) {
                 log.warn("Fingerprint mismatch - possible vol de token");
                 return false;
@@ -189,80 +310,241 @@ public class JwtUtils {
 
             // Vérifier dans le store
             String tokenId = (String) claims.get("tokenId");
-            RefreshTokenData storedToken = validRefreshTokens.get(tokenId);
+            RefreshTokenRedisService.RefreshTokenData storedToken;
 
-            if (storedToken == null || storedToken.isUsed()) {
-                log.warn("Refresh token déjà utilisé ou inexistant");
+            if (useRedis) {
+                storedToken = refreshTokenRedisService.findById(tokenId);
+            } else {
+                storedToken = fallbackStore.get(tokenId);
+            }
+
+            if (storedToken == null) {
+                log.warn("Refresh token non trouvé dans le store");
+                return false;
+            }
+
+            if (storedToken.isUsed()) {
+                log.warn("Refresh token déjà utilisé - possible attack");
+                return false;
+            }
+
+            if (storedToken.getExpiration().before(new Date())) {
+                log.warn("Refresh token expiré (store)");
                 return false;
             }
 
             return true;
+
+        } catch (ExpiredJwtException e) {
+            log.warn("Refresh token expiré: {}", e.getMessage());
+            return false;
+        } catch (SignatureException e) {
+            log.error("Signature refresh token invalide: {}", e.getMessage());
+            return false;
         } catch (Exception e) {
-            log.error("Refresh token invalide: {}", e.getMessage());
+            log.error("Validation refresh token échouée: {}", e.getMessage());
             return false;
         }
     }
-
     // 🔹 ROTATION DU REFRESH TOKEN (sécurité maximale)
-    public Map<String, Object> refreshTokens(String oldRefreshToken, HttpServletRequest request,HttpServletResponse response) {
+    public RefreshResult refreshTokens(String oldRefreshToken,
+                                       HttpServletRequest request,
+                                       HttpServletResponse response) {
+
         if (!validateRefreshToken(oldRefreshToken, request, response)) {
             throw new SecurityException("Refresh token invalide");
         }
 
-        Claims claims = Jwts.parserBuilder()
-                .setSigningKey(getRefreshKey())
-                .build()
-                .parseClaimsJws(oldRefreshToken)
-                .getBody();
-
+        Claims claims = extractRefreshClaims(oldRefreshToken);
         String username = claims.getSubject();
         String oldTokenId = (String) claims.get("tokenId");
 
-        // Marquer l'ancien token comme utilisé (rotation)
-        RefreshTokenData oldToken = validRefreshTokens.get(oldTokenId);
-        if (oldToken != null) {
-            oldToken.setUsed(true);
+        // Récupérer et marquer l'ancien token comme utilisé
+        RefreshTokenRedisService.RefreshTokenData oldToken;
+        if (useRedis) {
+            oldToken = refreshTokenRedisService.findById(oldTokenId);
+        } else {
+            oldToken = fallbackStore.get(oldTokenId);
+        }
+        if (oldToken == null) {
+            throw new SecurityException("Refresh token non trouvé");
         }
 
-        // Générer nouveau refresh token + cookie
-        ResponseCookie newRefreshCookie = generateRefreshTokenCookie(username, request,response);
+        // Marquer comme utilisé
+        if (useRedis) {
+            refreshTokenRedisService.markAsUsed(oldTokenId);
+        } else {
+            oldToken.setUsed(true);
+            fallbackStore.put(oldTokenId, oldToken);
+        }
 
-        // Générer nouvel access token
-        Map<String, Object> accessClaims = new HashMap<>();
-        accessClaims.put("roles", oldToken.getRoles()); // À adapter
-        String newAccessToken = generateAccessToken(username, accessClaims);
+        // Générer nouveaux tokens
+        List<String> roles = oldToken.getRoles();
+        String newAccessToken = generateAccessToken(username, roles, request, response);
+        ResponseCookie newRefreshCookie = generateRefreshTokenCookie(username, roles, request, response);
 
-        return Map.of(
-                "accessToken", newAccessToken,
-                "refreshCookie", newRefreshCookie
-        );
+        log.info("Rotation des tokens effectuée pour l'utilisateur: {}", username);
+
+        return RefreshResult.builder()
+                .accessToken(newAccessToken)
+                .refreshCookie(newRefreshCookie)
+                .build();
     }
 
 
     // 🔹 NETTOYAGE REFRESH TOKEN (logout)
-    public ResponseCookie revokeRefreshToken(String refreshToken) {
+    public ResponseCookie revokeRefreshToken(String refreshToken, HttpServletResponse response) {
         if (refreshToken != null) {
             try {
-                Claims claims = Jwts.parserBuilder()
-                        .setSigningKey(getRefreshKey())
-                        .build()
-                        .parseClaimsJws(refreshToken)
-                        .getBody();
-
+                Claims claims = extractRefreshClaims(refreshToken);
                 String tokenId = (String) claims.get("tokenId");
-                validRefreshTokens.remove(tokenId);
+                if (useRedis) {
+                    refreshTokenRedisService.delete(tokenId);
+                } else {
+                    fallbackStore.remove(tokenId);
+                }
+
+                log.info("Refresh token révoqué pour l'utilisateur: {}", tokenId);
+
             } catch (Exception e) {
-                log.warn("Token déjà invalide lors du logout");
+                log.warn("Token déjà invalide lors du logout: {}", e.getMessage());
             }
         }
 
-        return ResponseCookie.from(refreshCookieName, "")
+        // Supprimer le cookie
+        ResponseCookie clearCookie = ResponseCookie.from(refreshCookieName, "")
                 .httpOnly(true)
-                .secure(true)
-                .sameSite("Strict")
+                .secure(cookieSecure)
+                .sameSite(cookieSameSite)
+                .path("/api/auth/refresh-token")
+                .maxAge(0)
+                .build();
+
+        response.addHeader("Set-Cookie", clearCookie.toString());
+
+        // Supprimer aussi le cookie access token
+        ResponseCookie clearAccessCookie = ResponseCookie.from(accessCookieName, "")
+                .httpOnly(true)
+                .secure(cookieSecure)
+                .sameSite(cookieSameSite)
                 .path("/")
                 .maxAge(0)
                 .build();
+
+        response.addHeader("Set-Cookie", clearAccessCookie.toString());
+
+        return clearCookie;
+    }
+
+    /**
+     * Révoque tous les refresh tokens d'un utilisateur (déconnexion globale)
+     */
+    public int revokeAllUserTokens(String username) {
+        int count ;
+        if (useRedis) {
+            count = refreshTokenRedisService.revokeAllUserTokens(username);
+        } else {
+            // Fallback: parcourir la map (inefficace, à éviter)
+            count = 0;
+            Iterator<Map.Entry<String, RefreshTokenRedisService.RefreshTokenData>> iter = fallbackStore.entrySet().iterator();
+            while (iter.hasNext()) {
+                Map.Entry<String, RefreshTokenRedisService.RefreshTokenData> entry = iter.next();
+                if (entry.getValue().getUsername().equals(username)) {
+                    iter.remove();
+                    count++;
+                }
+            }
+        }
+
+        log.info("{} tokens révoqués pour user: {}", count, username);
+        return count;
+    }
+
+    // ============================================================
+    // MÉTHODES UTILITAIRES
+    // ============================================================
+
+    /**
+     * Extrait le username d'un access token
+     */
+    public String getUsernameFromAccessToken(String token) {
+        if (!validateAccessToken(token)) {
+            throw new SecurityException("Access token invalide");
+        }
+        return extractAccessClaims(token).getSubject();
+    }
+
+    /**
+     * Extrait les rôles d'un access token
+     */
+    @SuppressWarnings("unchecked")
+    public List<String> getRolesFromAccessToken(String token) {
+        if (!validateAccessToken(token)) {
+            return Collections.emptyList();
+        }
+        Claims claims = extractAccessClaims(token);
+        Object roles = claims.get("roles");
+        if (roles instanceof List) {
+            return (List<String>) roles;
+        }
+        return Collections.emptyList();
+    }
+
+    /**
+     * Vérifie si un token peut être rafraîchi
+     */
+    public boolean isRefreshable(String refreshToken, HttpServletRequest request, HttpServletResponse response) {
+        return validateRefreshToken(refreshToken, request, response);
+    }
+
+    public boolean isRedisAvailable() {
+        return useRedis;
+    }
+
+    public long getActiveTokensCount() {
+        if (useRedis) {
+            return refreshTokenRedisService.getActiveTokensCount();
+        }
+        return fallbackStore.size();
+    }
+
+    // ============================================================
+    // EXTRACTION DES CLAIMS (PRIVÉES)
+    // ============================================================
+
+    private Claims extractAccessClaims(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(getAccessKey())
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+    }
+
+    private Claims extractRefreshClaims(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(getRefreshKey())
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+    }
+
+    @Data
+    @Builder
+    public static class RefreshResult {
+        private String accessToken;
+        private ResponseCookie refreshCookie;
+
+        public Map<String, Object> toMap() {
+            Map<String, Object> map = new HashMap<>();
+            map.put("accessToken", accessToken);
+            map.put("refreshCookie", refreshCookie);
+            return map;
+        }
+    }
+
+    public String getUserNameFromJwtToken(String token) {
+        return Jwts.parserBuilder().setSigningKey(getAccessKey()).build()
+                .parseClaimsJws(token).getBody().getSubject();
     }
 
     private Key getAccessKey() {
@@ -274,6 +556,30 @@ public class JwtUtils {
     private Key getRefreshKey() {
         byte[] keyBytes = Decoders.BASE64.decode(refreshSecret);
         return Keys.hmacShaKeyFor(keyBytes);
+    }
+
+
+    public void cleanupExpiredTokens() {
+        Date now = new Date();
+        int before = fallbackStore.size();
+
+        // Utiliser un filtre plus agressif
+        fallbackStore.entrySet().removeIf(entry -> {
+            RefreshTokenRedisService.RefreshTokenData data = entry.getValue();
+
+            // Supprimer SI :
+            // 1. Token expiré
+            // 2. Token utilisé (même non expiré)
+            // 3. Token plus vieux que 7 jours (même non expiré !)
+            // 4. Token sans fingerprint valide
+            return data.getExpiration().before(now)
+                    || data.isUsed()
+                    || data.getCreatedAt().before(Date.from(Instant.now().minus(7, ChronoUnit.DAYS)))
+                    || data.getFingerprint() == null;
+        });
+
+        int after = fallbackStore.size();
+        log.info("Nettoyage: {} tokens supprimés, {} restants", before - after, after);
     }
 
 }

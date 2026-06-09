@@ -4,6 +4,8 @@ import com.immobilier.gestionImmobiliere.modules.user.apis.AuthentificationAPI;
 import com.immobilier.gestionImmobiliere.modules.user.dto.requests.*;
 import com.immobilier.gestionImmobiliere.modules.user.services.PasswordResetService;
 import com.immobilier.gestionImmobiliere.modules.user.services.UserService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,8 +26,8 @@ public class UserController implements AuthentificationAPI {
     }
 
     @Override
-    public ResponseEntity<?> authenticateUser(@Valid @RequestBody AuthenticateDTO authenticateDTO) {
-        return userService.authenticateUser(authenticateDTO);
+    public ResponseEntity<?> authenticateUser(@Valid @RequestBody AuthenticateDTO authenticateDTO, HttpServletRequest request, HttpServletResponse response) {
+        return userService.authenticateUser(authenticateDTO,request,response);
     }
 
     @Override
