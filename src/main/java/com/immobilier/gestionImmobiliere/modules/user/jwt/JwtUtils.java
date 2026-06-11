@@ -45,6 +45,7 @@ public class JwtUtils {
     @Value("${jwt.secret.refresh}")
     private String refreshSecret;
 
+    @Getter
     @Value("${jwt.access.expiration:900000}")
     private long accessExpiration;
 
@@ -118,7 +119,7 @@ public class JwtUtils {
     /**
      * Génère un refresh token et l'ajoute aux cookies
      */
-    public ResponseCookie generateRefreshTokenCookie(String username,
+    public String generateRefreshTokenCookie(String username,
                                                      HttpServletRequest request,
                                                      HttpServletResponse response) {
         String refreshTokenId = UUID.randomUUID().toString();
@@ -161,7 +162,7 @@ public class JwtUtils {
         response.addHeader("Set-Cookie", cookie.toString());
 
         log.debug("Refresh token généré pour l'utilisateur: {}", username);
-        return cookie;
+        return refreshToken;
     }
 
 
@@ -364,13 +365,13 @@ public class JwtUtils {
         // Générer nouveaux tokens
 
         String newAccessToken = generateAccessToken(username, request, response);
-        ResponseCookie newRefreshCookie = generateRefreshTokenCookie(username,  request, response);
+        String newRefreshToken = generateRefreshTokenCookie(username,  request, response);
 
         log.info("Rotation des tokens effectuée pour l'utilisateur: {}", username);
 
         return RefreshResult.builder()
                 .accessToken(newAccessToken)
-                .refreshCookie(newRefreshCookie)
+                .refreshToken(newRefreshToken)
                 .build();
     }
 
@@ -481,12 +482,12 @@ public class JwtUtils {
     @Builder
     public static class RefreshResult {
         private String accessToken;
-        private ResponseCookie refreshCookie;
+        private String refreshToken;
 
         public Map<String, Object> toMap() {
             Map<String, Object> map = new HashMap<>();
             map.put("accessToken", accessToken);
-            map.put("refreshCookie", refreshCookie);
+            map.put("refreshToken", refreshToken);
             return map;
         }
     }
@@ -517,9 +518,10 @@ public class JwtUtils {
             RefreshTokenRedisService.RefreshTokenData data = entry.getValue();
 
             // Supprimer SI :
-            // 1. Token expiré
-            // 4. Token sans fingerprint valide
-            return data.getExpiration().before(now) || data.getFingerprint() == null;
+            // Token expiré
+            // Token utilisé
+            // Token sans fingerprint valide
+            return data.getExpiration().before(now) || data.isUsed() || data.getFingerprint() == null;
         });
 
         int after = fallbackStore.size();

@@ -11,7 +11,9 @@ import java.util.List;
     public class UserInfoDTO {
 
         private String username;
-        private String token;
+        private String accessToken;
+        private String refreshToken;  // ← Pour mobile
+        private Long expiresIn;
         private List<String> roles;
 
 
