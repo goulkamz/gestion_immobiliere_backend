@@ -18,18 +18,18 @@ public class CleanupScheduler {
     private final PasswordResetService passwordResetService;
     private final JwtUtils jwtUtils;
 
-    // Nettoyage toutes les heures
-    @Scheduled(fixedRate = 3600000)
+    // Nettoyage tous les jours a 2h du matin
+    @Scheduled(cron = "0 0 2 * * *")
     public void cleanExpiredPendingRegistrations() {
         userService.cleanExpiredPendingRegistrations();
     }
 
-    @Scheduled(fixedRate = 3600000)
+    @Scheduled(cron = "0 0 2 * * *")
     public void cleanExpiredPasswordResetToken() {
         passwordResetService.cleanExpiredPassordResetToken();
     }
 
-    @Scheduled(fixedRate = 3600000)
+    @Scheduled(cron = "0 0 2 * * *")
     public void cleanExpiredToken() {
         jwtUtils.cleanupExpiredTokens();
     }

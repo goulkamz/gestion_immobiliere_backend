@@ -518,13 +518,8 @@ public class JwtUtils {
 
             // Supprimer SI :
             // 1. Token expiré
-            // 2. Token utilisé (même non expiré)
-            // 3. Token plus vieux que 7 jours (même non expiré !)
             // 4. Token sans fingerprint valide
-            return data.getExpiration().before(now)
-                    || data.isUsed()
-                    || data.getCreatedAt().before(Date.from(Instant.now().minus(7, ChronoUnit.DAYS)))
-                    || data.getFingerprint() == null;
+            return data.getExpiration().before(now) || data.getFingerprint() == null;
         });
 
         int after = fallbackStore.size();
