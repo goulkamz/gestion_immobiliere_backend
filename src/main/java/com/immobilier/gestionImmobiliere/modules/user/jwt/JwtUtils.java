@@ -16,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseCookie;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.WebUtils;
 
@@ -67,10 +68,12 @@ public class JwtUtils {
 
     private final RefreshTokenRedisService refreshTokenRedisService;
     private final FingerPrintService fingerprintService;
+    private final PasswordEncoder encoder;
 
-    public JwtUtils(RefreshTokenRedisService refreshTokenRedisService, FingerPrintService fingerprintService) {
+    public JwtUtils(RefreshTokenRedisService refreshTokenRedisService, FingerPrintService fingerprintService, PasswordEncoder encoder) {
         this.refreshTokenRedisService = refreshTokenRedisService;
         this.fingerprintService = fingerprintService;
+        this.encoder = encoder;
     }
 
 
@@ -85,17 +88,16 @@ public class JwtUtils {
      * Génère un access token et l'ajoute aux cookies
      */
     public String generateAccessToken(String username,
-                                      List<String> roles,
                                       HttpServletRequest request,
                                       HttpServletResponse response) {
-        String fingerprint = fingerprintService.generateFingerprint(request, response);
+        String fingerprint = encoder.encode(fingerprintService.generateFingerprint(request, response));
         String tokenId = UUID.randomUUID().toString();
 
         Map<String, Object> claims = new HashMap<>();
         claims.put("type", "access");
         claims.put("tokenId", tokenId);
         claims.put("fingerprint", fingerprint);
-        claims.put("roles", roles != null ? roles : Collections.emptyList());
+        //claims.put("roles", roles != null ? roles : Collections.emptyList());
 
         String accessToken = Jwts.builder()
                 .setClaims(claims)
@@ -114,23 +116,13 @@ public class JwtUtils {
     }
 
     /**
-     * Version simplifiée sans rôles
-     */
-    public String generateAccessToken(String username,
-                                      HttpServletRequest request,
-                                      HttpServletResponse response) {
-        return generateAccessToken(username, null, request, response);
-    }
-
-    /**
      * Génère un refresh token et l'ajoute aux cookies
      */
     public ResponseCookie generateRefreshTokenCookie(String username,
-                                                     List<String> roles,
                                                      HttpServletRequest request,
                                                      HttpServletResponse response) {
         String refreshTokenId = UUID.randomUUID().toString();
-        String fingerprint = fingerprintService.generateFingerprint(request, response);
+        String fingerprint = encoder.encode(fingerprintService.generateFingerprint(request, response));
 
         Map<String, Object> claims = new HashMap<>();
         claims.put("type", "refresh");
@@ -151,7 +143,6 @@ public class JwtUtils {
                 .fingerprint(fingerprint)
                 .expiration(new Date(System.currentTimeMillis() + refreshExpiration))
                 .used(false)
-                .roles(roles)
                 .createdAt(new Date())
                 .build();
         try {
@@ -173,14 +164,6 @@ public class JwtUtils {
         return cookie;
     }
 
-    /**
-     * Version simplifiée sans rôles
-     */
-    public ResponseCookie generateRefreshTokenCookie(String username,
-                                                     HttpServletRequest request,
-                                                     HttpServletResponse response) {
-        return generateRefreshTokenCookie(username, null, request, response);
-    }
 
     // ============================================================
     // CONSTRUCTION DES COOKIES
@@ -300,7 +283,7 @@ public class JwtUtils {
             }
 
             // Vérifier le fingerprint (anti-vol)
-            String currentFingerprint = fingerprintService.generateFingerprint(request, response);
+            String currentFingerprint = encoder.encode(fingerprintService.generateFingerprint(request, response));
             String tokenFingerprint = (String) claims.get("fingerprint");
 
             if (!currentFingerprint.equals(tokenFingerprint)) {
@@ -379,9 +362,9 @@ public class JwtUtils {
         }
 
         // Générer nouveaux tokens
-        List<String> roles = oldToken.getRoles();
-        String newAccessToken = generateAccessToken(username, roles, request, response);
-        ResponseCookie newRefreshCookie = generateRefreshTokenCookie(username, roles, request, response);
+
+        String newAccessToken = generateAccessToken(username, request, response);
+        ResponseCookie newRefreshCookie = generateRefreshTokenCookie(username,  request, response);
 
         log.info("Rotation des tokens effectuée pour l'utilisateur: {}", username);
 
@@ -464,38 +447,11 @@ public class JwtUtils {
     // MÉTHODES UTILITAIRES
     // ============================================================
 
-    /**
-     * Extrait le username d'un access token
-     */
-    public String getUsernameFromAccessToken(String token) {
-        if (!validateAccessToken(token)) {
-            throw new SecurityException("Access token invalide");
-        }
-        return extractAccessClaims(token).getSubject();
-    }
 
-    /**
-     * Extrait les rôles d'un access token
-     */
-    @SuppressWarnings("unchecked")
-    public List<String> getRolesFromAccessToken(String token) {
-        if (!validateAccessToken(token)) {
-            return Collections.emptyList();
-        }
-        Claims claims = extractAccessClaims(token);
-        Object roles = claims.get("roles");
-        if (roles instanceof List) {
-            return (List<String>) roles;
-        }
-        return Collections.emptyList();
-    }
 
     /**
      * Vérifie si un token peut être rafraîchi
      */
-    public boolean isRefreshable(String refreshToken, HttpServletRequest request, HttpServletResponse response) {
-        return validateRefreshToken(refreshToken, request, response);
-    }
 
     public boolean isRedisAvailable() {
         return useRedis;
@@ -512,13 +468,6 @@ public class JwtUtils {
     // EXTRACTION DES CLAIMS (PRIVÉES)
     // ============================================================
 
-    private Claims extractAccessClaims(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(getAccessKey())
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
-    }
 
     private Claims extractRefreshClaims(String token) {
         return Jwts.parserBuilder()

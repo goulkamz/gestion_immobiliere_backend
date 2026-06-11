@@ -76,8 +76,12 @@ public class UserService {
             UserInfoDTO userInfo = UserInfoDTO.builder()
                 .username(user.getUsername())
                 .roles(roles)
-                .token(jwtCookie)
                 .build();
+
+            String clientType = request.getHeader("X-Client-Type");
+            if ("mobile".equals(clientType)) {
+                  userInfo.setToken(jwtCookie);
+            }
 
             return buildSuccessResponse(HttpStatus.OK, "Authentification réussie", "LOGIN_SUCCESS", userInfo);
     }
@@ -179,7 +183,9 @@ public class UserService {
     }
 
     public String generateJwtCookie(UserDetailsImpl user, List<String> roles, HttpServletRequest request, HttpServletResponse response) {
-        return jwtUtils.generateAccessToken(user.getUsername(),roles,request,response);
+        jwtUtils.generateRefreshTokenCookie(user.getUsername(),request,response);
+        return jwtUtils.generateAccessToken(user.getUsername(),request,response);
+
     }
 
     public Boolean checkIfExistsByUsername(String username) {

@@ -28,7 +28,6 @@ public class RefreshTokenRedisService {
         private String fingerprint;
         private Date expiration;
         private boolean used;
-        private List<String> roles;
         private String deviceId;
         private Date createdAt;
     }
