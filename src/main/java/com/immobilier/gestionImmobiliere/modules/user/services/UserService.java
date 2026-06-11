@@ -23,6 +23,7 @@ import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.build
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -71,7 +72,8 @@ public class UserService {
                 UserDetailsImpl user = (UserDetailsImpl) authentication.getPrincipal();
                 List<String> roles=getUserRoles(user);
 
-            String jwtCookie = generateJwtCookie(user,roles, request,response);
+            String accessToken = generateJwtCookie(user,roles, request,response);
+            String refreschToken = jwtUtils.generateRefreshTokenCookie(user.getUsername(),request,response);
 
             UserInfoDTO userInfo = UserInfoDTO.builder()
                 .username(user.getUsername())
@@ -80,7 +82,9 @@ public class UserService {
 
             String clientType = request.getHeader("X-Client-Type");
             if ("mobile".equals(clientType)) {
-                  userInfo.setToken(jwtCookie);
+                  userInfo.setAccessToken("Bearer " + accessToken);
+                  userInfo.setRefreshToken(refreschToken);
+                  userInfo.setExpiresIn(jwtUtils.getAccessExpiration()/1000);
             }
 
             return buildSuccessResponse(HttpStatus.OK, "Authentification réussie", "LOGIN_SUCCESS", userInfo);
@@ -183,7 +187,6 @@ public class UserService {
     }
 
     public String generateJwtCookie(UserDetailsImpl user, List<String> roles, HttpServletRequest request, HttpServletResponse response) {
-        jwtUtils.generateRefreshTokenCookie(user.getUsername(),request,response);
         return jwtUtils.generateAccessToken(user.getUsername(),request,response);
 
     }
