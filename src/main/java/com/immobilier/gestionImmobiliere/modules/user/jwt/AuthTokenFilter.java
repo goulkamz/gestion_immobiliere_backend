@@ -27,8 +27,15 @@ public class AuthTokenFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+    protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+        String path = request.getServletPath();
+        // Liste des chemins à ignorer complètement
+        return path.startsWith("/auth/") || path.startsWith("/public/");
+    }
 
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+        logger.debug("Processing request: {} {}");
         try {
             String jwt = jwtUtils.extractAccessToken(request);
             if (jwt != null && jwtUtils.validateAccessToken(jwt)) {
@@ -44,6 +51,7 @@ public class AuthTokenFilter extends OncePerRequestFilter {
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
+                logger.debug("Authenticated user: {}");
             }
         } catch (Exception e) {
             logger.error("Cannot set user authentication: {}", e);
