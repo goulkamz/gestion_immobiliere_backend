@@ -83,7 +83,7 @@ public class UserService {
             String clientType = request.getHeader("X-Client-Type");
             if ("mobile".equals(clientType)) {
                   userInfo.setAccessToken("Bearer " + accessToken);
-                  userInfo.setRefreshToken(refreschToken);
+                  userInfo.setRefreshToken("");
                   userInfo.setExpiresIn(jwtUtils.getAccessExpiration()/1000);
             }
 
