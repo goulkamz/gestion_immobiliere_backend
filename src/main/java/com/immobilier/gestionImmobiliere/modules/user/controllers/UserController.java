@@ -7,12 +7,9 @@ import com.immobilier.gestionImmobiliere.modules.user.services.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.Map;
 
 @RestController
 public class UserController implements AuthentificationAPI {
@@ -58,5 +55,20 @@ public class UserController implements AuthentificationAPI {
     @Override
     public ResponseEntity<?> resendResetToken(@Valid @RequestBody ForgotPasswordRequestDTO forgotPasswordRequestDTO) {
         return passwordResetService.resendResetToken(forgotPasswordRequestDTO.getEmail());
+    }
+
+    @Override
+    public ResponseEntity<?> refreshToken(HttpServletRequest request, HttpServletResponse response) {
+        return userService.refreshToken(request, response);
+    }
+
+    @Override
+    public ResponseEntity<?> logout(HttpServletRequest request, HttpServletResponse response) {
+        return userService.logout(request, response);
+    }
+
+    @Override
+    public ResponseEntity<?> logoutAllDevices(HttpServletRequest request, HttpServletResponse response) {
+        return userService.logoutAllDevices(request, response);
     }
 }
