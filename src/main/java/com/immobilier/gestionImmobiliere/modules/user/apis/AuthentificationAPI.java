@@ -5,6 +5,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -35,4 +36,15 @@ public interface AuthentificationAPI {
         @PostMapping("/forgot-password/resend")
         ResponseEntity<?> resendResetToken(@Valid ForgotPasswordRequestDTO forgotPasswordRequestDTO);
 
+        // 🔹 Rafraîchit l'access token à partir du refresh token présent en cookie
+        @PostMapping("/refresh-token")
+        ResponseEntity<?> refreshToken(HttpServletRequest request, HttpServletResponse response);
+
+        // 🔹 Déconnexion locale : révoque le refresh token courant et efface les cookies
+        @PostMapping("/logout")
+        ResponseEntity<?> logout(HttpServletRequest request, HttpServletResponse response);
+
+        // 🔹 Déconnexion globale : révoque tous les refresh tokens de l'utilisateur connecté
+        @PostMapping("/logout-all")
+        ResponseEntity<?> logoutAllDevices(HttpServletRequest request, HttpServletResponse response);
 }

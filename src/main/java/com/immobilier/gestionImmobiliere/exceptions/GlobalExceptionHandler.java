@@ -68,6 +68,11 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.FORBIDDEN, "Vous n'avez pas les droits nécessaires pour accéder à cette ressource.", "INSUFFICIENT_PRIVILEGES", ex);
     }
 
+    @ExceptionHandler(SecurityException.class)
+    public ResponseEntity<?> handleSecurityException(SecurityException ex) {
+        return buildErrorResponse(HttpStatus.UNAUTHORIZED, ex.getMessage(), "INVALID_REFRESH_TOKEN", ex);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<?> handleValidationExceptions(MethodArgumentNotValidException ex) {
         Map<String, String> errors = new HashMap<>();
@@ -145,6 +150,26 @@ public class GlobalExceptionHandler {
         public ResponseEntity<?> handleSamePassword(SamePasswordException e) {
             return buildErrorResponse(HttpStatus.BAD_REQUEST,e.getMessage(),"SAME_PASSWORD",e);
         }
+
+    @ExceptionHandler(PaysNotFoundException.class)
+    public ResponseEntity<?> handlePaysNotFound(PaysNotFoundException ex) {
+        return buildErrorResponse(HttpStatus.NOT_FOUND, ex.getMessage(), "PAYS_NOT_FOUND", ex);
+    }
+
+    @ExceptionHandler(VilleNotFoundException.class)
+    public ResponseEntity<?> handleVilleNotFound(VilleNotFoundException ex) {
+        return buildErrorResponse(HttpStatus.NOT_FOUND, ex.getMessage(), "VILLE_NOT_FOUND", ex);
+    }
+
+    @ExceptionHandler(SecteurNotFoundException.class)
+    public ResponseEntity<?> handleSecteurNotFound(SecteurNotFoundException ex) {
+        return buildErrorResponse(HttpStatus.NOT_FOUND, ex.getMessage(), "SECTEUR_NOT_FOUND", ex);
+    }
+
+    @ExceptionHandler(CodeAlreadyExistsException.class)
+    public ResponseEntity<?> handleCodeExists(CodeAlreadyExistsException ex) {
+        return buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage(), "CODE_ALREADY_EXISTS", ex);
+    }
 
 
     private ResponseEntity<?> buildErrorResponse(HttpStatus status, String message, String code,Exception ex) {

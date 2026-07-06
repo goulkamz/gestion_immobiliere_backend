@@ -180,6 +180,40 @@ public class UserService {
         return  buildSuccessResponse(HttpStatus.OK, "Compte activé avec succès", "ACCOUNT_ACTIVATED",null);
     }
 
+    @Transactional
+    public ResponseEntity<?> refreshToken(HttpServletRequest request, HttpServletResponse response) {
+        String oldRefreshToken = jwtUtils.extractRefreshToken(request);
+        if (oldRefreshToken == null) {
+            throw new SecurityException("Aucun refresh token fourni");
+        }
+        JwtUtils.RefreshResult result = jwtUtils.refreshTokens(oldRefreshToken, request, response);
+
+        String clientType = request.getHeader("X-Client-Type");
+        Map<String, Object> body = "mobile".equals(clientType)
+                ? result.toMap()
+                : Map.of("expiresIn", jwtUtils.getAccessExpiration() / 1000);
+
+        return buildSuccessResponse(HttpStatus.OK, "Token rafraîchi avec succès", "TOKEN_REFRESHED", body);
+    }
+
+    public ResponseEntity<?> logout(HttpServletRequest request, HttpServletResponse response) {
+        String refreshToken = jwtUtils.extractRefreshToken(request);
+        jwtUtils.revokeRefreshToken(refreshToken, response);
+        return buildSuccessResponse(HttpStatus.OK, "Déconnexion réussie", "LOGOUT_SUCCESS", null);
+    }
+
+    public ResponseEntity<?> logoutAllDevices(HttpServletRequest request, HttpServletResponse response) {
+        String accessToken = jwtUtils.extractAccessToken(request);
+        if (accessToken == null || !jwtUtils.validateAccessToken(accessToken)) {
+            throw new SecurityException("Session invalide");
+        }
+        String username = jwtUtils.getUserNameFromJwtToken(accessToken);
+        int revoked = jwtUtils.revokeAllUserTokens(username);
+        jwtUtils.revokeRefreshToken(jwtUtils.extractRefreshToken(request), response); // nettoie la session courante
+
+        return buildSuccessResponse(HttpStatus.OK, revoked + " session(s) déconnectée(s)", "LOGOUT_ALL_SUCCESS", Map.of("revokedCount", revoked));
+    }
+
     public List<String> getUserRoles(UserDetailsImpl user) {
         return user.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
