@@ -13,6 +13,7 @@ import com.immobilier.gestionImmobiliere.exceptions.ResourceNotFoundException;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.CreateContratMandatDTO;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.ResilierMandatDTO;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.responses.ContratMandatResponseDTO;
+import com.immobilier.gestionImmobiliere.modules.paiements.services.EcheanceGenerationService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -30,11 +31,13 @@ public class ContratMandatService {
     private final ContratMandatRepository mandatRepository;
     private final CourRepository courRepository;
     private final UserRepository userRepository;
+    private final EcheanceGenerationService echeanceGenerationService;
 
-    public ContratMandatService(ContratMandatRepository mandatRepository, CourRepository courRepository, UserRepository userRepository) {
+    public ContratMandatService(ContratMandatRepository mandatRepository, CourRepository courRepository, UserRepository userRepository, EcheanceGenerationService echeanceGenerationService) {
         this.mandatRepository = mandatRepository;
         this.courRepository = courRepository;
         this.userRepository = userRepository;
+        this.echeanceGenerationService = echeanceGenerationService;
     }
 
     public ResponseEntity<?> getAll(Integer idCour, StatutMandat statut, Pageable pageable) {
@@ -83,7 +86,7 @@ public class ContratMandatService {
 
         mandat.setStatut(StatutMandat.ACTIF);
         mandatRepository.save(mandat);
-        // TODO (module Paiements) : génération automatique des échéances de commission
+        echeanceGenerationService.genererEcheancesMandat(mandat);
         return buildSuccessResponse(HttpStatus.OK, "Mandat activé", "MANDAT_ACTIVATED", toDto(mandat));
     }
 

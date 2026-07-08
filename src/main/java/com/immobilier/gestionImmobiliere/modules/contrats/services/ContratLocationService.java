@@ -14,6 +14,7 @@ import com.immobilier.gestionImmobiliere.exceptions.ResourceNotFoundException;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.CreateContratLocationDTO;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.TerminerLocationDTO;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.responses.ContratLocationResponseDTO;
+import com.immobilier.gestionImmobiliere.modules.paiements.services.EcheanceGenerationService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -32,11 +33,13 @@ public class ContratLocationService {
     private final ContratLocationRepository locationRepository;
     private final MaisonRepository maisonRepository;
     private final UserRepository userRepository;
+    private final EcheanceGenerationService echeanceGenerationService;
 
-    public ContratLocationService(ContratLocationRepository locationRepository, MaisonRepository maisonRepository, UserRepository userRepository) {
+    public ContratLocationService(ContratLocationRepository locationRepository, MaisonRepository maisonRepository, UserRepository userRepository, EcheanceGenerationService echeanceGenerationService) {
         this.locationRepository = locationRepository;
         this.maisonRepository = maisonRepository;
         this.userRepository = userRepository;
+        this.echeanceGenerationService = echeanceGenerationService;
     }
 
     /**
@@ -120,7 +123,7 @@ public class ContratLocationService {
         maison.setStatut(StatutMaison.LOUEE);
         maisonRepository.save(maison);
 
-        // TODO (module Paiements) : génération automatique des échéances de loyer
+        echeanceGenerationService.genererEcheancesLocation(location);
         return buildSuccessResponse(HttpStatus.CREATED, "Contrat de location créé, maison marquée louée", "LOCATION_CREATED", toDto(location));
     }
 
