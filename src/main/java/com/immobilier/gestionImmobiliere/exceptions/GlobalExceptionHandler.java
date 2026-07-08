@@ -182,6 +182,21 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.FORBIDDEN, "Vous n'êtes pas autorisé à accéder à cette ressource.", "ACCESS_DENIED", ex);
     }
 
+    @ExceptionHandler(EcheanceDejaPayeeException.class)
+    public ResponseEntity<?> handleEcheanceDejaPayee(EcheanceDejaPayeeException ex) {
+        return buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage(), "ECHEANCE_DEJA_PAYEE", ex);
+    }
+
+    @ExceptionHandler(MontantPaiementInvalideException.class)
+    public ResponseEntity<?> handleMontantInvalide(MontantPaiementInvalideException ex) {
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), "MONTANT_PAIEMENT_INVALIDE", ex);
+    }
+
+    @ExceptionHandler(DateExpirationInvalideException.class)
+    public ResponseEntity<?> handleDateExpirationInvalide(DateExpirationInvalideException ex) {
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), "DATE_EXPIRATION_INVALIDE", ex);
+    }
+
     private ResponseEntity<?> buildErrorResponse(HttpStatus status, String message, String code,Exception ex) {
         // Afficher la stack trace pour le debug
         if (ex != null && !(ex instanceof IllegalArgumentException) && !(ex instanceof BadCredentialsException) && "dev".equals(System.getProperty("spring.profiles.active"))) {
