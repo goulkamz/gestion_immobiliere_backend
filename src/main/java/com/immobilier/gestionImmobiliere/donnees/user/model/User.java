@@ -2,7 +2,6 @@ package com.immobilier.gestionImmobiliere.donnees.user.model;
 
 
 import com.immobilier.gestionImmobiliere.donnees.Model;
-import com.immobilier.gestionImmobiliere.donnees.roles.model.Role;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -10,8 +9,6 @@ import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.experimental.SuperBuilder;
 
 import java.util.Date;
 
