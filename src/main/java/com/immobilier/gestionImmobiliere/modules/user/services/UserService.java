@@ -1,8 +1,8 @@
 package com.immobilier.gestionImmobiliere.modules.user.services;
 
-import com.immobilier.gestionImmobiliere.donnees.roles.model.ERole;
-import com.immobilier.gestionImmobiliere.donnees.roles.model.Role;
-import com.immobilier.gestionImmobiliere.donnees.roles.repository.RoleRepository;
+import com.immobilier.gestionImmobiliere.donnees.user.model.ERole;
+import com.immobilier.gestionImmobiliere.donnees.user.model.Role;
+import com.immobilier.gestionImmobiliere.donnees.user.repository.RoleRepository;
 import com.immobilier.gestionImmobiliere.donnees.user.model.PendingRegistration;
 import com.immobilier.gestionImmobiliere.donnees.user.model.User;
 import com.immobilier.gestionImmobiliere.donnees.user.repository.PendingRegistrationRepository;
@@ -23,7 +23,6 @@ import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.build
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;

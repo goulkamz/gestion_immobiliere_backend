@@ -1,7 +1,7 @@
 package com.immobilier.gestionImmobiliere.modules.user.jwtService;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.immobilier.gestionImmobiliere.donnees.roles.model.Role;
+import com.immobilier.gestionImmobiliere.donnees.user.model.Role;
 import com.immobilier.gestionImmobiliere.donnees.user.model.User;
 import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
@@ -138,4 +138,19 @@ public class UserDetailsImpl implements UserDetails {
                 ", actif=" + actif +
                 ", role=" + (role != null ? role.getLibelleRole() : null) +
                 '}';
-    }}
+    }
+
+    public boolean hasRole(String role) {
+        return getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_" + role));
+    }
+
+    public boolean hasAnyRole(String... roles) {
+        for (String role : roles) {
+            if (hasRole(role)) {
+                return true;
+            }
+        }
+        return false;
+    }
+}

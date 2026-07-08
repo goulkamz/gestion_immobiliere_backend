@@ -151,26 +151,36 @@ public class GlobalExceptionHandler {
             return buildErrorResponse(HttpStatus.BAD_REQUEST,e.getMessage(),"SAME_PASSWORD",e);
         }
 
-    @ExceptionHandler(PaysNotFoundException.class)
-    public ResponseEntity<?> handlePaysNotFound(PaysNotFoundException ex) {
-        return buildErrorResponse(HttpStatus.NOT_FOUND, ex.getMessage(), "PAYS_NOT_FOUND", ex);
-    }
-
-    @ExceptionHandler(VilleNotFoundException.class)
-    public ResponseEntity<?> handleVilleNotFound(VilleNotFoundException ex) {
-        return buildErrorResponse(HttpStatus.NOT_FOUND, ex.getMessage(), "VILLE_NOT_FOUND", ex);
-    }
-
-    @ExceptionHandler(SecteurNotFoundException.class)
-    public ResponseEntity<?> handleSecteurNotFound(SecteurNotFoundException ex) {
-        return buildErrorResponse(HttpStatus.NOT_FOUND, ex.getMessage(), "SECTEUR_NOT_FOUND", ex);
-    }
 
     @ExceptionHandler(CodeAlreadyExistsException.class)
     public ResponseEntity<?> handleCodeExists(CodeAlreadyExistsException ex) {
         return buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage(), "CODE_ALREADY_EXISTS", ex);
     }
 
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<?> handleResourceNotFound(ResourceNotFoundException ex) {
+        return buildErrorResponse(HttpStatus.NOT_FOUND, ex.getMessage(), ex.getCode(), ex);
+    }
+
+    @ExceptionHandler(InvalidStatutTransitionException.class)
+    public ResponseEntity<?> handleInvalidTransition(InvalidStatutTransitionException ex) {
+        return buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage(), "INVALID_STATUT_TRANSITION", ex);
+    }
+
+    @ExceptionHandler(MandatActifExistantException.class)
+    public ResponseEntity<?> handleMandatActif(MandatActifExistantException ex) {
+        return buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage(), "MANDAT_ACTIF_EXISTANT", ex);
+    }
+
+    @ExceptionHandler(MaisonIndisponibleException.class)
+    public ResponseEntity<?> handleMaisonIndisponible(MaisonIndisponibleException ex) {
+        return buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage(), "MAISON_INDISPONIBLE", ex);
+    }
+
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<?> handleAccessDenied(org.springframework.security.access.AccessDeniedException ex) {
+        return buildErrorResponse(HttpStatus.FORBIDDEN, "Vous n'êtes pas autorisé à accéder à cette ressource.", "ACCESS_DENIED", ex);
+    }
 
     private ResponseEntity<?> buildErrorResponse(HttpStatus status, String message, String code,Exception ex) {
         // Afficher la stack trace pour le debug
