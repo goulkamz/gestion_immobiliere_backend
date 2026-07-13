@@ -10,6 +10,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Date;
 
     @Entity
@@ -43,8 +45,7 @@ import java.util.Date;
         private String password;
 
         @Column(name = "date_naissance")
-        @Temporal(TemporalType.DATE)
-        private Date dateNaissance;
+        private LocalDate dateNaissance;
 
         @Column(name = "telephone",unique = true, length = 254)
         private String telephone;
@@ -56,12 +57,10 @@ import java.util.Date;
         private boolean flagActif;
 
         @Column(name = "date_create")
-        @Temporal(TemporalType.DATE)
-        private Date dateCreate;
+        private LocalDateTime dateCreate;
 
         @Column(name = "date_last_login")
-        @Temporal(TemporalType.DATE)
-        private Date dateLastLogin;
+        private LocalDateTime dateLastLogin;
 
         @ManyToOne(fetch = FetchType.LAZY)
         @JoinColumn(name = "id_role", nullable = false)
@@ -86,4 +85,4 @@ import java.util.Date;
 
         public User (){};
 
-}
+    }

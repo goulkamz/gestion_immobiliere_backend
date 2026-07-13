@@ -45,19 +45,19 @@ public class ContratLocationController implements ContratLocationAPI {
 
     @Override
     @PreAuthorize("hasRole('AGENT')")
-    public ResponseEntity<?> create(CreateContratLocationDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser) {
-        return locationService.create(dto, currentUser.getIdUser());
+    public ContratLocationResponseDTO create(CreateContratLocationDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser) {
+        return locationService.createFromReservation(dto, currentUser.getIdUser());
     }
 
     @Override
     @PreAuthorize("hasRole('AGENT')")
-    public ResponseEntity<?> terminer(Integer id, TerminerLocationDTO dto) {
-        return locationService.terminer(id, dto);
+    public ResponseEntity<?> terminer(Integer id, TerminerLocationDTO dto,@AuthenticationPrincipal UserDetailsImpl currentUser) {
+        return locationService.terminer(id, dto,currentUser.getIdUser());
     }
 
     @Override
     @PreAuthorize("hasRole('AGENT')")
-    public ResponseEntity<?> resilier(Integer id) {
-        return locationService.resilier(id);
+    public ResponseEntity<?> resilier(Integer id,@AuthenticationPrincipal UserDetailsImpl currentUser) {
+        return locationService.resilier(id,currentUser.getIdUser());
     }
 }

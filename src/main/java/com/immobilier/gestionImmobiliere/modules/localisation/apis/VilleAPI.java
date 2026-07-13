@@ -11,17 +11,17 @@ import org.springframework.web.bind.annotation.*;
 public interface VilleAPI {
 
     @GetMapping
-    ResponseEntity<?> getAll(@RequestParam(required = false) Long idPays, Pageable pageable);
+    ResponseEntity<?> getAll(@RequestParam(required = false) Integer idPays, Pageable pageable);
 
     @GetMapping("/{id}")
-    ResponseEntity<?> getById(@PathVariable Long id);
+    ResponseEntity<?> getById(@PathVariable Integer id);
 
     @PostMapping
     ResponseEntity<?> create(@Valid @RequestBody CreateVilleDTO dto);
 
     @PutMapping("/{id}")
-    ResponseEntity<?> update(@PathVariable Long id, @Valid @RequestBody UpdateVilleDTO dto);
+    ResponseEntity<?> update(@PathVariable Integer id, @Valid @RequestBody UpdateVilleDTO dto);
 
     @DeleteMapping("/{id}")
-    ResponseEntity<?> delete(@PathVariable Long id);
+    ResponseEntity<?> delete(@PathVariable Integer id);
 }

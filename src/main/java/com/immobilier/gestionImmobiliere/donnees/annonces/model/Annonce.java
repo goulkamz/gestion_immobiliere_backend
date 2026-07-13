@@ -6,7 +6,7 @@ import lombok.*;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "annonce")
@@ -30,10 +30,10 @@ public class Annonce extends Model {
     private String typeAnnonce;
 
     @Column(name = "date_publication")
-    private LocalDate datePublication;
+    private LocalDateTime datePublication;
 
     @Column(name = "date_expiration", nullable = false)
-    private LocalDate dateExpiration;
+    private LocalDateTime dateExpiration;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "statut")

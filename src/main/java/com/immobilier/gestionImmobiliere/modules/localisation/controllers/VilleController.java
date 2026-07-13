@@ -19,12 +19,12 @@ public class VilleController implements VilleAPI {
     }
 
     @Override
-    public ResponseEntity<?> getAll(Long idPays, Pageable pageable) {
+    public ResponseEntity<?> getAll(Integer idPays, Pageable pageable) {
         return villeService.getAll(idPays, pageable);
     }
 
     @Override
-    public ResponseEntity<?> getById(Long id) {
+    public ResponseEntity<?> getById(Integer id) {
         return villeService.getById(id);
     }
 
@@ -36,13 +36,13 @@ public class VilleController implements VilleAPI {
 
     @Override
     @PreAuthorize("hasAnyRole('ADMIN','AGENT')")
-    public ResponseEntity<?> update(Long id, UpdateVilleDTO dto) {
+    public ResponseEntity<?> update(Integer id, UpdateVilleDTO dto) {
         return villeService.update(id, dto);
     }
 
     @Override
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> delete(Long id) {
+    public ResponseEntity<?> delete(Integer id) {
         return villeService.delete(id);
     }
 }

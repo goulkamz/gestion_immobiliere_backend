@@ -9,7 +9,7 @@ import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "contrat_mandat")
@@ -32,10 +32,10 @@ public class ContratMandat extends Model {
     private User agent;
 
     @Column(name = "date_debut")
-    private LocalDate dateDebut;
+    private LocalDateTime dateDebut;
 
     @Column(name = "date_fin")
-    private LocalDate dateFin;
+    private LocalDateTime dateFin;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "type_mandat")
@@ -48,7 +48,7 @@ public class ContratMandat extends Model {
     private String modeFacturation;
 
     @Column(name = "date_resiliation")
-    private LocalDate dateResiliation;
+    private LocalDateTime dateResiliation;
 
     @Column(name = "motif_resiliation")
     private String motifResiliation;

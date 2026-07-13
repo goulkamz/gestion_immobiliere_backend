@@ -19,12 +19,12 @@ public class SecteurController implements SecteurAPI {
     }
 
     @Override
-    public ResponseEntity<?> getAll(Long idVille, Pageable pageable) {
+    public ResponseEntity<?> getAll(Integer idVille, Pageable pageable) {
         return secteurService.getAll(idVille, pageable);
     }
 
     @Override
-    public ResponseEntity<?> getById(Long id) {
+    public ResponseEntity<?> getById(Integer id) {
         return secteurService.getById(id);
     }
 
@@ -36,13 +36,13 @@ public class SecteurController implements SecteurAPI {
 
     @Override
     @PreAuthorize("hasAnyRole('ADMIN','AGENT')")
-    public ResponseEntity<?> update(Long id, UpdateSecteurDTO dto) {
+    public ResponseEntity<?> update(Integer id, UpdateSecteurDTO dto) {
         return secteurService.update(id, dto);
     }
 
     @Override
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> delete(Long id) {
+    public ResponseEntity<?> delete(Integer id) {
         return secteurService.delete(id);
     }
 }

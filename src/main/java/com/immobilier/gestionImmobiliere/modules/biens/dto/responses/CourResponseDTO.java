@@ -9,7 +9,7 @@ public class CourResponseDTO {
     private String referenceCours;
     private String lotCours;
     private Integer numeroPorte;
-    private Long idSecteur;
+    private Integer idSecteur;
     private String nomSecteur;
     private Integer idProprietaire;
     private String nomProprietaire;

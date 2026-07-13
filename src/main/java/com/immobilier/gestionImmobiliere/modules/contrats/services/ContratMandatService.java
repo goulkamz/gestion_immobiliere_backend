@@ -13,6 +13,7 @@ import com.immobilier.gestionImmobiliere.exceptions.ResourceNotFoundException;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.CreateContratMandatDTO;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.ResilierMandatDTO;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.responses.ContratMandatResponseDTO;
+import com.immobilier.gestionImmobiliere.modules.journal.services.JournalService;
 import com.immobilier.gestionImmobiliere.modules.paiements.services.EcheanceGenerationService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -21,7 +22,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
 
@@ -32,12 +33,14 @@ public class ContratMandatService {
     private final CourRepository courRepository;
     private final UserRepository userRepository;
     private final EcheanceGenerationService echeanceGenerationService;
+    private final JournalService journalService;
 
-    public ContratMandatService(ContratMandatRepository mandatRepository, CourRepository courRepository, UserRepository userRepository, EcheanceGenerationService echeanceGenerationService) {
+    public ContratMandatService(ContratMandatRepository mandatRepository, CourRepository courRepository, UserRepository userRepository, EcheanceGenerationService echeanceGenerationService, JournalService journalService) {
         this.mandatRepository = mandatRepository;
         this.courRepository = courRepository;
         this.userRepository = userRepository;
         this.echeanceGenerationService = echeanceGenerationService;
+        this.journalService = journalService;
     }
 
     public ResponseEntity<?> getAll(Integer idCour, StatutMandat statut, Pageable pageable) {
@@ -52,7 +55,7 @@ public class ContratMandatService {
     }
 
     @Transactional
-    public ResponseEntity<?> create(CreateContratMandatDTO dto) {
+    public ResponseEntity<?> create(CreateContratMandatDTO dto,Integer currentUserId) {
         Cour cour = courRepository.findById(dto.getIdCour())
                 .orElseThrow(() -> new ResourceNotFoundException("cour", dto.getIdCour()));
         User agent = userRepository.findById(dto.getIdAgent())
@@ -69,12 +72,17 @@ public class ContratMandatService {
                 .statut(StatutMandat.EN_ATTENTE)
                 .build();
         mandatRepository.save(mandat);
+
+        journalService.enregistrer(currentUserId, "CREATION", "contrat_mandat", mandat.getIdMandat(),
+                "Création du mandat pour la cour id " + cour.getIdCour(), null, "statut=EN_ATTENTE");
+
         return buildSuccessResponse(HttpStatus.CREATED, "Mandat créé (en attente d'activation)", "MANDAT_CREATED", toDto(mandat));
     }
 
     @Transactional
-    public ResponseEntity<?> activer(Integer id) {
+    public ResponseEntity<?> activer(Integer id, Integer currentUserId) {
         ContratMandat mandat = findOrThrow(id);
+        String ancienStatut = mandat.getStatut().name();
 
         if (mandat.getStatut() != StatutMandat.EN_ATTENTE) {
             throw new InvalidStatutTransitionException(mandat.getStatut().name(), StatutMandat.ACTIF.name());
@@ -87,12 +95,17 @@ public class ContratMandatService {
         mandat.setStatut(StatutMandat.ACTIF);
         mandatRepository.save(mandat);
         echeanceGenerationService.genererEcheancesMandat(mandat);
+
+        journalService.enregistrer(currentUserId, "ACTIVATION", "contrat_mandat", mandat.getIdMandat(),
+                "Activation du mandat", "statut=" + ancienStatut, "statut=ACTIF");
+
         return buildSuccessResponse(HttpStatus.OK, "Mandat activé", "MANDAT_ACTIVATED", toDto(mandat));
     }
 
     @Transactional
-    public ResponseEntity<?> resilier(Integer id, ResilierMandatDTO dto) {
+    public ResponseEntity<?> resilier(Integer id, ResilierMandatDTO dto,Integer currentUserId) {
         ContratMandat mandat = findOrThrow(id);
+        String ancienStatut = mandat.getStatut().name();
 
         if (mandat.getStatut() != StatutMandat.ACTIF) {
             throw new InvalidStatutTransitionException(mandat.getStatut().name(), StatutMandat.RESILIE.name());
@@ -100,8 +113,11 @@ public class ContratMandatService {
 
         mandat.setStatut(StatutMandat.RESILIE);
         mandat.setMotifResiliation(dto.getMotifResiliation());
-        mandat.setDateResiliation(LocalDate.now());
+        mandat.setDateResiliation(LocalDateTime.now());
         mandatRepository.save(mandat);
+        journalService.enregistrer(currentUserId, "RESILIATION", "contrat_mandat", mandat.getIdMandat(),
+                "Résiliation du mandat, motif : " + dto.getMotifResiliation(),
+                "statut=" + ancienStatut, "statut=RESILIE");
         return buildSuccessResponse(HttpStatus.OK, "Mandat résilié", "MANDAT_RESILIE", toDto(mandat));
     }
 

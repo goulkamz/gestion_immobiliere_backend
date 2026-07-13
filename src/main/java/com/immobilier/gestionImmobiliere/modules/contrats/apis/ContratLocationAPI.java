@@ -2,6 +2,7 @@ package com.immobilier.gestionImmobiliere.modules.contrats.apis;
 
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.CreateContratLocationDTO;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.TerminerLocationDTO;
+import com.immobilier.gestionImmobiliere.modules.contrats.dto.responses.ContratLocationResponseDTO;
 import com.immobilier.gestionImmobiliere.modules.user.jwtService.UserDetailsImpl;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
@@ -23,11 +24,11 @@ public interface ContratLocationAPI {
     ResponseEntity<?> getById(@PathVariable Integer id);
 
     @PostMapping
-    ResponseEntity<?> create(@Valid @RequestBody CreateContratLocationDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser);
+    ContratLocationResponseDTO create(@Valid @RequestBody CreateContratLocationDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser);
 
     @PatchMapping("/{id}/terminer")
-    ResponseEntity<?> terminer(@PathVariable Integer id, @Valid @RequestBody TerminerLocationDTO dto);
+    ResponseEntity<?> terminer(@PathVariable Integer id, @Valid @RequestBody TerminerLocationDTO dto,@AuthenticationPrincipal UserDetailsImpl currentUser);
 
     @PatchMapping("/{id}/resilier")
-    ResponseEntity<?> resilier(@PathVariable Integer id);
+    ResponseEntity<?> resilier(@PathVariable Integer id,@AuthenticationPrincipal UserDetailsImpl currentUser);
 }

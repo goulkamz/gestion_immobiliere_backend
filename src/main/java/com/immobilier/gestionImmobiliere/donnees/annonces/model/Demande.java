@@ -6,7 +6,7 @@ import lombok.*;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "demande")
@@ -42,7 +42,7 @@ public class Demande extends Model {
     private String description;
 
     @Column(name = "date_demande")
-    private LocalDate dateDemande;
+    private LocalDateTime dateDemande;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "statut")

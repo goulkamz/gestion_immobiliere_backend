@@ -4,7 +4,7 @@ import lombok.Data;
 
 @Data
 public class UpdateVilleDTO {
-    private Long idPays;
+    private Integer idPays;
     private String codeVille;
     private String nomVille;
 }

@@ -11,17 +11,17 @@ import org.springframework.web.bind.annotation.*;
 public interface SecteurAPI {
 
     @GetMapping
-    ResponseEntity<?> getAll(@RequestParam(required = false) Long idVille, Pageable pageable);
+    ResponseEntity<?> getAll(@RequestParam(required = false) Integer idVille, Pageable pageable);
 
     @GetMapping("/{id}")
-    ResponseEntity<?> getById(@PathVariable Long id);
+    ResponseEntity<?> getById(@PathVariable Integer id);
 
     @PostMapping
     ResponseEntity<?> create(@Valid @RequestBody CreateSecteurDTO dto);
 
     @PutMapping("/{id}")
-    ResponseEntity<?> update(@PathVariable Long id, @Valid @RequestBody UpdateSecteurDTO dto);
+    ResponseEntity<?> update(@PathVariable Integer id, @Valid @RequestBody UpdateSecteurDTO dto);
 
     @DeleteMapping("/{id}")
-    ResponseEntity<?> delete(@PathVariable Long id);
+    ResponseEntity<?> delete(@PathVariable Integer id);
 }

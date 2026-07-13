@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 public interface CourAPI {
 
     @GetMapping
-    ResponseEntity<?> getAll(@RequestParam(required = false) Long idSecteur, Pageable pageable);
+    ResponseEntity<?> getAll(@RequestParam(required = false) Integer idSecteur, Pageable pageable);
 
     @GetMapping("/{id}")
     ResponseEntity<?> getById(@PathVariable Integer id);

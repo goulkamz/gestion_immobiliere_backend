@@ -4,7 +4,7 @@ import com.immobilier.gestionImmobiliere.donnees.annonces.model.StatutAnnonce;
 import lombok.Builder;
 import lombok.Data;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data @Builder
 public class AnnonceResponseDTO {
@@ -12,8 +12,8 @@ public class AnnonceResponseDTO {
     private String titre;
     private String description;
     private String typeAnnonce;
-    private LocalDate datePublication;
-    private LocalDate dateExpiration;
+    private LocalDateTime datePublication;
+    private LocalDateTime dateExpiration;
     private StatutAnnonce statut;
     private Double prix;
     private String localisation;

@@ -5,9 +5,9 @@ import lombok.Data;
 
 @Data @Builder
 public class VilleResponseDTO {
-    private Long idVille;
+    private Integer idVille;
     private String codeVille;
     private String nomVille;
-    private Long idPays;
+    private Integer idPays;
     private String nomPays;
 }

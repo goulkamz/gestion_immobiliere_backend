@@ -14,7 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
 
@@ -40,7 +40,7 @@ public class ContactService {
                 .telephone(dto.getTelephone())
                 .sujet(dto.getSujet())
                 .message(dto.getMessage())
-                .dateEnvoi(LocalDate.now())
+                .dateEnvoi(LocalDateTime.now())
                 .statut(StatutContact.NON_LU)
                 .build();
         contactRepository.save(contact);

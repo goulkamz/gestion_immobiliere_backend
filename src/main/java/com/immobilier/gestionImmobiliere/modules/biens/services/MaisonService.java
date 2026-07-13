@@ -11,6 +11,7 @@ import com.immobilier.gestionImmobiliere.modules.biens.dto.requests.CreateMaison
 import com.immobilier.gestionImmobiliere.modules.biens.dto.requests.UpdateMaisonDTO;
 import com.immobilier.gestionImmobiliere.modules.biens.dto.requests.UpdateStatutMaisonDTO;
 import com.immobilier.gestionImmobiliere.modules.biens.dto.responses.MaisonResponseDTO;
+import com.immobilier.gestionImmobiliere.modules.journal.services.JournalService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -18,7 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.Map;
@@ -39,10 +40,12 @@ public class MaisonService {
 
     private final MaisonRepository maisonRepository;
     private final CourRepository courRepository;
+    private final JournalService journalService;
 
-    public MaisonService(MaisonRepository maisonRepository, CourRepository courRepository) {
+    public MaisonService(MaisonRepository maisonRepository, CourRepository courRepository, JournalService journalService) {
         this.maisonRepository = maisonRepository;
         this.courRepository = courRepository;
+        this.journalService = journalService;
     }
 
     public ResponseEntity<?> getAll(Integer idCour, StatutMaison statut, Pageable pageable) {
@@ -71,7 +74,7 @@ public class MaisonService {
                 .nombreMoisCaution(dto.getNombreMoisCaution())
                 .statut(StatutMaison.DISPONIBLE)
                 .userCreate(currentUserId)
-                .dateCreate(LocalDate.now())
+                .dateCreate(LocalDateTime.now())
                 .build();
         maisonRepository.save(maison);
         return buildSuccessResponse(HttpStatus.CREATED, "Maison créée avec succès", "MAISON_CREATED", toDto(maison));
@@ -88,7 +91,7 @@ public class MaisonService {
         if (dto.getCaution() != null) maison.setCaution(dto.getCaution());
         if (dto.getNombreMoisCaution() != null) maison.setNombreMoisCaution(dto.getNombreMoisCaution());
         maison.setUserUpdate(currentUserId);
-        maison.setDateUpdate(LocalDate.now());
+        maison.setDateUpdate(LocalDateTime.now());
 
         maisonRepository.save(maison);
         return buildSuccessResponse(HttpStatus.OK, "Maison mise à jour", "MAISON_UPDATED", toDto(maison));
@@ -109,7 +112,7 @@ public class MaisonService {
                 .caution(dto.getCaution())
                 .nombreMoisCaution(dto.getNombreMoisCaution())
                 .statut(StatutMaison.DISPONIBLE)
-                .dateCreate(LocalDate.now())
+                .dateCreate(LocalDateTime.now())
                 .build();
         maisonRepository.save(maison);
         return buildSuccessResponse(HttpStatus.CREATED, "Maison créée avec succès", "MAISON_CREATED", toDto(maison));
@@ -125,7 +128,7 @@ public class MaisonService {
         if (dto.getLoyer() != null) maison.setLoyer(dto.getLoyer());
         if (dto.getCaution() != null) maison.setCaution(dto.getCaution());
         if (dto.getNombreMoisCaution() != null) maison.setNombreMoisCaution(dto.getNombreMoisCaution());
-        maison.setDateUpdate(LocalDate.now());
+        maison.setDateUpdate(LocalDateTime.now());
         maisonRepository.save(maison);
         return buildSuccessResponse(HttpStatus.OK, "Maison mise à jour", "MAISON_UPDATED", toDto(maison));
     }
@@ -139,11 +142,13 @@ public class MaisonService {
         if (current != target && !TRANSITIONS.getOrDefault(current, EnumSet.noneOf(StatutMaison.class)).contains(target)) {
             throw new InvalidStatutTransitionException(current.name(), target.name());
         }
-
         maison.setStatut(target);
         maison.setUserUpdate(currentUserId);
-        maison.setDateUpdate(LocalDate.now());
+        maison.setDateUpdate(LocalDateTime.now());
         maisonRepository.save(maison);
+        journalService.enregistrer(currentUserId, "CHANGEMENT_STATUT", "maison", maison.getIdMaison(),
+                "Transition de statut de la maison", "statut=" + current.name(), "statut=" + target.name());
+
         return buildSuccessResponse(HttpStatus.OK, "Statut mis à jour", "MAISON_STATUT_UPDATED", toDto(maison));
     }
 
@@ -158,7 +163,7 @@ public class MaisonService {
         }
 
         maison.setStatut(target);
-        maison.setDateUpdate(LocalDate.now());
+        maison.setDateUpdate(LocalDateTime.now());
         maisonRepository.save(maison);
         return buildSuccessResponse(HttpStatus.OK, "Statut mis à jour", "MAISON_STATUT_UPDATED", toDto(maison));
     }

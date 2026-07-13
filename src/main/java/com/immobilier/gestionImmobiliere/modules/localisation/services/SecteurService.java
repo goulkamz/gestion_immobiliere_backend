@@ -31,7 +31,7 @@ public class SecteurService {
         this.villeRepository = villeRepository;
     }
 
-    public ResponseEntity<?> getAll(Long idVille, Pageable pageable) {
+    public ResponseEntity<?> getAll(Integer idVille, Pageable pageable) {
         Page<SecteurResponseDTO> result = (idVille != null
                 ? secteurRepository.findByVille_IdVille(idVille, pageable)
                 : secteurRepository.findAll(pageable))
@@ -39,7 +39,7 @@ public class SecteurService {
         return buildSuccessResponse(HttpStatus.OK, "Liste des secteurs", "SECTEUR_LIST", result);
     }
 
-    public ResponseEntity<?> getById(Long id) {
+    public ResponseEntity<?> getById(Integer id) {
         return buildSuccessResponse(HttpStatus.OK, "Secteur trouvé", "SECTEUR_FOUND", toDto(findOrThrow(id)));
     }
 
@@ -62,7 +62,7 @@ public class SecteurService {
     }
 
     @Transactional
-    public ResponseEntity<?> update(Long id, UpdateSecteurDTO dto) {
+    public ResponseEntity<?> update(Integer id, UpdateSecteurDTO dto) {
         Secteur secteur = findOrThrow(id);
 
         if (dto.getIdVille() != null) {
@@ -78,12 +78,12 @@ public class SecteurService {
     }
 
     @Transactional
-    public ResponseEntity<?> delete(Long id) {
+    public ResponseEntity<?> delete(Integer id) {
         secteurRepository.delete(findOrThrow(id));
         return buildSuccessResponse(HttpStatus.OK, "Secteur supprimé", "SECTEUR_DELETED", null);
     }
 
-    private Secteur findOrThrow(Long id) {
+    private Secteur findOrThrow(Integer id) {
         return secteurRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("secteur",id));
     }
 

@@ -4,9 +4,11 @@ import com.immobilier.gestionImmobiliere.donnees.annonces.model.StatutAnnonce;
 import com.immobilier.gestionImmobiliere.modules.annonces.apis.AnnonceAPI;
 import com.immobilier.gestionImmobiliere.modules.annonces.dto.requests.*;
 import com.immobilier.gestionImmobiliere.modules.annonces.services.AnnonceService;
+import com.immobilier.gestionImmobiliere.modules.user.jwtService.UserDetailsImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -42,8 +44,8 @@ public class AnnonceController implements AnnonceAPI {
 
     @Override
     @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
-    public ResponseEntity<?> updateStatut(Integer id, UpdateStatutAnnonceDTO dto) {
-        return annonceService.updateStatut(id, dto);
+    public ResponseEntity<?> updateStatut(Integer id, UpdateStatutAnnonceDTO dto,@AuthenticationPrincipal UserDetailsImpl currentUser) {
+        return annonceService.updateStatut(id, dto,currentUser.getIdUser());
     }
 
     @Override

@@ -18,7 +18,7 @@ import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 
@@ -84,7 +84,7 @@ public class PaiementService {
         }
 
         Paiement paiement = Paiement.builder()
-                .datePaiement(dto.getDatePaiement() != null ? dto.getDatePaiement() : LocalDate.now())
+                .datePaiement(dto.getDatePaiement() != null ? dto.getDatePaiement() : LocalDateTime.now())
                 .montantPaiement(dto.getMontantPaiement())
                 .modePaiement(dto.getModePaiement())
                 .referencePaiement(dto.getReferencePaiement())

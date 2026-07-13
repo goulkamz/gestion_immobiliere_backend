@@ -5,14 +5,14 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data
 public class CreateContratMandatDTO {
     @NotNull private Integer idCour;
     @NotNull private Integer idAgent;
-    @NotNull private LocalDate dateDebut;
-    private LocalDate dateFin;
+    @NotNull private LocalDateTime dateDebut;
+    private LocalDateTime dateFin;
     @NotNull private TypeMandat typeMandat;
     private BigDecimal commission;
     private String modeFacturation;

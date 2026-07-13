@@ -21,7 +21,7 @@ public class CourController implements CourAPI {
     }
 
     @Override
-    public ResponseEntity<?> getAll(Long idSecteur, Pageable pageable) {
+    public ResponseEntity<?> getAll(Integer idSecteur, Pageable pageable) {
         return courService.getAll(idSecteur, pageable);
     }
 

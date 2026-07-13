@@ -30,7 +30,7 @@ public class PaysService {
         return buildSuccessResponse(HttpStatus.OK, "Liste des localisation", "PAYS_LIST", result);
     }
 
-    public ResponseEntity<?> getById(Long id) {
+    public ResponseEntity<?> getById(Integer id) {
         Pays pays = findOrThrow(id);
         return buildSuccessResponse(HttpStatus.OK, "Pays trouvé", "PAYS_FOUND", toDto(pays));
     }
@@ -49,7 +49,7 @@ public class PaysService {
     }
 
     @Transactional
-    public ResponseEntity<?> update(Long id, UpdatePaysDTO dto) {
+    public ResponseEntity<?> update(Integer id, UpdatePaysDTO dto) {
         Pays pays = findOrThrow(id);
 
         if (dto.getCodePays() != null && !dto.getCodePays().equalsIgnoreCase(pays.getCodePays())
@@ -65,13 +65,13 @@ public class PaysService {
     }
 
     @Transactional
-    public ResponseEntity<?> delete(Long id) {
+    public ResponseEntity<?> delete(Integer id) {
         Pays pays = findOrThrow(id);
         paysRepository.delete(pays); // intercepté par @SQLDelete -> soft delete
         return buildSuccessResponse(HttpStatus.OK, "Pays supprimé", "PAYS_DELETED", null);
     }
 
-    private Pays findOrThrow(Long id) {
+    private Pays findOrThrow(Integer id) {
         return paysRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Pays",id));
     }
 

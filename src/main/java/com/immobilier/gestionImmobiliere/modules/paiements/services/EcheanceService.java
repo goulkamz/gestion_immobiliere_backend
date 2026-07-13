@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
@@ -80,7 +81,7 @@ public class EcheanceService {
     }
 
     public ResponseEntity<?> getEnRetard() {
-        List<EcheanceLoyer> enRetard = echeanceRepository.findByStatutAndDateEcheanceBefore(StatutEcheance.EN_ATTENTE, LocalDate.now());
+        List<EcheanceLoyer> enRetard = echeanceRepository.findByStatutAndDateEcheanceBefore(StatutEcheance.EN_ATTENTE, LocalDateTime.now());
         return buildSuccessResponse(HttpStatus.OK, "Échéances en retard", "ECHEANCE_EN_RETARD_LIST",
                 enRetard.stream().map(this::toDto).toList());
     }
@@ -90,7 +91,7 @@ public class EcheanceService {
      */
     @Transactional
     public int marquerEnRetard() {
-        List<EcheanceLoyer> expirees = echeanceRepository.findByStatutAndDateEcheanceBefore(StatutEcheance.EN_ATTENTE, LocalDate.now());
+        List<EcheanceLoyer> expirees = echeanceRepository.findByStatutAndDateEcheanceBefore(StatutEcheance.EN_ATTENTE, LocalDateTime.now());
         expirees.forEach(e -> e.setStatut(StatutEcheance.EN_RETARD));
         echeanceRepository.saveAll(expirees);
         return expirees.size();

@@ -14,14 +14,14 @@ public interface PaysAPI {
     ResponseEntity<?> getAll(Pageable pageable);
 
     @GetMapping("/{id}")
-    ResponseEntity<?> getById(@PathVariable Long id);
+    ResponseEntity<?> getById(@PathVariable Integer id);
 
     @PostMapping
     ResponseEntity<?> create(@Valid @RequestBody CreatePaysDTO dto);
 
     @PutMapping("/{id}")
-    ResponseEntity<?> update(@PathVariable Long id, @Valid @RequestBody UpdatePaysDTO dto);
+    ResponseEntity<?> update(@PathVariable Integer id, @Valid @RequestBody UpdatePaysDTO dto);
 
     @DeleteMapping("/{id}")
-    ResponseEntity<?> delete(@PathVariable Long id);
+    ResponseEntity<?> delete(@PathVariable Integer id);
 }

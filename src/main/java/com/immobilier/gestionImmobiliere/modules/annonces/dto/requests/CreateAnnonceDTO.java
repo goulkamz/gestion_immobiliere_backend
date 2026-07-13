@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data
 public class CreateAnnonceDTO {
@@ -13,7 +13,7 @@ public class CreateAnnonceDTO {
     private String description;
     private String typeAnnonce;
     @NotNull @Future(message = "La date d'expiration doit être future")
-    private LocalDate dateExpiration;
+    private LocalDateTime dateExpiration;
     private Double prix;
     private String localisation;
 }

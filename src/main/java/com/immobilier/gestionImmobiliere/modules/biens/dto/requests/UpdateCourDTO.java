@@ -4,7 +4,7 @@ import lombok.Data;
 
 @Data
 public class UpdateCourDTO {
-    private Long idSecteur;
+    private Integer idSecteur;
     private String referenceCours;
     private String lotCours;
     private Integer numeroPorte;

@@ -14,7 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
 
@@ -46,7 +46,7 @@ public class DemandeService {
                 .localisationSouhaite(dto.getLocalisationSouhaite())
                 .budgetMax(dto.getBudgetMax())
                 .description(dto.getDescription())
-                .dateDemande(LocalDate.now())
+                .dateDemande(LocalDateTime.now())
                 .statut(StatutDemande.EN_ATTENTE)
                 .build();
         demandeRepository.save(demande);

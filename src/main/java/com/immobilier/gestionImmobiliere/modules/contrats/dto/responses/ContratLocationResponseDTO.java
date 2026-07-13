@@ -4,7 +4,7 @@ import com.immobilier.gestionImmobiliere.donnees.contrats.model.StatutLocation;
 import lombok.Builder;
 import lombok.Data;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data @Builder
 public class ContratLocationResponseDTO {
@@ -13,8 +13,8 @@ public class ContratLocationResponseDTO {
     private String nomLocataire;
     private Integer idMaison;
     private String nomCommunMaison;
-    private LocalDate dateEntree;
-    private LocalDate dateSortie;
+    private LocalDateTime dateEntree;
+    private LocalDateTime dateSortie;
     private Double montantLoyer;
     private StatutLocation statut;
 }

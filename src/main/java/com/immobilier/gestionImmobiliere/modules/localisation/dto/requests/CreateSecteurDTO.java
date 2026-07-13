@@ -7,7 +7,7 @@ import lombok.Data;
 @Data
 public class CreateSecteurDTO {
     @NotNull(message = "La ville est obligatoire")
-    private Long idVille;
+    private Integer idVille;
 
     @NotBlank(message = "Le code secteur est obligatoire")
     private String codeSecteur;
