@@ -14,7 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
 
@@ -46,7 +46,7 @@ public class OffreService {
                 .titre(dto.getTitre())
                 .description(dto.getDescription())
                 .adresse(dto.getAdresse())
-                .dateOffre(LocalDate.now())
+                .dateOffre(LocalDateTime.now())
                 .statut(StatutOffre.ACTIVE)
                 .build();
         offreRepository.save(offre);

@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
 import java.util.Date;
 import java.time.Instant;
 
@@ -45,8 +46,7 @@ public class PendingRegistration {
     private boolean flagActif;
 
     @Column(name = "date_naissance")
-    @Temporal(TemporalType.DATE)
-    private Date dateNaissance;
+    private LocalDate dateNaissance;
 
     @Column(nullable = false, unique = true)
     private String code;

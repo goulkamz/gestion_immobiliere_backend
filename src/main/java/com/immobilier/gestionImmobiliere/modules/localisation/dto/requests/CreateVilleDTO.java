@@ -7,7 +7,7 @@ import lombok.Data;
 @Data
 public class CreateVilleDTO {
     @NotNull(message = "Le localisation est obligatoire")
-    private Long idPays;
+    private Integer idPays;
 
     @NotBlank(message = "Le code ville est obligatoire")
     private String codeVille;

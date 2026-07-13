@@ -4,7 +4,7 @@ import com.immobilier.gestionImmobiliere.donnees.annonces.model.StatutContact;
 import lombok.Builder;
 import lombok.Data;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data @Builder
 public class ContactResponseDTO {
@@ -14,6 +14,6 @@ public class ContactResponseDTO {
     private String telephone;
     private String sujet;
     private String message;
-    private LocalDate dateEnvoi;
+    private LocalDateTime dateEnvoi;
     private StatutContact statut;
 }

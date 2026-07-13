@@ -8,7 +8,7 @@ import org.hibernate.annotations.Where;
 import java.time.Instant;
 
 @Entity
-@Table(name = "localisation")
+@Table(name = "pays")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 @SQLDelete(sql = "UPDATE localisation SET is_deleted = true WHERE id_pays = ?")
 @Where(clause = "is_deleted = false")
@@ -18,7 +18,7 @@ public class Pays {
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "seq_pays")
     @SequenceGenerator(name = "seq_pays", sequenceName = "seq_pays", allocationSize = 1)
     @Column(name = "id_pays")
-    private Long idPays;
+    private Integer idPays;
 
     @Column(name = "code_pays", nullable = false, unique = true)
     private String codePays;

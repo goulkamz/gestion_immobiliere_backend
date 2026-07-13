@@ -8,7 +8,7 @@ import lombok.*;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "contra_location")
@@ -31,10 +31,10 @@ public class ContratLocation extends Model {
     private Maison maison;
 
     @Column(name = "date_entree")
-    private LocalDate dateEntree;
+    private LocalDateTime dateEntree;
 
     @Column(name = "date_sortie")
-    private LocalDate dateSortie;
+    private LocalDateTime dateSortie;
 
     @Column(name = "montant_loyer")
     private Double montantLoyer;
@@ -59,8 +59,8 @@ public class ContratLocation extends Model {
     private Integer userUpdate;
 
     @Column(name = "date_create")
-    private LocalDate dateCreate;
+    private LocalDateTime dateCreate;
 
     @Column(name = "date_update")
-    private LocalDate dateUpdate;
+    private LocalDateTime dateUpdate;
 }

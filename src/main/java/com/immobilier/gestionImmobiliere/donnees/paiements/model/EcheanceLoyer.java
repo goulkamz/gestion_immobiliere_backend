@@ -7,6 +7,7 @@ import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "echeance_loyer")
@@ -45,5 +46,5 @@ public class EcheanceLoyer extends Model {
     private Integer userCreate;
 
     @Column(name = "date_create")
-    private LocalDate dateCreate;
+    private LocalDateTime dateCreate;
 }

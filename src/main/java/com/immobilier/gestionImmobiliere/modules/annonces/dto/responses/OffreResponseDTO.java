@@ -4,7 +4,7 @@ import com.immobilier.gestionImmobiliere.donnees.annonces.model.StatutOffre;
 import lombok.Builder;
 import lombok.Data;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data @Builder
 public class OffreResponseDTO {
@@ -16,6 +16,6 @@ public class OffreResponseDTO {
     private String titre;
     private String description;
     private String adresse;
-    private LocalDate dateOffre;
+    private LocalDateTime dateOffre;
     private StatutOffre statut;
 }

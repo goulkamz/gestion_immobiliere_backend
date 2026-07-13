@@ -13,6 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.chrono.ChronoLocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -35,14 +37,14 @@ public class EcheanceGenerationService {
      */
     @Transactional
     public void genererEcheancesLocation(ContratLocation location) {
-        LocalDate debut = location.getDateEntree();
-        LocalDate fin = location.getDateSortie() != null
+        LocalDate debut = LocalDate.from(location.getDateEntree());
+        LocalDateTime fin = location.getDateSortie() != null
                 ? location.getDateSortie()
-                : debut.plusMonths(HORIZON_MOIS_SI_SANS_FIN);
+                : debut.plusMonths(HORIZON_MOIS_SI_SANS_FIN).atStartOfDay();
 
         List<EcheanceLoyer> echeances = new ArrayList<>();
         LocalDate courante = debut;
-        while (!courante.isAfter(fin)) {
+        while (!courante.isAfter(ChronoLocalDate.from(fin))) {
             echeances.add(EcheanceLoyer.builder()
                     .entiteEcheanceType(TypeEcheance.LOCATION)
                     .entiteEcheanceId(location.getIdContratLocation())
@@ -50,7 +52,7 @@ public class EcheanceGenerationService {
                     .montantDu(location.getMontantLoyer())
                     .montantPaye(0.0)
                     .statut(StatutEcheance.EN_ATTENTE)
-                    .dateCreate(LocalDate.now())
+                    .dateCreate(LocalDateTime.now())
                     .build());
             courante = courante.plusMonths(1);
         }
@@ -67,10 +69,10 @@ public class EcheanceGenerationService {
      */
     @Transactional
     public void genererEcheancesMandat(ContratMandat mandat) {
-        LocalDate debut = mandat.getDateDebut();
-        LocalDate fin = mandat.getDateFin() != null
+        LocalDate debut = LocalDate.from(mandat.getDateDebut());
+        LocalDateTime fin = mandat.getDateFin() != null
                 ? mandat.getDateFin()
-                : debut.plusMonths(HORIZON_MOIS_SI_SANS_FIN);
+                : debut.plusMonths(HORIZON_MOIS_SI_SANS_FIN).atStartOfDay();
 
         Double totalLoyer = maisonRepository.sumLoyerMaisonsLoueesByCour(mandat.getCour().getIdCour());
         BigDecimal pourcentage = mandat.getCommission() != null ? mandat.getCommission() : BigDecimal.ZERO;
@@ -82,7 +84,7 @@ public class EcheanceGenerationService {
 
         List<EcheanceLoyer> echeances = new ArrayList<>();
         LocalDate courante = debut;
-        while (!courante.isAfter(fin)) {
+        while (!courante.isAfter(ChronoLocalDate.from(fin))) {
             echeances.add(EcheanceLoyer.builder()
                     .entiteEcheanceType(TypeEcheance.MANDAT)
                     .entiteEcheanceId(mandat.getIdMandat())
@@ -90,7 +92,7 @@ public class EcheanceGenerationService {
                     .montantDu(montantEcheance)
                     .montantPaye(0.0)
                     .statut(StatutEcheance.EN_ATTENTE)
-                    .dateCreate(LocalDate.now())
+                    .dateCreate(LocalDateTime.now())
                     .build());
             courante = courante.plusMonths(1);
         }

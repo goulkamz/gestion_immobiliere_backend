@@ -197,6 +197,31 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), "DATE_EXPIRATION_INVALIDE", ex);
     }
 
+    @ExceptionHandler(ConflitReservationException.class)
+    public ResponseEntity<?> handleConflitReservation(ConflitReservationException ex) {
+        return buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage(), "CONFLIT_RESERVATION", ex);
+    }
+
+    @ExceptionHandler(CannotDeactivateSelfException.class)
+    public ResponseEntity<?> handleCannotDeactivateSelf(CannotDeactivateSelfException ex) {
+        return buildErrorResponse(HttpStatus.FORBIDDEN, ex.getMessage(), "CANNOT_DEACTIVATE_SELF", ex);
+    }
+
+    @ExceptionHandler(FormatMediaInvalideException.class)
+    public ResponseEntity<?> handleFormatInvalide(FormatMediaInvalideException ex) {
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), "FORMAT_MEDIA_INVALIDE", ex);
+    }
+
+    @ExceptionHandler(TailleMediaExcessiveException.class)
+    public ResponseEntity<?> handleTailleExcessive(TailleMediaExcessiveException ex) {
+        return buildErrorResponse(HttpStatus.PAYLOAD_TOO_LARGE, ex.getMessage(), "TAILLE_MEDIA_EXCESSIVE", ex);
+    }
+
+    @ExceptionHandler(MediaStorageException.class)
+    public ResponseEntity<?> handleStorageError(MediaStorageException ex) {
+        return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Erreur lors du traitement du fichier", "MEDIA_STORAGE_ERROR", ex);
+    }
+
     private ResponseEntity<?> buildErrorResponse(HttpStatus status, String message, String code,Exception ex) {
         // Afficher la stack trace pour le debug
         if (ex != null && !(ex instanceof IllegalArgumentException) && !(ex instanceof BadCredentialsException) && "dev".equals(System.getProperty("spring.profiles.active"))) {

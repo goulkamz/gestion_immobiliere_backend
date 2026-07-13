@@ -6,7 +6,7 @@ import lombok.Data;
 
 @Data
 public class CreateCourDTO {
-    @NotNull private Long idSecteur;
+    @NotNull private Integer idSecteur;
     @NotNull private Integer idProprietaire;
     @NotBlank private String referenceCours;
     private String lotCours;

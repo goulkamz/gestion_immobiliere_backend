@@ -6,7 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data @Builder
 public class ContratMandatResponseDTO {
@@ -15,8 +15,8 @@ public class ContratMandatResponseDTO {
     private String referenceCours;
     private Integer idAgent;
     private String nomAgent;
-    private LocalDate dateDebut;
-    private LocalDate dateFin;
+    private LocalDateTime dateDebut;
+    private LocalDateTime dateFin;
     private TypeMandat typeMandat;
     private BigDecimal commission;
     private StatutMandat statut;

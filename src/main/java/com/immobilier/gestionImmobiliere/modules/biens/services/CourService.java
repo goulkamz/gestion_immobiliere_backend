@@ -22,7 +22,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
 
@@ -39,7 +39,7 @@ public class CourService {
         this.userRepository = userRepository;
     }
 
-    public ResponseEntity<?> getAll(Long idSecteur, Pageable pageable) {
+    public ResponseEntity<?> getAll(Integer idSecteur, Pageable pageable) {
         Page<CourResponseDTO> result = (idSecteur != null
                 ? courRepository.findBySecteur_IdSecteur(idSecteur, pageable)
                 : courRepository.findAll(pageable)).map(this::toDto);
@@ -64,7 +64,7 @@ public class CourService {
                 .lotCours(dto.getLotCours())
                 .numeroPorte(dto.getNumeroPorte())
                 .userCreate(currentUserId)
-                .dateCreate(LocalDate.now())
+                .dateCreate(LocalDateTime.now())
                 .build();
         courRepository.save(cour);
         return buildSuccessResponse(HttpStatus.CREATED, "Cour créée avec succès", "COUR_CREATED", toDto(cour));
@@ -83,7 +83,7 @@ public class CourService {
         if (dto.getLotCours() != null) cour.setLotCours(dto.getLotCours());
         if (dto.getNumeroPorte() != null) cour.setNumeroPorte(dto.getNumeroPorte());
         cour.setUserUpdate(currentUserId);
-        cour.setDateUpdate(LocalDate.now());
+        cour.setDateUpdate(LocalDateTime.now());
 
         courRepository.save(cour);
         return buildSuccessResponse(HttpStatus.OK, "Cour mise à jour", "COUR_UPDATED", toDto(cour));
@@ -102,7 +102,7 @@ public class CourService {
                 .referenceCours(dto.getReferenceCours())
                 .lotCours(dto.getLotCours())
                 .numeroPorte(dto.getNumeroPorte())
-                .dateCreate(LocalDate.now())
+                .dateCreate(LocalDateTime.now())
                 .build();
         courRepository.save(cour);
         return buildSuccessResponse(HttpStatus.CREATED, "Cour créée avec succès", "COUR_CREATED", toDto(cour));
@@ -120,7 +120,7 @@ public class CourService {
         if (dto.getReferenceCours() != null) cour.setReferenceCours(dto.getReferenceCours());
         if (dto.getLotCours() != null) cour.setLotCours(dto.getLotCours());
         if (dto.getNumeroPorte() != null) cour.setNumeroPorte(dto.getNumeroPorte());
-        cour.setDateUpdate(LocalDate.now());
+        cour.setDateUpdate(LocalDateTime.now());
 
         courRepository.save(cour);
         return buildSuccessResponse(HttpStatus.OK, "Cour mise à jour", "COUR_UPDATED", toDto(cour));

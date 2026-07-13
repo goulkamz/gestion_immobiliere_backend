@@ -5,7 +5,7 @@ import lombok.Data;
 
 @Data @Builder
 public class PaysResponseDTO {
-    private Long idPays;
+    private Integer idPays;
     private String codePays;
     private String nomPays;
 }

@@ -6,7 +6,7 @@ import lombok.*;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "paiement")
@@ -21,7 +21,7 @@ public class Paiement extends Model {
     private Integer idPaiement;
 
     @Column(name = "date_paiement")
-    private LocalDate datePaiement;
+    private LocalDateTime datePaiement;
 
     @Column(name = "montant_paiement")
     private Double montantPaiement;

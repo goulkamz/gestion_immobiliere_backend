@@ -24,7 +24,7 @@ public class PaysController implements PaysAPI {
     }
 
     @Override
-    public ResponseEntity<?> getById(Long id) {
+    public ResponseEntity<?> getById(Integer id) {
         return paysService.getById(id);
     }
 
@@ -36,13 +36,13 @@ public class PaysController implements PaysAPI {
 
     @Override
     @PreAuthorize("hasAnyRole('ADMIN','AGENT')")
-    public ResponseEntity<?> update(Long id, UpdatePaysDTO dto) {
+    public ResponseEntity<?> update(Integer id, UpdatePaysDTO dto) {
         return paysService.update(id, dto);
     }
 
     @Override
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> delete(Long id) {
+    public ResponseEntity<?> delete(Integer id) {
         return paysService.delete(id);
     }
 }

@@ -9,6 +9,7 @@ import com.immobilier.gestionImmobiliere.modules.annonces.dto.requests.CreateAnn
 import com.immobilier.gestionImmobiliere.modules.annonces.dto.requests.UpdateAnnonceDTO;
 import com.immobilier.gestionImmobiliere.modules.annonces.dto.requests.UpdateStatutAnnonceDTO;
 import com.immobilier.gestionImmobiliere.modules.annonces.dto.responses.AnnonceResponseDTO;
+import com.immobilier.gestionImmobiliere.modules.journal.services.JournalService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -17,7 +18,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
@@ -26,9 +27,11 @@ import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.build
 public class AnnonceService {
 
     private final AnnonceRepository annonceRepository;
+    private final JournalService journalService;
 
-    public AnnonceService(AnnonceRepository annonceRepository) {
+    public AnnonceService(AnnonceRepository annonceRepository, JournalService journalService) {
         this.annonceRepository = annonceRepository;
+        this.journalService = journalService;
     }
 
     public ResponseEntity<?> getAll(StatutAnnonce statut, Pageable pageable) {
@@ -42,7 +45,7 @@ public class AnnonceService {
 
     @Transactional
     public ResponseEntity<?> create(CreateAnnonceDTO dto) {
-        LocalDate publication = LocalDate.now();
+        LocalDateTime publication = LocalDateTime.now();
         if (!dto.getDateExpiration().isAfter(publication)) {
             throw new DateExpirationInvalideException();
         }
@@ -81,10 +84,15 @@ public class AnnonceService {
     }
 
     @Transactional
-    public ResponseEntity<?> updateStatut(Integer id, UpdateStatutAnnonceDTO dto) {
+    public ResponseEntity<?> updateStatut(Integer id, UpdateStatutAnnonceDTO dto,Integer currentUserId) {
         Annonce annonce = findOrThrow(id);
+        String ancienStatut = annonce.getStatut().name();
         annonce.setStatut(dto.getStatut());
+
         annonceRepository.save(annonce);
+        journalService.enregistrer(currentUserId, "CHANGEMENT_STATUT", "annonce", annonce.getIdAnnonce(),
+                "Transition de statut de l'annonce", "statut=" + ancienStatut, "statut=" + dto.getStatut().name());
+
         return buildSuccessResponse(HttpStatus.OK, "Statut mis à jour", "ANNONCE_STATUT_UPDATED", toDto(annonce));
     }
 
@@ -100,7 +108,7 @@ public class AnnonceService {
     @Scheduled(cron = "0 0 1 * * *")
     @Transactional
     public void expirerAnnoncesAutomatiquement() {
-        List<Annonce> expirees = annonceRepository.findByStatutAndDateExpirationBefore(StatutAnnonce.ACTIVE, LocalDate.now());
+        List<Annonce> expirees = annonceRepository.findByStatutAndDateExpirationBefore(StatutAnnonce.ACTIVE, LocalDateTime.now());
         expirees.forEach(a -> a.setStatut(StatutAnnonce.EXPIREE));
         annonceRepository.saveAll(expirees);
     }

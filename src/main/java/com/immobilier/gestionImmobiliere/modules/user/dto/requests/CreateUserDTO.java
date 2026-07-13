@@ -7,6 +7,8 @@ import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import com.fasterxml.jackson.annotation.JsonFormat;
+
+import java.time.LocalDate;
 import java.util.Date;
 
     @Data
@@ -45,7 +47,7 @@ import java.util.Date;
         @NotNull(message = "La date de naissance est obligatoire")
         @Past(message = "La date de naissance doit être dans le passé")
         @JsonFormat(pattern = "yyyy-MM-dd", timezone = "UTC")
-        private Date dateNaissance;
+        private LocalDate dateNaissance;
 
         @NotBlank(message = "Le téléphone est obligatoire")
         @Pattern(regexp = PHONE_REGEX, message = "Format de téléphone invalide")

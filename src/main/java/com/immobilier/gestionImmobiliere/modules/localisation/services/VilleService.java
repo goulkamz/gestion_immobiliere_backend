@@ -31,7 +31,7 @@ public class VilleService {
         this.paysRepository = paysRepository;
     }
 
-    public ResponseEntity<?> getAll(Long idPays, Pageable pageable) {
+    public ResponseEntity<?> getAll(Integer idPays, Pageable pageable) {
         Page<VilleResponseDTO> result = (idPays != null
                 ? villeRepository.findByPays_IdPays(idPays, pageable)
                 : villeRepository.findAll(pageable))
@@ -39,7 +39,7 @@ public class VilleService {
         return buildSuccessResponse(HttpStatus.OK, "Liste des villes", "VILLE_LIST", result);
     }
 
-    public ResponseEntity<?> getById(Long id) {
+    public ResponseEntity<?> getById(Integer id) {
         return buildSuccessResponse(HttpStatus.OK, "Ville trouvée", "VILLE_FOUND", toDto(findOrThrow(id)));
     }
 
@@ -62,7 +62,7 @@ public class VilleService {
     }
 
     @Transactional
-    public ResponseEntity<?> update(Long id, UpdateVilleDTO dto) {
+    public ResponseEntity<?> update(Integer id, UpdateVilleDTO dto) {
         Ville ville = findOrThrow(id);
 
         if (dto.getIdPays() != null) {
@@ -78,12 +78,12 @@ public class VilleService {
     }
 
     @Transactional
-    public ResponseEntity<?> delete(Long id) {
+    public ResponseEntity<?> delete(Integer id) {
         villeRepository.delete(findOrThrow(id));
         return buildSuccessResponse(HttpStatus.OK, "Ville supprimée", "VILLE_DELETED", null);
     }
 
-    private Ville findOrThrow(Long id) {
+    private Ville findOrThrow(Integer id) {
         return villeRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("ville",id));
     }
 

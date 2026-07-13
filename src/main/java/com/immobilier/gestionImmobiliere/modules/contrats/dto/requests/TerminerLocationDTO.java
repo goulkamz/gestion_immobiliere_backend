@@ -2,8 +2,10 @@ package com.immobilier.gestionImmobiliere.modules.contrats.dto.requests;
 
 import lombok.Data;
 
+import java.time.LocalDateTime;
+
 @Data
 public class TerminerLocationDTO {
     private String etatDesLieuxSortie;
-    private java.time.LocalDate dateSortie;
+    private LocalDateTime dateSortie;
 }

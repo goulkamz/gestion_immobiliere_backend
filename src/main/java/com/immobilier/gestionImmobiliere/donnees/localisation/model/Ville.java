@@ -18,7 +18,7 @@ public class Ville {
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "seq_ville")
     @SequenceGenerator(name = "seq_ville", sequenceName = "seq_ville", allocationSize = 1)
     @Column(name = "id_ville")
-    private Long idVille;
+    private Integer idVille;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "id_pays", nullable = false)
