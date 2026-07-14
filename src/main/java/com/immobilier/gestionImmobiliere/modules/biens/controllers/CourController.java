@@ -31,16 +31,6 @@ public class CourController implements CourAPI {
     }
 
     @Override
-    public ResponseEntity<?> create(CreateCourDTO dto) {
-        return courService.create(dto);
-    }
-
-    @Override
-    public ResponseEntity<?> update(Integer id, UpdateCourDTO dto) {
-        return courService.update(id,dto);
-    }
-
-    @Override
     @PreAuthorize("hasRole('AGENT')")
     public ResponseEntity<?> create(CreateCourDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser) {
         return courService.create(dto, currentUser.getIdUser());
