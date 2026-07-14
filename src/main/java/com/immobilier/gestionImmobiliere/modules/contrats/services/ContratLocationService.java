@@ -35,14 +35,13 @@ public class ContratLocationService {
     private final MaisonRepository maisonRepository;
     private final UserRepository userRepository;
     private final EcheanceGenerationService echeanceGenerationService;
-    private final JournalService journalService;
 
-    public ContratLocationService(ContratLocationRepository locationRepository, MaisonRepository maisonRepository, UserRepository userRepository, EcheanceGenerationService echeanceGenerationService, JournalService journalService) {
+
+    public ContratLocationService(ContratLocationRepository locationRepository, MaisonRepository maisonRepository, UserRepository userRepository, EcheanceGenerationService echeanceGenerationService) {
         this.locationRepository = locationRepository;
         this.maisonRepository = maisonRepository;
         this.userRepository = userRepository;
         this.echeanceGenerationService = echeanceGenerationService;
-        this.journalService = journalService;
     }
 
     /**
@@ -167,10 +166,6 @@ public class ContratLocationService {
         maison.setStatut(StatutMaison.DISPONIBLE);
         maisonRepository.save(maison);
 
-        journalService.enregistrer(currentUserId, "TERMINAISON", "contra_location", location.getIdContratLocation(),
-                "Fin de bail, maison id " + maison.getIdMaison() + " redevenue disponible",
-                "statut=" + ancienStatut, "statut=TERMINE");
-
         return buildSuccessResponse(HttpStatus.OK, "Contrat terminé, maison redevenue disponible", "LOCATION_TERMINEE", toDto(location));
     }
 
@@ -189,10 +184,6 @@ public class ContratLocationService {
         Maison maison = location.getMaison();
         maison.setStatut(StatutMaison.DISPONIBLE);
         maisonRepository.save(maison);
-
-        journalService.enregistrer(currentUserId, "RESILIATION", "contra_location", location.getIdContratLocation(),
-                "Résiliation du bail, maison id " + maison.getIdMaison() + " redevenue disponible",
-                "statut=" + ancienStatut, "statut=RESILIE");
 
         return buildSuccessResponse(HttpStatus.OK, "Contrat résilié, maison redevenue disponible", "LOCATION_RESILIEE", toDto(location));
     }

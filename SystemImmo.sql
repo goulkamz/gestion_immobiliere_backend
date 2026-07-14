@@ -474,14 +474,14 @@ CREATE TABLE echeance_loyer (
 -- ==============================================================
 CREATE TABLE journal_operation (
     id_journal INTEGER PRIMARY KEY DEFAULT nextval('seq_journal'),
-    id_user INTEGER NOT NULL,
+    id_user INTEGER ,
     action VARCHAR(254),
     entite VARCHAR(254),
     ligne_entite INTEGER,
     description VARCHAR(254),
     date_action TIMESTAMP(6),
-    ancien_contenu TEXT,
-    nouveau_contenu TEXT,
+    ancien_contenu JSONB,
+    nouveau_contenu JSONB,
     created_at TIMESTAMP(6) DEFAULT NOW(),
     updated_at TIMESTAMP(6) DEFAULT NOW(),
     is_deleted BOOLEAN DEFAULT FALSE,

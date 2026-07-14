@@ -8,7 +8,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-@RequestMapping("/api/contacts")
+@RequestMapping("/api/public/contacts")
 public interface ContactAPI {
 
     @GetMapping

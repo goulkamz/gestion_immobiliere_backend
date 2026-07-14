@@ -33,14 +33,12 @@ public class ContratMandatService {
     private final CourRepository courRepository;
     private final UserRepository userRepository;
     private final EcheanceGenerationService echeanceGenerationService;
-    private final JournalService journalService;
 
-    public ContratMandatService(ContratMandatRepository mandatRepository, CourRepository courRepository, UserRepository userRepository, EcheanceGenerationService echeanceGenerationService, JournalService journalService) {
+    public ContratMandatService(ContratMandatRepository mandatRepository, CourRepository courRepository, UserRepository userRepository, EcheanceGenerationService echeanceGenerationService) {
         this.mandatRepository = mandatRepository;
         this.courRepository = courRepository;
         this.userRepository = userRepository;
         this.echeanceGenerationService = echeanceGenerationService;
-        this.journalService = journalService;
     }
 
     public ResponseEntity<?> getAll(Integer idCour, StatutMandat statut, Pageable pageable) {
@@ -72,10 +70,6 @@ public class ContratMandatService {
                 .statut(StatutMandat.EN_ATTENTE)
                 .build();
         mandatRepository.save(mandat);
-
-        journalService.enregistrer(currentUserId, "CREATION", "contrat_mandat", mandat.getIdMandat(),
-                "Création du mandat pour la cour id " + cour.getIdCour(), null, "statut=EN_ATTENTE");
-
         return buildSuccessResponse(HttpStatus.CREATED, "Mandat créé (en attente d'activation)", "MANDAT_CREATED", toDto(mandat));
     }
 
@@ -95,10 +89,6 @@ public class ContratMandatService {
         mandat.setStatut(StatutMandat.ACTIF);
         mandatRepository.save(mandat);
         echeanceGenerationService.genererEcheancesMandat(mandat);
-
-        journalService.enregistrer(currentUserId, "ACTIVATION", "contrat_mandat", mandat.getIdMandat(),
-                "Activation du mandat", "statut=" + ancienStatut, "statut=ACTIF");
-
         return buildSuccessResponse(HttpStatus.OK, "Mandat activé", "MANDAT_ACTIVATED", toDto(mandat));
     }
 
@@ -115,9 +105,6 @@ public class ContratMandatService {
         mandat.setMotifResiliation(dto.getMotifResiliation());
         mandat.setDateResiliation(LocalDateTime.now());
         mandatRepository.save(mandat);
-        journalService.enregistrer(currentUserId, "RESILIATION", "contrat_mandat", mandat.getIdMandat(),
-                "Résiliation du mandat, motif : " + dto.getMotifResiliation(),
-                "statut=" + ancienStatut, "statut=RESILIE");
         return buildSuccessResponse(HttpStatus.OK, "Mandat résilié", "MANDAT_RESILIE", toDto(mandat));
     }
 

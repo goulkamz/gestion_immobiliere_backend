@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.configurations;
 
+import com.immobilier.gestionImmobiliere.modules.annonces.services.AnnonceService;
 import com.immobilier.gestionImmobiliere.modules.medias.services.MediaReconciliationService;
 import com.immobilier.gestionImmobiliere.modules.user.jwt.JwtUtils;
 import com.immobilier.gestionImmobiliere.modules.user.services.PasswordResetService;
@@ -19,6 +20,7 @@ public class CleanupScheduler {
     private final PasswordResetService passwordResetService;
     private final JwtUtils jwtUtils;
     private final MediaReconciliationService mediaReconciliationService;
+    private final AnnonceService annonceService;
 
     // Nettoyage tous les jours a 2h du matin
     @Scheduled(cron = "0 0 2 * * *")
@@ -40,4 +42,7 @@ public class CleanupScheduler {
     public void nettoyerFichiersOrphelins() {
         mediaReconciliationService.nettoyerFichiersOrphelins();
     }
+
+    @Scheduled(cron = "0 0 1 * * *")
+    public void nettoyerAnnonce(){annonceService.expirerAnnoncesAutomatiquement();}
 }

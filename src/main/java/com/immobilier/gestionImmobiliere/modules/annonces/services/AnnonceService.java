@@ -27,11 +27,9 @@ import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.build
 public class AnnonceService {
 
     private final AnnonceRepository annonceRepository;
-    private final JournalService journalService;
 
-    public AnnonceService(AnnonceRepository annonceRepository, JournalService journalService) {
+    public AnnonceService(AnnonceRepository annonceRepository) {
         this.annonceRepository = annonceRepository;
-        this.journalService = journalService;
     }
 
     public ResponseEntity<?> getAll(StatutAnnonce statut, Pageable pageable) {
@@ -90,9 +88,6 @@ public class AnnonceService {
         annonce.setStatut(dto.getStatut());
 
         annonceRepository.save(annonce);
-        journalService.enregistrer(currentUserId, "CHANGEMENT_STATUT", "annonce", annonce.getIdAnnonce(),
-                "Transition de statut de l'annonce", "statut=" + ancienStatut, "statut=" + dto.getStatut().name());
-
         return buildSuccessResponse(HttpStatus.OK, "Statut mis à jour", "ANNONCE_STATUT_UPDATED", toDto(annonce));
     }
 
@@ -105,7 +100,7 @@ public class AnnonceService {
     /**
      * Job quotidien — bascule ACTIVE -> EXPIREE une fois la date d'expiration dépassée.
      */
-    @Scheduled(cron = "0 0 1 * * *")
+
     @Transactional
     public void expirerAnnoncesAutomatiquement() {
         List<Annonce> expirees = annonceRepository.findByStatutAndDateExpirationBefore(StatutAnnonce.ACTIVE, LocalDateTime.now());

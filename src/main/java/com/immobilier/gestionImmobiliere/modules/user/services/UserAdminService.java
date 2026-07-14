@@ -30,14 +30,13 @@ public class UserAdminService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
-    private final JournalService journalService;
+
 
     public UserAdminService(UserRepository userRepository, RoleRepository roleRepository,
-                            PasswordEncoder passwordEncoder, JournalService journalService) {
+                            PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
-        this.journalService = journalService;
     }
 
     public ResponseEntity<?> getAll(ERole role, Pageable pageable) {
@@ -74,10 +73,6 @@ public class UserAdminService {
         user.setFlagActif(true);
         user.initTimestamp(); // méthode déjà utilisée dans activation() de UserService
         userRepository.save(user);
-
-        journalService.enregistrer(currentUserId, "CREATION", "users", user.getIdUser(),
-                "Création d'un compte par l'administrateur, rôle=" + dto.getRole(), null, "role=" + dto.getRole());
-
         return buildSuccessResponse(HttpStatus.CREATED, "Utilisateur créé avec succès", "USER_CREATED", toDto(user));
     }
 
@@ -109,10 +104,6 @@ public class UserAdminService {
                 .orElseThrow(() -> new RoleNotFoundException(dto.getRole().toString()));
         user.setRole(nouveauRole);
         userRepository.save(user);
-
-        journalService.enregistrer(currentUserId, "CHANGEMENT_ROLE", "users", user.getIdUser(),
-                "Changement de rôle utilisateur", "role=" + ancienRole, "role=" + dto.getRole());
-
         return buildSuccessResponse(HttpStatus.OK, "Rôle mis à jour", "USER_ROLE_UPDATED", toDto(user));
     }
 
@@ -126,10 +117,6 @@ public class UserAdminService {
         Boolean ancienStatut = user.isFlagActif();
         user.setFlagActif(dto.getFlagActif());
         userRepository.save(user);
-
-        journalService.enregistrer(currentUserId, dto.getFlagActif() ? "ACTIVATION" : "DESACTIVATION", "users", user.getIdUser(),
-                "Changement d'état du compte", "flagActif=" + ancienStatut, "flagActif=" + dto.getFlagActif());
-
         return buildSuccessResponse(HttpStatus.OK,
                 dto.getFlagActif() ? "Compte activé" : "Compte désactivé", "USER_STATUS_UPDATED", toDto(user));
     }
@@ -141,9 +128,6 @@ public class UserAdminService {
         }
         User user = findOrThrow(id);
         userRepository.delete(user); // soft delete via @SQLDelete (déjà en place sur User)
-
-        journalService.enregistrer(currentUserId, "SUPPRESSION", "users", id,
-                "Suppression logique du compte", null, null);
 
         return buildSuccessResponse(HttpStatus.OK, "Utilisateur supprimé", "USER_DELETED", null);
     }
