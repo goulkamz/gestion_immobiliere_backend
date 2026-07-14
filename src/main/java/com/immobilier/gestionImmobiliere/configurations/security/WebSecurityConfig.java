@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.configurations.security;
 
+import com.immobilier.gestionImmobiliere.modules.journal.audit.AuditRequestFilter;
 import com.immobilier.gestionImmobiliere.modules.user.jwt.AuthEntryPointJwt;
 import com.immobilier.gestionImmobiliere.modules.user.jwt.AuthTokenFilter;
 import com.immobilier.gestionImmobiliere.modules.user.jwt.JwtUtils;
@@ -35,13 +36,15 @@ public class WebSecurityConfig {
     private final AuthEntryPointJwt unauthorizedHandler;
     private final JwtUtils jwtUtils;
     private final PasswordEncoder passwordEncoder;
+    private final AuditRequestFilter auditRequestFilter;
 
 
-    public WebSecurityConfig(UserDetailsServiceImpl userDetailsService, AuthEntryPointJwt unauthorizedHandler, JwtUtils jwtUtils, PasswordEncoder passwordEncoder) {
+    public WebSecurityConfig(UserDetailsServiceImpl userDetailsService, AuthEntryPointJwt unauthorizedHandler, JwtUtils jwtUtils, PasswordEncoder passwordEncoder, AuditRequestFilter auditRequestFilter) {
         this.userDetailsService = userDetailsService;
         this.unauthorizedHandler = unauthorizedHandler;
         this.jwtUtils = jwtUtils;
         this.passwordEncoder = passwordEncoder;
+        this.auditRequestFilter = auditRequestFilter;
     }
 
     @Bean
@@ -81,6 +84,7 @@ public class WebSecurityConfig {
         http.authenticationProvider(authenticationProvider());
 
         http.addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
+        http.addFilterAfter(auditRequestFilter, AuthTokenFilter.class);
 
         return http.build();
     }

@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 
 import java.util.Map;
 
-@RequestMapping("/auth")
+@RequestMapping("/api/auth")
 public interface AuthentificationAPI {
 
         @PostMapping("/signin")

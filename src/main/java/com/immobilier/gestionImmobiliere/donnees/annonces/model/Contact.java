@@ -1,6 +1,7 @@
 package com.immobilier.gestionImmobiliere.donnees.annonces.model;
 
 import com.immobilier.gestionImmobiliere.donnees.Model;
+import com.immobilier.gestionImmobiliere.donnees.Model_1;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.SQLDelete;
@@ -13,7 +14,7 @@ import java.time.LocalDateTime;
 @Data @Builder @NoArgsConstructor @AllArgsConstructor
 @SQLDelete(sql = "UPDATE contact SET is_deleted = true WHERE id_contact = ?")
 @Where(clause = "is_deleted = false")
-public class Contact extends Model {
+public class Contact extends Model_1 {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

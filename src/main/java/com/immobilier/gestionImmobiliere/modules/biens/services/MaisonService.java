@@ -40,12 +40,10 @@ public class MaisonService {
 
     private final MaisonRepository maisonRepository;
     private final CourRepository courRepository;
-    private final JournalService journalService;
 
-    public MaisonService(MaisonRepository maisonRepository, CourRepository courRepository, JournalService journalService) {
+    public MaisonService(MaisonRepository maisonRepository, CourRepository courRepository) {
         this.maisonRepository = maisonRepository;
         this.courRepository = courRepository;
-        this.journalService = journalService;
     }
 
     public ResponseEntity<?> getAll(Integer idCour, StatutMaison statut, Pageable pageable) {
@@ -146,9 +144,6 @@ public class MaisonService {
         maison.setUserUpdate(currentUserId);
         maison.setDateUpdate(LocalDateTime.now());
         maisonRepository.save(maison);
-        journalService.enregistrer(currentUserId, "CHANGEMENT_STATUT", "maison", maison.getIdMaison(),
-                "Transition de statut de la maison", "statut=" + current.name(), "statut=" + target.name());
-
         return buildSuccessResponse(HttpStatus.OK, "Statut mis à jour", "MAISON_STATUT_UPDATED", toDto(maison));
     }
 
