@@ -23,12 +23,6 @@ public interface MaisonAPI {
     ResponseEntity<?> getById(@PathVariable Integer id);
 
     @PostMapping
-    ResponseEntity<?> create(@Valid @RequestBody CreateMaisonDTO dto);
-
-    @PutMapping("/{id}")
-    ResponseEntity<?> update(@PathVariable Integer id, @Valid @RequestBody UpdateMaisonDTO dto);
-
-    @PostMapping
     ResponseEntity<?> create(@Valid @RequestBody CreateMaisonDTO dto,@AuthenticationPrincipal UserDetailsImpl currentUser);
 
     @PutMapping("/{id}")
@@ -38,8 +32,6 @@ public interface MaisonAPI {
     @PatchMapping("/{id}/statut")
     ResponseEntity<?> updateStatut(@PathVariable Integer id, @Valid @RequestBody UpdateStatutMaisonDTO dto,@AuthenticationPrincipal UserDetailsImpl currentUser);
 
-    @PatchMapping("/{id}/statut")
-    ResponseEntity<?> updateStatut(@PathVariable Integer id, @Valid @RequestBody UpdateStatutMaisonDTO dto);
 
 
     @DeleteMapping("/{id}")

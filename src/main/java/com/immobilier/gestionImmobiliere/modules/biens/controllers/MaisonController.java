@@ -33,21 +33,6 @@ public class MaisonController implements MaisonAPI {
     }
 
     @Override
-    public ResponseEntity<?> create(CreateMaisonDTO dto) {
-        return null;
-    }
-
-    @Override
-    public ResponseEntity<?> update(Integer id, UpdateMaisonDTO dto) {
-        return null;
-    }
-
-    @Override
-    public ResponseEntity<?> updateStatut(Integer id, UpdateStatutMaisonDTO dto) {
-        return maisonService.updateStatut(id,dto);
-    }
-
-    @Override
     @PreAuthorize("hasRole('AGENT')")
     public ResponseEntity<?> create(CreateMaisonDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser) {
         return maisonService.create(dto, currentUser.getIdUser());

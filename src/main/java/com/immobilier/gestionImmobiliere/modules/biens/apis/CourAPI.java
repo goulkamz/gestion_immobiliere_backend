@@ -19,12 +19,6 @@ public interface CourAPI {
     ResponseEntity<?> getById(@PathVariable Integer id);
 
     @PostMapping
-    ResponseEntity<?> create(@Valid @RequestBody CreateCourDTO dto);
-
-    @PutMapping("/{id}")
-    ResponseEntity<?> update(@PathVariable Integer id, @Valid @RequestBody UpdateCourDTO dto);
-
-    @PostMapping
     ResponseEntity<?> create(@Valid @RequestBody CreateCourDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser);
 
     @PutMapping("/{id}")

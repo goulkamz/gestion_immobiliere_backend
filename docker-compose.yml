@@ -10,6 +10,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./SystemImmo.sql:/docker-entrypoint-initdb.d/01-init.sql
     networks:
       - immobiliere-network
     restart: unless-stopped
@@ -92,6 +93,8 @@ services:
       - APP_MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
       - APP_MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
       - APP_MINIO_BUCKET=medias-immobilier
+      - SPRING_MAIL_HOST=mailhog
+      - SPRING_MAIL_PORT=1025
     depends_on:
       postgres:
         condition: service_healthy
@@ -103,6 +106,16 @@ services:
     networks:
       - immobiliere-network
 
+  # docker-compose.yml — nouveau service
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: gestion-immo-mailhog
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Interface web pour voir les mails reçus
+    networks:
+      - immobiliere-network
+    restart: unless-stopped
 volumes:
   postgres-data:
     driver: local
