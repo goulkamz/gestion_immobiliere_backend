@@ -284,10 +284,10 @@ public class JwtUtils {
             String currentFingerprint = encoder.encode(fingerprintService.generateFingerprint(request, response));
             String tokenFingerprint = (String) claims.get("fingerprint");
 
-            if (!currentFingerprint.equals(tokenFingerprint)) {
-                log.warn("Fingerprint mismatch - possible vol de token");
+            if (!fingerprintService.fingerprintsMatch(tokenFingerprint, currentFingerprint)) {
                 return false;
             }
+
 
             // Vérifier dans le store
             String tokenId = (String) claims.get("tokenId");

@@ -19,9 +19,11 @@ public class ImmoAuditEventListener implements PostInsertEventListener, PostUpda
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ImmoAuditEventListener.class);
 
     private final ApplicationEventPublisher publisher;
+    private final AuditValueNormalizer normalizer;
 
-    public ImmoAuditEventListener(ApplicationEventPublisher publisher) {
+    public ImmoAuditEventListener(ApplicationEventPublisher publisher, AuditValueNormalizer normalizer) {
         this.publisher = publisher;
+        this.normalizer = normalizer;
     }
 
     @Override
@@ -31,6 +33,7 @@ public class ImmoAuditEventListener implements PostInsertEventListener, PostUpda
         Map<String, Object> nouvelle = toSafeMap(event.getPersister().getPropertyNames(), event.getState());
         publier("CREATE", event.getEntity(), idAsInteger(event.getId()), null, nouvelle);
     }
+
 
     @Override
     public void onPostUpdate(PostUpdateEvent event) {
@@ -43,21 +46,33 @@ public class ImmoAuditEventListener implements PostInsertEventListener, PostUpda
         Map<String, Object> ancienne = new HashMap<>();
         Map<String, Object> nouvelle = new HashMap<>();
 
+        // On ne conserve que les propriétés effectivement modifiées
         for (int i = 0; i < noms.length; i++) {
-            // Ignore le bruit technique (updated_at change à chaque update, sans intérêt métier)
-            if (noms[i].equals("updatedAt") || noms[i].equals("createdAt")) continue;
 
             Object avant = etatAvant != null ? etatAvant[i] : null;
             Object apres = etatApres != null ? etatApres[i] : null;
-            if (!Objects.equals(safe(avant), safe(apres))) {
-                ancienne.put(noms[i], safe(avant));
-                nouvelle.put(noms[i], safe(apres));
+
+            Object avantNormalise = normalizer.normalize(avant);
+            Object apresNormalise = normalizer.normalize(apres);
+
+            if (!java.util.Objects.equals(avantNormalise, apresNormalise)) {
+
+                ancienne.put(noms[i], avantNormalise);
+                nouvelle.put(noms[i], apresNormalise);
             }
         }
 
-        if (ancienne.isEmpty()) return;
+        if (ancienne.isEmpty()) {
+            return; // aucune valeur métier modifiée
+        }
 
-        publier("UPDATE", event.getEntity(), idAsInteger(event.getId()), ancienne, nouvelle);
+        publier(
+                "UPDATE",
+                event.getEntity(),
+                idAsInteger(event.getId()),
+                ancienne,
+                nouvelle
+        );
     }
 
     @Override
@@ -91,21 +106,11 @@ public class ImmoAuditEventListener implements PostInsertEventListener, PostUpda
         Map<String, Object> map = new HashMap<>();
         if (etats == null) return map;
         for (int i = 0; i < noms.length; i++) {
-            map.put(noms[i], safe(etats[i]));
+            map.put(noms[i], normalizer.normalize(etats[i]));
         }
         return map;
     }
 
-    private Object safe(Object valeur) {
-        if (valeur instanceof HibernateProxy proxy) {
-            Object id = proxy.getHibernateLazyInitializer().getIdentifier();
-            return proxy.getHibernateLazyInitializer().getPersistentClass().getSimpleName() + "#" + id;
-        }
-        if (valeur instanceof PersistentCollection) {
-            return "[collection non chargée]";
-        }
-        return valeur;
-    }
 
     private Integer idAsInteger(Object id) {
         if (id == null) return null;

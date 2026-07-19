@@ -4,7 +4,11 @@ import lombok.Data;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ScanOptions;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -18,8 +22,15 @@ public class RefreshTokenRedisService {
     private static final String REFRESH_TOKEN_KEY_PREFIX = "rt:";
     private static final String USER_TOKENS_KEY_PREFIX = "user:rt:";
 
-    @Autowired
-    private RedisTemplate<String, Object> redisTemplate;
+    private final RedisTemplate<String, RefreshTokenData> refreshTokenRedisTemplate;
+    private final StringRedisTemplate stringRedisTemplate;
+
+    public RefreshTokenRedisService(
+            @Qualifier("refreshTokenRedisTemplate") RedisTemplate<String, RefreshTokenData> refreshTokenRedisTemplate, StringRedisTemplate stringRedisTemplate
+    ) {
+        this.refreshTokenRedisTemplate = refreshTokenRedisTemplate;
+        this.stringRedisTemplate = stringRedisTemplate;
+    }
 
     @Data
     @Builder
@@ -38,7 +49,6 @@ public class RefreshTokenRedisService {
     public void save(String tokenId, RefreshTokenData data) {
         String key = REFRESH_TOKEN_KEY_PREFIX + tokenId;
 
-        // Calculer le TTL restant
         long ttl = data.getExpiration().getTime() - System.currentTimeMillis();
 
         if (ttl <= 0) {
@@ -46,13 +56,11 @@ public class RefreshTokenRedisService {
             return;
         }
 
-        // Sauvegarder le token
-        redisTemplate.opsForValue().set(key, data, ttl, TimeUnit.MILLISECONDS);
+        refreshTokenRedisTemplate.opsForValue().set(key, data, ttl, TimeUnit.MILLISECONDS);
 
-        // Sauvegarder la référence user -> token (pour révocations massives)
         String userKey = USER_TOKENS_KEY_PREFIX + data.getUsername();
-        redisTemplate.opsForSet().add(userKey, tokenId);
-        redisTemplate.expire(userKey, ttl, TimeUnit.MILLISECONDS);
+        stringRedisTemplate.opsForSet().add(userKey, tokenId);
+        stringRedisTemplate.expire(userKey, ttl, TimeUnit.MILLISECONDS);
 
         log.debug("Refresh token sauvegardé: {} pour user: {} (TTL: {} ms)", tokenId, data.getUsername(), ttl);
     }
@@ -62,14 +70,13 @@ public class RefreshTokenRedisService {
      */
     public RefreshTokenData findById(String tokenId) {
         String key = REFRESH_TOKEN_KEY_PREFIX + tokenId;
-        Object data = redisTemplate.opsForValue().get(key);
+        RefreshTokenData data = refreshTokenRedisTemplate.opsForValue().get(key);
 
-        if (data instanceof RefreshTokenData) {
-            return (RefreshTokenData) data;
+        if (data == null) {
+            log.debug("Refresh token non trouvé: {}", tokenId);
         }
 
-        log.debug("Refresh token non trouvé: {}", tokenId);
-        return null;
+        return data;
     }
 
     /**
@@ -83,12 +90,11 @@ public class RefreshTokenRedisService {
 
         data.setUsed(true);
 
-        // Mettre à jour avec le même TTL restant
         String key = REFRESH_TOKEN_KEY_PREFIX + tokenId;
-        Long ttl = redisTemplate.getExpire(key, TimeUnit.MILLISECONDS);
+        Long ttl = refreshTokenRedisTemplate.getExpire(key, TimeUnit.MILLISECONDS);
 
         if (ttl != null && ttl > 0) {
-            redisTemplate.opsForValue().set(key, data, ttl, TimeUnit.MILLISECONDS);
+            refreshTokenRedisTemplate.opsForValue().set(key, data, ttl, TimeUnit.MILLISECONDS);
             return true;
         }
 
@@ -103,12 +109,11 @@ public class RefreshTokenRedisService {
         RefreshTokenData data = findById(tokenId);
 
         if (data != null) {
-            // Supprimer aussi la référence user -> token
             String userKey = USER_TOKENS_KEY_PREFIX + data.getUsername();
-            redisTemplate.opsForSet().remove(userKey, tokenId);
+            stringRedisTemplate.opsForSet().remove(userKey, tokenId);
         }
 
-        redisTemplate.delete(key);
+        refreshTokenRedisTemplate.delete(key);
         log.debug("Refresh token supprimé: {}", tokenId);
     }
 
@@ -117,22 +122,19 @@ public class RefreshTokenRedisService {
      */
     public int revokeAllUserTokens(String username) {
         String userKey = USER_TOKENS_KEY_PREFIX + username;
-        Set<Object> tokenIds = redisTemplate.opsForSet().members(userKey);
+        Set<String> tokenIds = stringRedisTemplate.opsForSet().members(userKey);
 
         if (tokenIds == null || tokenIds.isEmpty()) {
             log.debug("Aucun token trouvé pour user: {}", username);
             return 0;
         }
 
-        // Supprimer chaque token
-        for (Object tokenIdObj : tokenIds) {
-            String tokenId = tokenIdObj.toString();
-            String key = REFRESH_TOKEN_KEY_PREFIX + tokenId;
-            redisTemplate.delete(key);
-        }
+        List<String> keys = tokenIds.stream()
+                .map(id -> REFRESH_TOKEN_KEY_PREFIX + id)
+                .toList();
 
-        // Supprimer la liste user -> tokens
-        redisTemplate.delete(userKey);
+        refreshTokenRedisTemplate.delete(keys);
+        stringRedisTemplate.delete(userKey);
 
         log.info("{} tokens révoqués pour user: {}", tokenIds.size(), username);
         return tokenIds.size();
@@ -157,10 +159,27 @@ public class RefreshTokenRedisService {
      * Nettoie les tokens expirés (Redis le fait automatiquement avec TTL)
      * Cette méthode peut être utilisée pour le monitoring
      */
+//    public long getActiveTokensCount() {
+//        // Redis ne supporte pas nativement le comptage de toutes les clés avec pattern
+//        // Pour production, utilisez Redis SCAN ou maintenez un compteur séparé
+//        Set<String> keys = redisTemplate.keys(REFRESH_TOKEN_KEY_PREFIX + "*");
+//        return keys != null ? keys.size() : 0;
+//    }
+
     public long getActiveTokensCount() {
-        // Redis ne supporte pas nativement le comptage de toutes les clés avec pattern
-        // Pour production, utilisez Redis SCAN ou maintenez un compteur séparé
-        Set<String> keys = redisTemplate.keys(REFRESH_TOKEN_KEY_PREFIX + "*");
-        return keys != null ? keys.size() : 0;
+        long count = 0;
+        ScanOptions options = ScanOptions.scanOptions()
+                .match(REFRESH_TOKEN_KEY_PREFIX + "*")
+                .count(100)
+                .build();
+
+        try (Cursor<byte[]> cursor = refreshTokenRedisTemplate.getConnectionFactory()
+                .getConnection().scan(options)) {
+            while (cursor.hasNext()) {
+                cursor.next();
+                count++;
+            }
+        }
+        return count;
     }
 }

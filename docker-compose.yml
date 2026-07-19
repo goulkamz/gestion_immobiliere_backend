@@ -53,6 +53,18 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  redisinsight:
+    image: redis/redisinsight:latest
+    container_name: gestion-immo-redisinsight
+    ports:
+      - "5540:5540"
+    networks:
+      - immobiliere-network
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+
   minio:
     image: minio/minio:latest
     container_name: gestion-immo-minio
@@ -93,6 +105,9 @@ services:
       - APP_MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
       - APP_MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
       - APP_MINIO_BUCKET=medias-immobilier
+      - APP_MINIO_BUCKET_DOCUMENTS=documents
+      - APP_MEDIAS_MAX_SIZE_IMAGE_MO=5
+      - APP_MEDIAS_MAX_SIZE_VIDEO_MO=50
       - SPRING_MAIL_HOST=mailhog
       - SPRING_MAIL_PORT=1025
     depends_on:

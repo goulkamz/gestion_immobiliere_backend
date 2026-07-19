@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.medias.dto.responses;
 
+import com.immobilier.gestionImmobiliere.donnees.medias.model.StatutThumbnail;
 import com.immobilier.gestionImmobiliere.donnees.medias.model.TypeEntiteMedia;
 import lombok.Builder;
 import lombok.Data;
@@ -15,6 +16,7 @@ public class MediaResponseDTO {
     private Integer entiteId;
     private String typeMedia;
     private String url;
+    private StatutThumbnail statutThumbnail;
     private Boolean isPrincipal;
     private Short ordre;
     private LocalDateTime dateUpload;
