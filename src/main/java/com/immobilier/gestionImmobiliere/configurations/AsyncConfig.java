@@ -1,4 +1,4 @@
-package com.immobilier.gestionImmobiliere.config;
+package com.immobilier.gestionImmobiliere.configurations;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
