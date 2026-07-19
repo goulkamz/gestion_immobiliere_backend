@@ -38,6 +38,12 @@ public class Media extends Model_1 {
     @Column(name = "media_path_thumbnail")
     private String mediaPathThumbnail;
 
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "thumbnail_status")
+    @Builder.Default
+    private StatutThumbnail statutThumbnail = StatutThumbnail.PRET;
+
     @Column(name = "is_principal")
     @Builder.Default
     private Boolean isPrincipal = false;

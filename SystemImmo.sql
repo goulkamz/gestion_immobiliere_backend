@@ -619,6 +619,12 @@ INSERT INTO role (libelle_role) VALUES
 ON CONFLICT (libelle_role) DO NOTHING;
 
 -- ==============================================================
+-- update
+-- ==============================================================
+
+ALTER TABLE medias ADD COLUMN thumbnail_status VARCHAR(20) DEFAULT 'PRET';
+
+-- ==============================================================
 -- Vérification
 -- ==============================================================
 SELECT 'Installation terminée avec succès !' as status;
