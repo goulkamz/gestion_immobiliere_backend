@@ -1,6 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.user.jwt;
 
-
+import com.immobilier.gestionImmobiliere.exceptions.TooManyRequestsException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
@@ -15,6 +15,7 @@ import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseCookie;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.WebUtils;
@@ -28,12 +29,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class JwtUtils {
 
 //    À améliorer pour production
-//    Remplacer ConcurrentHashMap par Redis (persistance, partagé entre instances)
-//
 //    Ajouter rate limiting sur les tentatives de refresh
-//
 //    Implémenter blacklist d'IP en cas de détection de vol
-//
 //    Ajouter WebSocket pour déconnecter l'utilisateur en temps réel
 
     @Value("${jwt.secret.access}")
@@ -61,30 +58,30 @@ public class JwtUtils {
     @Value("${jwt.cookie.same-site:Strict}")
     private String cookieSameSite;
 
-    @Value("${jwt.redis.secure:true}")
+    @Value("${jwt.redis.enabled:true}")
     private boolean useRedis;
 
     private final RefreshTokenRedisService refreshTokenRedisService;
     private final FingerPrintService fingerprintService;
     private final PasswordEncoder encoder;
+    private final RateLimitService rateLimitService;
+    private final IpBlacklistService ipBlacklistService;
 
-    public JwtUtils(RefreshTokenRedisService refreshTokenRedisService, FingerPrintService fingerprintService, PasswordEncoder encoder) {
+    public JwtUtils(RefreshTokenRedisService refreshTokenRedisService, FingerPrintService fingerprintService, PasswordEncoder encoder, RateLimitService rateLimitService, IpBlacklistService ipBlacklistService) {
         this.refreshTokenRedisService = refreshTokenRedisService;
         this.fingerprintService = fingerprintService;
         this.encoder = encoder;
+        this.rateLimitService = rateLimitService;
+        this.ipBlacklistService = ipBlacklistService;
     }
 
-
-
-    // Stockage temporaire des refresh tokens valides (en production, utilisez Redis)
+    // Stockage temporaire des refresh tokens valides si Redis indisponible ponctuellement
     private final Map<String, RefreshTokenRedisService.RefreshTokenData> fallbackStore = new ConcurrentHashMap<>();
+
     // ============================================================
     // GÉNÉRATION DES TOKENS
     // ============================================================
 
-    /**
-     * Génère un access token et l'ajoute aux cookies
-     */
     public String generateAccessToken(String username,
                                       HttpServletRequest request,
                                       HttpServletResponse response) {
@@ -95,7 +92,6 @@ public class JwtUtils {
         claims.put("type", "access");
         claims.put("tokenId", tokenId);
         claims.put("fingerprint", fingerprint);
-        //claims.put("roles", roles != null ? roles : Collections.emptyList());
 
         String accessToken = Jwts.builder()
                 .setClaims(claims)
@@ -105,7 +101,6 @@ public class JwtUtils {
                 .signWith(getAccessKey(), SignatureAlgorithm.HS256)
                 .compact();
 
-        // Ajouter le cookie à la réponse
         ResponseCookie cookie = buildAccessCookie(accessToken);
         response.addHeader("Set-Cookie", cookie.toString());
 
@@ -113,12 +108,9 @@ public class JwtUtils {
         return accessToken;
     }
 
-    /**
-     * Génère un refresh token et l'ajoute aux cookies
-     */
     public String generateRefreshTokenCookie(String username,
-                                                     HttpServletRequest request,
-                                                     HttpServletResponse response) {
+                                             HttpServletRequest request,
+                                             HttpServletResponse response) {
         String refreshTokenId = UUID.randomUUID().toString();
         String fingerprint = encoder.encode(fingerprintService.generateFingerprint(request, response));
 
@@ -135,7 +127,6 @@ public class JwtUtils {
                 .signWith(getRefreshKey(), SignatureAlgorithm.HS256)
                 .compact();
 
-        // Stocker pour vérification et rotation
         RefreshTokenRedisService.RefreshTokenData tokenData = RefreshTokenRedisService.RefreshTokenData.builder()
                 .username(username)
                 .fingerprint(fingerprint)
@@ -143,6 +134,10 @@ public class JwtUtils {
                 .used(false)
                 .createdAt(new Date())
                 .build();
+
+        // Écriture best-effort : un incident Redis PONCTUEL bascule vers le fallback
+        // pour CET appel uniquement — useRedis n'est jamais muté globalement,
+        // pour ne pas router tous les utilisateurs vers le fallback sur un blip transitoire.
         try {
             if (useRedis) {
                 refreshTokenRedisService.save(refreshTokenId, tokenData);
@@ -150,8 +145,7 @@ public class JwtUtils {
                 fallbackStore.put(refreshTokenId, tokenData);
             }
         } catch (Exception e) {
-            log.error("Redis indisponible, passage en fallback mémoire", e);
-            useRedis = false;
+            log.error("Écriture Redis échouée, fallback mémoire ponctuel pour ce token", e);
             fallbackStore.put(refreshTokenId, tokenData);
         }
 
@@ -161,7 +155,6 @@ public class JwtUtils {
         log.debug("Refresh token généré pour l'utilisateur: {}", username);
         return refreshToken;
     }
-
 
     // ============================================================
     // CONSTRUCTION DES COOKIES
@@ -182,20 +175,19 @@ public class JwtUtils {
                 .httpOnly(true)
                 .secure(cookieSecure)
                 .sameSite(cookieSameSite)
-                .path("/api/auth/refresh-token")  // Limiter le chemin pour plus de sécurité
+                .path("/api/auth/refresh-token")
                 .maxAge(refreshExpiration / 1000)
                 .build();
     }
+
     // 🔹 EXTRACTION DES TOKENS (Web + Mobile)
     public String extractAccessToken(HttpServletRequest request) {
-        // Priorité au header Authorization (mobile, API)
         String bearerToken = request.getHeader("Authorization");
         if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
             log.debug("Access token extrait du header Authorization");
             return bearerToken.substring(7);
         }
 
-        // Fallback sur le cookie (web)
         Cookie cookie = WebUtils.getCookie(request, accessCookieName);
         if (cookie != null) {
             log.debug("Access token extrait du cookie");
@@ -230,13 +222,11 @@ public class JwtUtils {
                     .parseClaimsJws(token)
                     .getBody();
 
-            // Vérifier le type
             if (!"access".equals(claims.get("type"))) {
                 log.warn("Token n'est pas un access token");
                 return false;
             }
 
-            // Vérifier l'expiration
             if (claims.getExpiration().before(new Date())) {
                 log.warn("Access token expiré");
                 return false;
@@ -268,28 +258,26 @@ public class JwtUtils {
                     .parseClaimsJws(token)
                     .getBody();
 
-            // Vérifier le type
             if (!"refresh".equals(claims.get("type"))) {
                 log.warn("Token n'est pas un refresh token");
                 return false;
             }
 
-            // Vérifier l'expiration
             if (claims.getExpiration().before(new Date())) {
                 log.warn("Refresh token expiré");
                 return false;
             }
 
-            // Vérifier le fingerprint (anti-vol)
-            String currentFingerprint = encoder.encode(fingerprintService.generateFingerprint(request, response));
-            String tokenFingerprint = (String) claims.get("fingerprint");
+            // Vérifier le fingerprint (anti-vol) — comparaison via PasswordEncoder.matches(),
+            // JAMAIS par égalité de deux hashs BCrypt (salt aléatoire à chaque encode()).
+            String currentFingerprintRaw = fingerprintService.generateFingerprint(request, response);
+            String tokenFingerprintHash = (String) claims.get("fingerprint");
 
-            if (!fingerprintService.fingerprintsMatch(tokenFingerprint, currentFingerprint)) {
+            if (tokenFingerprintHash == null || !encoder.matches(currentFingerprintRaw, tokenFingerprintHash)) {
+                log.warn("Fingerprint mismatch - possible vol de token");
                 return false;
             }
 
-
-            // Vérifier dans le store
             String tokenId = (String) claims.get("tokenId");
             RefreshTokenRedisService.RefreshTokenData storedToken;
 
@@ -305,7 +293,9 @@ public class JwtUtils {
             }
 
             if (storedToken.isUsed()) {
-                log.warn("Refresh token déjà utilisé - possible attack");
+                String ip = extraireIp(request);
+                ipBlacklistService.blacklister(ip, "Réutilisation de refresh token détectée");
+                log.warn("Refresh token déjà utilisé - IP blacklistée: {}", ip);
                 return false;
             }
 
@@ -327,10 +317,16 @@ public class JwtUtils {
             return false;
         }
     }
-    // 🔹 ROTATION DU REFRESH TOKEN (sécurité maximale)
-    public RefreshResult refreshTokens(String oldRefreshToken,
-                                       HttpServletRequest request,
-                                       HttpServletResponse response) {
+
+    // 🔹 ROTATION DU REFRESH TOKEN
+    public RefreshResult refreshTokens(String oldRefreshToken, HttpServletRequest request, HttpServletResponse response) {
+
+        String ip = extraireIp(request);
+
+        if (rateLimitService.estLimiteDepassee("refresh:" + ip)) {
+            log.warn("Rate limit dépassé pour l'IP: {}", ip);
+            throw new TooManyRequestsException("Trop de tentatives de rafraîchissement. Réessayez dans une minute.");
+        }
 
         if (!validateRefreshToken(oldRefreshToken, request, response)) {
             throw new SecurityException("Refresh token invalide");
@@ -340,7 +336,6 @@ public class JwtUtils {
         String username = claims.getSubject();
         String oldTokenId = (String) claims.get("tokenId");
 
-        // Récupérer et marquer l'ancien token comme utilisé
         RefreshTokenRedisService.RefreshTokenData oldToken;
         if (useRedis) {
             oldToken = refreshTokenRedisService.findById(oldTokenId);
@@ -351,7 +346,6 @@ public class JwtUtils {
             throw new SecurityException("Refresh token non trouvé");
         }
 
-        // Marquer comme utilisé
         if (useRedis) {
             refreshTokenRedisService.markAsUsed(oldTokenId);
         } else {
@@ -359,10 +353,8 @@ public class JwtUtils {
             fallbackStore.put(oldTokenId, oldToken);
         }
 
-        // Générer nouveaux tokens
-
         String newAccessToken = generateAccessToken(username, request, response);
-        String newRefreshToken = generateRefreshTokenCookie(username,  request, response);
+        String newRefreshToken = generateRefreshTokenCookie(username, request, response);
 
         log.info("Rotation des tokens effectuée pour l'utilisateur: {}", username);
 
@@ -371,7 +363,6 @@ public class JwtUtils {
                 .refreshToken(newRefreshToken)
                 .build();
     }
-
 
     // 🔹 NETTOYAGE REFRESH TOKEN (logout)
     public ResponseCookie revokeRefreshToken(String refreshToken, HttpServletResponse response) {
@@ -385,14 +376,13 @@ public class JwtUtils {
                     fallbackStore.remove(tokenId);
                 }
 
-                log.info("Refresh token révoqué pour l'utilisateur: {}", tokenId);
+                log.info("Refresh token révoqué: {}", tokenId);
 
             } catch (Exception e) {
                 log.warn("Token déjà invalide lors du logout: {}", e.getMessage());
             }
         }
 
-        // Supprimer le cookie
         ResponseCookie clearCookie = ResponseCookie.from(refreshCookieName, "")
                 .httpOnly(true)
                 .secure(cookieSecure)
@@ -403,7 +393,6 @@ public class JwtUtils {
 
         response.addHeader("Set-Cookie", clearCookie.toString());
 
-        // Supprimer aussi le cookie access token
         ResponseCookie clearAccessCookie = ResponseCookie.from(accessCookieName, "")
                 .httpOnly(true)
                 .secure(cookieSecure)
@@ -417,15 +406,11 @@ public class JwtUtils {
         return clearCookie;
     }
 
-    /**
-     * Révoque tous les refresh tokens d'un utilisateur (déconnexion globale)
-     */
     public int revokeAllUserTokens(String username) {
-        int count ;
+        int count;
         if (useRedis) {
             count = refreshTokenRedisService.revokeAllUserTokens(username);
         } else {
-            // Fallback: parcourir la map (inefficace, à éviter)
             count = 0;
             Iterator<Map.Entry<String, RefreshTokenRedisService.RefreshTokenData>> iter = fallbackStore.entrySet().iterator();
             while (iter.hasNext()) {
@@ -445,12 +430,6 @@ public class JwtUtils {
     // MÉTHODES UTILITAIRES
     // ============================================================
 
-
-
-    /**
-     * Vérifie si un token peut être rafraîchi
-     */
-
     public boolean isRedisAvailable() {
         return useRedis;
     }
@@ -462,10 +441,14 @@ public class JwtUtils {
         return fallbackStore.size();
     }
 
+    private String extraireIp(HttpServletRequest request) {
+        String forwarded = request.getHeader("X-Forwarded-For");
+        return (forwarded != null && !forwarded.isBlank()) ? forwarded.split(",")[0].trim() : request.getRemoteAddr();
+    }
+
     // ============================================================
     // EXTRACTION DES CLAIMS (PRIVÉES)
     // ============================================================
-
 
     private Claims extractRefreshClaims(String token) {
         return Jwts.parserBuilder()
@@ -499,30 +482,23 @@ public class JwtUtils {
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-
     private Key getRefreshKey() {
         byte[] keyBytes = Decoders.BASE64.decode(refreshSecret);
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-
     public void cleanupExpiredTokens() {
         Date now = new Date();
         int before = fallbackStore.size();
 
-        // Utiliser un filtre plus agressif
         fallbackStore.entrySet().removeIf(entry -> {
             RefreshTokenRedisService.RefreshTokenData data = entry.getValue();
-
-            // Supprimer SI :
-            // Token expiré
-            // Token utilisé
-            // Token sans fingerprint valide
             return data.getExpiration().before(now) || data.isUsed() || data.getFingerprint() == null;
         });
 
         int after = fallbackStore.size();
-        log.info("Nettoyage: {} tokens supprimés, {} restants", before - after, after);
+        if (before != after) {
+            log.info("Nettoyage fallback: {} tokens supprimés, {} restants", before - after, after);
+        }
     }
-
 }
