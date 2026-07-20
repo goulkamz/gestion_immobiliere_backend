@@ -222,6 +222,12 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Erreur lors du traitement du fichier", "MEDIA_STORAGE_ERROR", ex);
     }
 
+    // GlobalExceptionHandler — ajout
+    @ExceptionHandler(TooManyRequestsException.class)
+    public ResponseEntity<?> handleTooManyRequests(TooManyRequestsException ex) {
+        return buildErrorResponse(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage(), "TOO_MANY_REQUESTS", ex);
+    }
+
     private ResponseEntity<?> buildErrorResponse(HttpStatus status, String message, String code,Exception ex) {
         // Afficher la stack trace pour le debug
         if (ex != null && !(ex instanceof IllegalArgumentException) && !(ex instanceof BadCredentialsException) && "dev".equals(System.getProperty("spring.profiles.active"))) {

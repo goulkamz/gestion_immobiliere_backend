@@ -3,6 +3,7 @@ package com.immobilier.gestionImmobiliere.configurations.security;
 import com.immobilier.gestionImmobiliere.modules.journal.audit.AuditRequestFilter;
 import com.immobilier.gestionImmobiliere.modules.user.jwt.AuthEntryPointJwt;
 import com.immobilier.gestionImmobiliere.modules.user.jwt.AuthTokenFilter;
+import com.immobilier.gestionImmobiliere.modules.user.jwt.IpBlacklistFilter;
 import com.immobilier.gestionImmobiliere.modules.user.jwt.JwtUtils;
 import com.immobilier.gestionImmobiliere.modules.user.jwtService.UserDetailsServiceImpl;
 import org.springframework.context.annotation.Bean;
@@ -37,14 +38,16 @@ public class WebSecurityConfig {
     private final JwtUtils jwtUtils;
     private final PasswordEncoder passwordEncoder;
     private final AuditRequestFilter auditRequestFilter;
+    private final IpBlacklistFilter ipBlacklistFilter;
 
 
-    public WebSecurityConfig(UserDetailsServiceImpl userDetailsService, AuthEntryPointJwt unauthorizedHandler, JwtUtils jwtUtils, PasswordEncoder passwordEncoder, AuditRequestFilter auditRequestFilter) {
+    public WebSecurityConfig(UserDetailsServiceImpl userDetailsService, AuthEntryPointJwt unauthorizedHandler, JwtUtils jwtUtils, PasswordEncoder passwordEncoder, AuditRequestFilter auditRequestFilter, IpBlacklistFilter ipBlacklistFilter) {
         this.userDetailsService = userDetailsService;
         this.unauthorizedHandler = unauthorizedHandler;
         this.jwtUtils = jwtUtils;
         this.passwordEncoder = passwordEncoder;
         this.auditRequestFilter = auditRequestFilter;
+        this.ipBlacklistFilter = ipBlacklistFilter;
     }
 
     @Bean
@@ -84,6 +87,7 @@ public class WebSecurityConfig {
         http.authenticationProvider(authenticationProvider());
 
         http.addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
+        http.addFilterBefore(ipBlacklistFilter, AuthTokenFilter.class);
         http.addFilterAfter(auditRequestFilter, AuthTokenFilter.class);
 
         return http.build();

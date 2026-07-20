@@ -178,20 +178,6 @@ public class FingerPrintService {
                         userAgent.contains("Mobile"));
     }
 
-    /**
-     * Vérifie si deux fingerprints correspondent. Un mismatch peut indiquer
-     * un changement légitime (nouveau réseau) ou une tentative de vol de token.
-     */
-    public boolean fingerprintsMatch(String storedFingerprint, String currentFingerprint) {
-        if (storedFingerprint.equals(currentFingerprint)) {
-            return true;
-        }
-
-        log.warn("Fingerprint mismatch - Possible vol de token ou changement de réseau");
-        log.warn("Stored: {}, Current: {}", storedFingerprint, currentFingerprint);
-
-        return false;
-    }
 
     @Data
     private static class FingerprintData {
