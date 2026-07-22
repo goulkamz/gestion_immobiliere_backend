@@ -20,15 +20,6 @@ public class AnnonceController implements AnnonceAPI {
         this.annonceService = annonceService;
     }
 
-    @Override
-    public ResponseEntity<?> getAll(StatutAnnonce statut, Pageable pageable) {
-        return annonceService.getAll(statut, pageable);
-    }
-
-    @Override
-    public ResponseEntity<?> getById(Integer id) {
-        return annonceService.getById(id);
-    }
 
     @Override
     @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
@@ -42,10 +33,12 @@ public class AnnonceController implements AnnonceAPI {
         return annonceService.update(id, dto);
     }
 
+
+
     @Override
     @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
-    public ResponseEntity<?> updateStatut(Integer id, UpdateStatutAnnonceDTO dto,@AuthenticationPrincipal UserDetailsImpl currentUser) {
-        return annonceService.updateStatut(id, dto,currentUser.getIdUser());
+    public ResponseEntity<?> updateStatut(Integer id, UpdateStatutAnnonceDTO dto) {
+        return annonceService.updateStatut(id, dto);
     }
 
     @Override

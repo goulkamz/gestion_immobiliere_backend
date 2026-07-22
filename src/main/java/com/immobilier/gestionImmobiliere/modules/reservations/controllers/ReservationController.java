@@ -42,14 +42,16 @@ public class ReservationController implements ReservationAPI {
     }
 
     @Override
-    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
-    public ResponseEntity<?> confirmer(Integer id) {
+    @PreAuthorize("hasAnyRole('ADMIN','AGENT') or @reservationSecurity.isProprietaireMaison(#id, authentication.principal.id)")
+    public ResponseEntity<?> confirmer(Integer id,@AuthenticationPrincipal UserDetailsImpl currentUser) {
         return reservationService.confirmer(id);
     }
 
     @Override
-    @PreAuthorize("hasAnyRole('ADMIN','AGENT') or @reservationSecurity.isOwner(#id, authentication.principal.id)")
-    public ResponseEntity<?> annuler(Integer id) {
+    @PreAuthorize("hasAnyRole('ADMIN','AGENT') " +
+            "or @reservationSecurity.isProprietaireMaison(#id, authentication.principal.id) " +
+            "or @reservationSecurity.isOwner(#id, authentication.principal.id)")
+    public ResponseEntity<?> annuler(Integer id,@AuthenticationPrincipal UserDetailsImpl currentUser) {
         return reservationService.annuler(id);
     }
 

@@ -1,7 +1,7 @@
 package com.immobilier.gestionImmobiliere.modules.annonces.controllers;
 
 import com.immobilier.gestionImmobiliere.donnees.annonces.model.StatutContact;
-import com.immobilier.gestionImmobiliere.modules.annonces.apis.ContactAPI;
+import com.immobilier.gestionImmobiliere.modules.annonces.apis.ContactAdminAPI;
 import com.immobilier.gestionImmobiliere.modules.annonces.dto.requests.CreateContactDTO;
 import com.immobilier.gestionImmobiliere.modules.annonces.dto.requests.UpdateStatutContactDTO;
 import com.immobilier.gestionImmobiliere.modules.annonces.services.ContactService;
@@ -11,11 +11,11 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-public class ContactController implements ContactAPI {
+public class ContactAdminController implements ContactAdminAPI {
 
     private final ContactService contactService;
 
-    public ContactController(ContactService contactService) {
+    public ContactAdminController(ContactService contactService) {
         this.contactService = contactService;
     }
 
@@ -23,11 +23,6 @@ public class ContactController implements ContactAPI {
     @PreAuthorize("hasAnyRole('ADMIN','AGENT')")
     public ResponseEntity<?> getAll(StatutContact statut, Pageable pageable) {
         return contactService.getAll(statut, pageable);
-    }
-
-    @Override // public — F20, formulaire de contact général
-    public ResponseEntity<?> create(CreateContactDTO dto) {
-        return contactService.create(dto);
     }
 
     @Override

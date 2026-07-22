@@ -15,10 +15,13 @@ import com.immobilier.gestionImmobiliere.exceptions.SecteurNotFoundException;
 import com.immobilier.gestionImmobiliere.modules.biens.dto.requests.CreateCourDTO;
 import com.immobilier.gestionImmobiliere.modules.biens.dto.requests.UpdateCourDTO;
 import com.immobilier.gestionImmobiliere.modules.biens.dto.responses.CourResponseDTO;
+import com.immobilier.gestionImmobiliere.modules.user.jwtService.UserDetailsImpl;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,17 +42,45 @@ public class CourService {
         this.userRepository = userRepository;
     }
 
-    public ResponseEntity<?> getAll(Integer idSecteur, Pageable pageable) {
-        Page<CourResponseDTO> result = (idSecteur != null
-                ? courRepository.findBySecteur_IdSecteur(idSecteur, pageable)
-                : courRepository.findAll(pageable)).map(this::toDto);
+
+    public ResponseEntity<?> getAll(Integer idSecteur, Pageable pageable, UserDetailsImpl currentUser) {
+
+        Page<CourResponseDTO> result;
+
+        boolean isBailleur = currentUser.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_BAILLEUR"));
+
+        if (isBailleur) {
+            // Un bailleur ne voit QUE ses propres cours, quel que soit idSecteur demandé
+            result = (idSecteur != null
+                    ? courRepository.findBySecteur_IdSecteurAndUser_IdUser(idSecteur, currentUser.getIdUser(), pageable)
+                    : courRepository.findByUser_IdUser(currentUser.getIdUser(), pageable)
+            ).map(this::toDto);
+        } else {
+            // Agent / Admin : vue globale, filtrée seulement par secteur si fourni
+            result = (idSecteur != null
+                    ? courRepository.findBySecteur_IdSecteur(idSecteur, pageable)
+                    : courRepository.findAll(pageable)
+            ).map(this::toDto);
+        }
+
         return buildSuccessResponse(HttpStatus.OK, "Liste des cours", "COUR_LIST", result);
     }
 
-    public ResponseEntity<?> getById(Integer id) {
-        return buildSuccessResponse(HttpStatus.OK, "Cour trouvée", "COUR_FOUND", toDto(findOrThrow(id)));
-    }
 
+    public ResponseEntity<?> getById(Integer id, UserDetailsImpl currentUser) {
+        Cour cour = courRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Cour introuvable"));
+
+        boolean isBailleur = currentUser.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_BAILLEUR"));
+
+        if (isBailleur && !cour.getProprietaire().getIdUser().equals(currentUser.getIdUser())) {
+            throw new AccessDeniedException("Vous n'avez pas accès à ce bien");
+        }
+
+        return buildSuccessResponse(HttpStatus.OK, "Détail du cour", "COUR_DETAIL", toDto(cour));
+    }
     @Transactional
     public ResponseEntity<?> create(CreateCourDTO dto, Integer currentUserId) {
         Secteur secteur = secteurRepository.findById(dto.getIdSecteur())

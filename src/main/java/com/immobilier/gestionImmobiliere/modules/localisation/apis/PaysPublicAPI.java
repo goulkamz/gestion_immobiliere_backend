@@ -8,7 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RequestMapping("/api/public/pays")
-public interface PaysAPI {
+public interface PaysPublicAPI {
 
     @GetMapping
     ResponseEntity<?> getAll(Pageable pageable);
@@ -16,12 +16,4 @@ public interface PaysAPI {
     @GetMapping("/{id}")
     ResponseEntity<?> getById(@PathVariable Integer id);
 
-    @PostMapping
-    ResponseEntity<?> create(@Valid @RequestBody CreatePaysDTO dto);
-
-    @PutMapping("/{id}")
-    ResponseEntity<?> update(@PathVariable Integer id, @Valid @RequestBody UpdatePaysDTO dto);
-
-    @DeleteMapping("/{id}")
-    ResponseEntity<?> delete(@PathVariable Integer id);
 }

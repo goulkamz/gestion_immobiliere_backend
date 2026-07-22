@@ -1,7 +1,7 @@
 package com.immobilier.gestionImmobiliere.modules.annonces.controllers;
 
 import com.immobilier.gestionImmobiliere.donnees.annonces.model.StatutDemande;
-import com.immobilier.gestionImmobiliere.modules.annonces.apis.DemandeAPI;
+import com.immobilier.gestionImmobiliere.modules.annonces.apis.DemandeAdminAPI;
 import com.immobilier.gestionImmobiliere.modules.annonces.dto.requests.CreateDemandeDTO;
 import com.immobilier.gestionImmobiliere.modules.annonces.dto.requests.UpdateStatutDemandeDTO;
 import com.immobilier.gestionImmobiliere.modules.annonces.services.DemandeService;
@@ -11,11 +11,11 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-public class DemandeController implements DemandeAPI {
+public class DemandeAdminController implements DemandeAdminAPI {
 
     private final DemandeService demandeService;
 
-    public DemandeController(DemandeService demandeService) {
+    public DemandeAdminController(DemandeService demandeService) {
         this.demandeService = demandeService;
     }
 
@@ -31,10 +31,6 @@ public class DemandeController implements DemandeAPI {
         return demandeService.getById(id);
     }
 
-    @Override // public — F18, "dépôt par les clients", pas nécessairement connectés
-    public ResponseEntity<?> create(CreateDemandeDTO dto) {
-        return demandeService.create(dto);
-    }
 
     @Override
     @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
