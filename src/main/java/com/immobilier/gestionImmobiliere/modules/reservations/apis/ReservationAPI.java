@@ -5,6 +5,7 @@ import com.immobilier.gestionImmobiliere.modules.user.jwtService.UserDetailsImpl
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,15 +22,17 @@ public interface ReservationAPI {
     @PostMapping
     ResponseEntity<?> create(@Valid @RequestBody CreateReservationDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser);
 
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
     @PatchMapping("/{id}/confirmer")
-    ResponseEntity<?> confirmer(@PathVariable Integer id);
+    ResponseEntity<?> confirmer(@PathVariable Integer id, @AuthenticationPrincipal UserDetailsImpl currentUser);
 
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
     @PatchMapping("/{id}/annuler")
-    ResponseEntity<?> annuler(@PathVariable Integer id);
+    ResponseEntity<?> annuler(@PathVariable Integer id, @AuthenticationPrincipal UserDetailsImpl currentUser);
 
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
     @PatchMapping("/{id}/convertir")
-    ResponseEntity<?> convertir(@PathVariable Integer id,
-                                @RequestParam Double montantLoyer,
+    ResponseEntity<?> convertir(@PathVariable Integer id, @RequestParam Double montantLoyer,
                                 @RequestParam(required = false) String typeContrat,
                                 @AuthenticationPrincipal UserDetailsImpl currentUser);
 }

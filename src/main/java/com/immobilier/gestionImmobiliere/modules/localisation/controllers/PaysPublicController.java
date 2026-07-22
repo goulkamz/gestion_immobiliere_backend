@@ -1,6 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.localisation.controllers;
 
-import com.immobilier.gestionImmobiliere.modules.localisation.apis.PaysAPI;
+import com.immobilier.gestionImmobiliere.modules.localisation.apis.PaysPublicAPI;
 import com.immobilier.gestionImmobiliere.modules.localisation.dto.requests.CreatePaysDTO;
 import com.immobilier.gestionImmobiliere.modules.localisation.dto.requests.UpdatePaysDTO;
 import com.immobilier.gestionImmobiliere.modules.localisation.services.PaysService;
@@ -10,11 +10,11 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-public class PaysController implements PaysAPI {
+public class PaysPublicController implements PaysPublicAPI {
 
     private final PaysService paysService;
 
-    public PaysController(PaysService paysService) {
+    public PaysPublicController(PaysService paysService) {
         this.paysService = paysService;
     }
 
@@ -28,21 +28,5 @@ public class PaysController implements PaysAPI {
         return paysService.getById(id);
     }
 
-    @Override
-    @PreAuthorize("hasAnyRole('ADMIN','AGENT')")
-    public ResponseEntity<?> create(CreatePaysDTO dto) {
-        return paysService.create(dto);
-    }
 
-    @Override
-    @PreAuthorize("hasAnyRole('ADMIN','AGENT')")
-    public ResponseEntity<?> update(Integer id, UpdatePaysDTO dto) {
-        return paysService.update(id, dto);
-    }
-
-    @Override
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> delete(Integer id) {
-        return paysService.delete(id);
-    }
 }

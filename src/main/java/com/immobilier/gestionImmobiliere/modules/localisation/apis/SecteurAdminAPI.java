@@ -3,18 +3,14 @@ package com.immobilier.gestionImmobiliere.modules.localisation.apis;
 import com.immobilier.gestionImmobiliere.modules.localisation.dto.requests.CreateSecteurDTO;
 import com.immobilier.gestionImmobiliere.modules.localisation.dto.requests.UpdateSecteurDTO;
 import jakarta.validation.Valid;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+// Administration du référentiel, réservée à l'admin/agent
 @RequestMapping("/api/secteurs")
-public interface SecteurAPI {
-
-    @GetMapping
-    ResponseEntity<?> getAll(@RequestParam(required = false) Integer idVille, Pageable pageable);
-
-    @GetMapping("/{id}")
-    ResponseEntity<?> getById(@PathVariable Integer id);
+@PreAuthorize("hasAnyRole('AGENT','ADMIN')")
+public interface SecteurAdminAPI {
 
     @PostMapping
     ResponseEntity<?> create(@Valid @RequestBody CreateSecteurDTO dto);

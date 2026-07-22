@@ -82,7 +82,7 @@ public class AnnonceService {
     }
 
     @Transactional
-    public ResponseEntity<?> updateStatut(Integer id, UpdateStatutAnnonceDTO dto,Integer currentUserId) {
+    public ResponseEntity<?> updateStatut(Integer id, UpdateStatutAnnonceDTO dto) {
         Annonce annonce = findOrThrow(id);
         String ancienStatut = annonce.getStatut().name();
         annonce.setStatut(dto.getStatut());

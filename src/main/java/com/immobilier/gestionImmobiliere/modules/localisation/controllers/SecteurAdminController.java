@@ -1,6 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.localisation.controllers;
 
-import com.immobilier.gestionImmobiliere.modules.localisation.apis.SecteurAPI;
+import com.immobilier.gestionImmobiliere.modules.localisation.apis.SecteurAdminAPI;
 import com.immobilier.gestionImmobiliere.modules.localisation.dto.requests.CreateSecteurDTO;
 import com.immobilier.gestionImmobiliere.modules.localisation.dto.requests.UpdateSecteurDTO;
 import com.immobilier.gestionImmobiliere.modules.localisation.services.SecteurService;
@@ -10,23 +10,14 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-public class SecteurController implements SecteurAPI {
+public class SecteurAdminController implements SecteurAdminAPI {
 
     private final SecteurService secteurService;
 
-    public SecteurController(SecteurService secteurService) {
+    public SecteurAdminController(SecteurService secteurService) {
         this.secteurService = secteurService;
     }
 
-    @Override
-    public ResponseEntity<?> getAll(Integer idVille, Pageable pageable) {
-        return secteurService.getAll(idVille, pageable);
-    }
-
-    @Override
-    public ResponseEntity<?> getById(Integer id) {
-        return secteurService.getById(id);
-    }
 
     @Override
     @PreAuthorize("hasAnyRole('ADMIN','AGENT')")

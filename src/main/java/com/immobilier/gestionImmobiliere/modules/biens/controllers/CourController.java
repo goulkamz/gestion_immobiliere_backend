@@ -9,6 +9,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -21,13 +22,13 @@ public class CourController implements CourAPI {
     }
 
     @Override
-    public ResponseEntity<?> getAll(Integer idSecteur, Pageable pageable) {
-        return courService.getAll(idSecteur, pageable);
+    public ResponseEntity<?> getAll(Integer idSecteur, Pageable pageable,@AuthenticationPrincipal UserDetailsImpl currentUser) {
+        return courService.getAll(idSecteur, pageable,currentUser);
     }
 
     @Override
-    public ResponseEntity<?> getById(Integer id) {
-        return courService.getById(id);
+    public ResponseEntity<?> getById(@PathVariable Integer id, @AuthenticationPrincipal UserDetailsImpl currentUser) {
+        return courService.getById(id,currentUser);
     }
 
     @Override

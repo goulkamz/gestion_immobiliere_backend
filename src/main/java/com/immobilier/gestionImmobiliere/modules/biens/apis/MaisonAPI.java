@@ -8,31 +8,22 @@ import com.immobilier.gestionImmobiliere.modules.user.jwtService.UserDetailsImpl
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+// Écriture réservée aux agents (le bailleur ne saisit pas directement)
 @RequestMapping("/api/maisons")
+@PreAuthorize("hasAnyRole('AGENT','ADMIN')")
 public interface MaisonAPI {
-
-    @GetMapping
-    ResponseEntity<?> getAll(@RequestParam(required = false) Integer idCour,
-                             @RequestParam(required = false) StatutMaison statut,
-                             Pageable pageable);
-
-    @GetMapping("/{id}")
-    ResponseEntity<?> getById(@PathVariable Integer id);
-
     @PostMapping
-    ResponseEntity<?> create(@Valid @RequestBody CreateMaisonDTO dto,@AuthenticationPrincipal UserDetailsImpl currentUser);
+    ResponseEntity<?> create(@Valid @RequestBody CreateMaisonDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser);
 
     @PutMapping("/{id}")
-    ResponseEntity<?> update(@PathVariable Integer id, @Valid @RequestBody UpdateMaisonDTO dto,@AuthenticationPrincipal UserDetailsImpl currentUser);
-
+    ResponseEntity<?> update(@PathVariable Integer id, @Valid @RequestBody UpdateMaisonDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser);
 
     @PatchMapping("/{id}/statut")
-    ResponseEntity<?> updateStatut(@PathVariable Integer id, @Valid @RequestBody UpdateStatutMaisonDTO dto,@AuthenticationPrincipal UserDetailsImpl currentUser);
-
-
+    ResponseEntity<?> updateStatut(@PathVariable Integer id, @Valid @RequestBody UpdateStatutMaisonDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser);
 
     @DeleteMapping("/{id}")
     ResponseEntity<?> delete(@PathVariable Integer id);
