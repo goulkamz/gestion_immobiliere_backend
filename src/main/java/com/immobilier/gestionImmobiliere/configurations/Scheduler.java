@@ -2,11 +2,11 @@ package com.immobilier.gestionImmobiliere.configurations;
 
 import com.immobilier.gestionImmobiliere.modules.annonces.services.AnnonceService;
 import com.immobilier.gestionImmobiliere.modules.medias.services.MediaReconciliationService;
+import com.immobilier.gestionImmobiliere.modules.paiements.services.EcheanceService;
 import com.immobilier.gestionImmobiliere.modules.user.jwt.JwtUtils;
 import com.immobilier.gestionImmobiliere.modules.user.services.PasswordResetService;
 import com.immobilier.gestionImmobiliere.modules.user.services.UserService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -14,13 +14,14 @@ import org.springframework.stereotype.Component;
 @Component
 @EnableScheduling
 @RequiredArgsConstructor
-public class CleanupScheduler {
+public class Scheduler {
 
     private final UserService userService;
     private final PasswordResetService passwordResetService;
     private final JwtUtils jwtUtils;
     private final MediaReconciliationService mediaReconciliationService;
     private final AnnonceService annonceService;
+    private final EcheanceService echeanceService;
 
     // Nettoyage tous les jours a 2h du matin
     @Scheduled(cron = "0 0 2 * * *")
@@ -45,4 +46,7 @@ public class CleanupScheduler {
 
     @Scheduled(cron = "0 0 1 * * *")
     public void nettoyerAnnonce(){annonceService.expirerAnnoncesAutomatiquement();}
+
+    @Scheduled(cron = "0 0 1 * * *")
+    public void marquerChantierExpireEnRetard(){echeanceService.marquerEnRetard();}
 }

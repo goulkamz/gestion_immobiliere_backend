@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
 
 @RestController
-@PreAuthorize("hasAnyRole('ADMIN','AGENT','CLIENT')")
+@PreAuthorize("hasAnyRole('ADMIN','AGENT','CLIENT','BAILLEUR')")
 public class PaiementController implements PaiementAPI {
 
     private final PaiementService paiementService;
@@ -24,10 +24,10 @@ public class PaiementController implements PaiementAPI {
     }
 
     @Override
+    @PreAuthorize("hasAnyRole('ADMIN','AGENT','CLIENT')")
     public ResponseEntity<?> create(CreatePaiementDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser) {
         return paiementService.create(dto, currentUser.getIdUser());
     }
-
 
     @Override
     public ResponseEntity<?> getById(Integer id) {

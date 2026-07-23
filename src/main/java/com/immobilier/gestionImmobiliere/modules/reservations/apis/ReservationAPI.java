@@ -17,7 +17,7 @@ public interface ReservationAPI {
                              @AuthenticationPrincipal UserDetailsImpl currentUser);
 
     @GetMapping("/{id}")
-    ResponseEntity<?> getById(@PathVariable Integer id);
+    ResponseEntity<?> getById(@PathVariable Integer id,@AuthenticationPrincipal UserDetailsImpl currentUser);
 
     @PostMapping
     ResponseEntity<?> create(@Valid @RequestBody CreateReservationDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser);

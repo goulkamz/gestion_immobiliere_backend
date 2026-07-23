@@ -39,22 +39,27 @@ public class ReservationService {
         this.contratLocationService = contratLocationService;
     }
 
-    public ResponseEntity<?> getAllForCurrentUser(Integer idMaison, Integer currentUserId, boolean isAdminOrAgent, Pageable pageable) {
-        Page<ReservationMaison> page = isAdminOrAgent
-                ? (idMaison != null ? reservationRepository.findByMaison_IdMaison(idMaison, pageable) : reservationRepository.findAll(pageable))
-                : reservationRepository.findByUser_IdUser(currentUserId, pageable);
-        return buildSuccessResponse(HttpStatus.OK, "Liste des réservations", "RESERVATION_LIST", page.map(this::toDto));
+    public ResponseEntity<?> getAllForCurrentUser(Integer idMaison, Integer currentUserId,
+                                                  boolean isAdminOrAgent, boolean isBailleur, Pageable pageable) {
+        Page<ReservationMaison> page;
+        if (isAdminOrAgent) {
+            page = (idMaison != null)
+                    ? reservationRepository.findByMaison_IdMaison(idMaison, pageable)
+                    : reservationRepository.findAll(pageable);
+        } else if (isBailleur) {
+            page = reservationRepository.findByMaison_Cour_Proprietaire_IdUser(currentUserId, pageable);
+        } else {
+            // CLIENT : ses propres réservations uniquement
+            page = reservationRepository.findByUser_IdUser(currentUserId, pageable);
+        }
+        return buildSuccessResponse(HttpStatus.OK, "Liste réservations", "RESERVATION_LIST", page.map(this::toDto));
     }
 
-    // Remplace l'ancien getById(Integer id) qui retournait un ResponseEntity
-    @PostAuthorize(
-            "hasAnyRole('ADMIN','AGENT') " +
-                    "or returnObject.idUser == authentication.principal.id"
-    )
-    public ReservationResponseDTO getReservationById(Integer id) {
-        return toDto(findOrThrow(id));
+    public ResponseEntity<?> getByIdForCurrentUser(Integer id, Integer currentUserId, boolean isAdminOrAgent) {
+        ReservationMaison reservation = findOrThrow(id);
+        // @PreAuthorize a déjà tranché l'accès ; ici on charge juste et on renvoie
+        return buildSuccessResponse(HttpStatus.OK, "Réservation trouvée", "RESERVATION_FOUND", toDto(reservation));
     }
-
     @Transactional
     public ResponseEntity<?> create(CreateReservationDTO dto, Integer currentUserId) {
         if (!dto.getDateFin().isAfter(dto.getDateDebut())) {

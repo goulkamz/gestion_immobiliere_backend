@@ -19,7 +19,7 @@ public interface EcheanceAPI {
                              @AuthenticationPrincipal UserDetailsImpl currentUser);
 
     @GetMapping("/{id}")
-    ResponseEntity<?> getById(@PathVariable Integer id);
+    ResponseEntity<?> getById(@PathVariable Integer id,@AuthenticationPrincipal UserDetailsImpl currentUser);
 
     @GetMapping("/en-retard")
     ResponseEntity<?> getEnRetard();

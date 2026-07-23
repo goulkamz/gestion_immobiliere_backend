@@ -41,8 +41,8 @@ public class PaiementService {
     // PaiementService — injecter OwnershipResolver dans le constructeur
     @PostAuthorize(
             "hasAnyRole('ADMIN','AGENT') " +
-                    "or @ownershipResolver.isPaiementAccessible(#id, authentication.principal.id, false) " +
-                    "or @ownershipResolver.isPaiementAccessible(#id, authentication.principal.id, true)"
+                    "or @paiementOwnershipResolver.isPaiementAccessible(#id, authentication.principal.idUser, false) " +
+                    "or @paiementOwnershipResolver.isPaiementAccessible(#id, authentication.principal.idUser, true)"
     )
     public PaiementResponseDTO getPaiementById(Integer id) {
         Paiement paiement = paiementRepository.findById(id)
@@ -117,13 +117,6 @@ public class PaiementService {
 
         return buildSuccessResponse(HttpStatus.CREATED, "Paiement enregistré avec succès", "PAIEMENT_CREATED",
                 toDto(paiement, dto.getIdEcheances()));
-    }
-    public ResponseEntity<?> getById(Integer id) {
-        Paiement paiement = paiementRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("paiement", id));
-        List<Integer> idEcheances = paiementEcheanceRepository.findByIdPaiement(id).stream()
-                .map(PaiementEcheance::getIdEcheance).toList();
-        return buildSuccessResponse(HttpStatus.OK, "Paiement trouvé", "PAIEMENT_FOUND", toDto(paiement, idEcheances));
     }
 
     private PaiementResponseDTO toDto(Paiement p, List<Integer> idEcheances) {

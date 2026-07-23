@@ -53,8 +53,8 @@ public class CourService {
         if (isBailleur) {
             // Un bailleur ne voit QUE ses propres cours, quel que soit idSecteur demandé
             result = (idSecteur != null
-                    ? courRepository.findBySecteur_IdSecteurAndUser_IdUser(idSecteur, currentUser.getIdUser(), pageable)
-                    : courRepository.findByUser_IdUser(currentUser.getIdUser(), pageable)
+                    ? courRepository.findBySecteur_IdSecteurAndProprietaire_IdUser(idSecteur, currentUser.getIdUser(), pageable)
+                    : courRepository.findByProprietaire_IdUser(currentUser.getIdUser(), pageable)
             ).map(this::toDto);
         } else {
             // Agent / Admin : vue globale, filtrée seulement par secteur si fourni

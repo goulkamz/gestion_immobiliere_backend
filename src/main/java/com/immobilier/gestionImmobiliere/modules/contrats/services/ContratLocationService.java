@@ -50,8 +50,8 @@ public class ContratLocationService {
      */
     @PostAuthorize(
             "hasAnyRole('ADMIN','AGENT') " +
-                    "or returnObject.idLocataire == authentication.principal.id " +
-                    "or @contratLocationSecurity.isProprietaire(returnObject.idMaison, authentication.principal.id)"
+                    "or returnObject.idLocataire == authentication.principal.idUser " +
+                    "or @contratLocationSecurity.isProprietaire(returnObject.idMaison, authentication.principal.idUser)"
     )
     public ContratLocationResponseDTO getContratById(Integer id) {
         return toDto(findOrThrow(id));
@@ -82,17 +82,6 @@ public class ContratLocationService {
         }
 
         return buildSuccessResponse(HttpStatus.OK, "Liste des contrats de location", "LOCATION_LIST", page.map(this::toDto));
-    }
-
-    public ResponseEntity<?> getAll(Integer idMaison, Integer idLocataire, Pageable pageable) {
-        Page<ContratLocation> page = idMaison != null
-                ? locationRepository.findByMaison_IdMaison(idMaison, pageable)
-                : (idLocataire != null ? locationRepository.findByLocataire_IdUser(idLocataire, pageable) : locationRepository.findAll(pageable));
-        return buildSuccessResponse(HttpStatus.OK, "Liste des contrats de location", "LOCATION_LIST", page.map(this::toDto));
-    }
-
-    public ResponseEntity<?> getById(Integer id) {
-        return buildSuccessResponse(HttpStatus.OK, "Contrat de location trouvé", "LOCATION_FOUND", toDto(findOrThrow(id)));
     }
 
     /**
