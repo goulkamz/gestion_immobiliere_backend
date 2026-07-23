@@ -16,10 +16,10 @@ public interface ContratMandatAPI {
     @GetMapping
     ResponseEntity<?> getAll(@RequestParam(required = false) Integer idCour,
                              @RequestParam(required = false) StatutMandat statut,
-                             Pageable pageable);
+                             Pageable pageable,@AuthenticationPrincipal UserDetailsImpl currentUser);
 
     @GetMapping("/{id}")
-    ResponseEntity<?> getById(@PathVariable Integer id);
+    ResponseEntity<?> getById(@PathVariable Integer id,@AuthenticationPrincipal UserDetailsImpl currentUser);
 
     @PostMapping
     ResponseEntity<?> create(@Valid @RequestBody CreateContratMandatDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser);

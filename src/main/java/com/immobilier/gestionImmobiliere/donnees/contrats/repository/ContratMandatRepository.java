@@ -14,6 +14,7 @@ public interface ContratMandatRepository extends JpaRepository<ContratMandat, In
     Page<ContratMandat> findByCour_IdCour(Integer idCour, Pageable pageable);
     Page<ContratMandat> findByStatut(StatutMandat statut, Pageable pageable);
     boolean existsByCour_IdCourAndStatut(Integer idCour, StatutMandat statut);
+    Page<ContratMandat> findByCour_Proprietaire_IdUser(Integer idProprietaire, Pageable pageable);
 
     @Query("SELECT m.idMandat FROM ContratMandat m WHERE m.cour.proprietaire.idUser = :idUser")
     List<Integer> findIdsByProprietaire(@Param("idUser") Integer idUser);

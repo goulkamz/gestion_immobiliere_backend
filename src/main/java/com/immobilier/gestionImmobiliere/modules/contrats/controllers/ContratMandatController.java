@@ -13,7 +13,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@PreAuthorize("hasAnyRole('AGENT','ADMIN')")
+@PreAuthorize("hasAnyRole('AGENT','ADMIN','BAILLEUR')")
 public class ContratMandatController implements ContratMandatAPI {
 
     private final ContratMandatService mandatService;
@@ -23,31 +23,35 @@ public class ContratMandatController implements ContratMandatAPI {
     }
 
     @Override
-    public ResponseEntity<?> getAll(Integer idCour, StatutMandat statut, Pageable pageable) {
-        return mandatService.getAll(idCour, statut, pageable);
+    public ResponseEntity<?> getAll(Integer idCour, StatutMandat statut, Pageable pageable,
+                                    @AuthenticationPrincipal UserDetailsImpl currentUser) {
+        boolean isAdminOrAgent = currentUser.hasAnyRole("ADMIN", "AGENT");
+        return mandatService.getAllForCurrentUser(idCour, statut, currentUser.getIdUser(), isAdminOrAgent, pageable);
     }
 
     @Override
-    public ResponseEntity<?> getById(Integer id) {
-        return mandatService.getById(id);
+    @PreAuthorize("hasAnyRole('ADMIN','AGENT') or @mandatSecurity.isProprietaireCour(#id, authentication.principal.idUser)")
+    public ResponseEntity<?> getById(Integer id, @AuthenticationPrincipal UserDetailsImpl currentUser) {
+        return mandatService.getByIdForCurrentUser(id, currentUser.getIdUser(),
+                currentUser.hasAnyRole("ADMIN", "AGENT"));
     }
 
     @Override
     @PreAuthorize("hasRole('AGENT')")
     public ResponseEntity<?> create(CreateContratMandatDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser) {
-        return mandatService.create(dto,currentUser.getIdUser());
+        return mandatService.create(dto, currentUser.getIdUser());
     }
 
     @Override
     @PreAuthorize("hasRole('AGENT')")
     public ResponseEntity<?> activer(Integer id, @AuthenticationPrincipal UserDetailsImpl currentUser) {
-        return mandatService.activer(id,currentUser.getIdUser());
+        return mandatService.activer(id, currentUser.getIdUser());
     }
 
     @Override
     @PreAuthorize("hasRole('AGENT')")
     public ResponseEntity<?> resilier(Integer id, ResilierMandatDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser) {
-        return mandatService.resilier(id, dto,currentUser.getIdUser());
+        return mandatService.resilier(id, dto, currentUser.getIdUser());
     }
 
     @Override

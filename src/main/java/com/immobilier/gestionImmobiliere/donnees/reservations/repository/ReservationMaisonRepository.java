@@ -15,6 +15,8 @@ public interface ReservationMaisonRepository extends JpaRepository<ReservationMa
     Page<ReservationMaison> findByUser_IdUser(Integer idUser, Pageable pageable);
     Page<ReservationMaison> findByMaison_IdMaison(Integer idMaison, Pageable pageable);
 
+    Page<ReservationMaison> findByMaison_Cour_Proprietaire_IdUser(Integer idProprietaire, Pageable pageable);
+
     /**
      * RG2 — détecte tout chevauchement avec une réservation active (EN_ATTENTE ou CONFIRMEE)
      * sur la même maison. Formule standard d'intersection d'intervalles :

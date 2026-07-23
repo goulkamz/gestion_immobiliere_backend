@@ -2,6 +2,7 @@ package com.immobilier.gestionImmobiliere.exceptions;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.*;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -177,8 +178,8 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage(), "MAISON_INDISPONIBLE", ex);
     }
 
-    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
-    public ResponseEntity<?> handleAccessDenied(org.springframework.security.access.AccessDeniedException ex) {
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<?> handleAccessDenied(AccessDeniedException ex) {
         return buildErrorResponse(HttpStatus.FORBIDDEN, "Vous n'êtes pas autorisé à accéder à cette ressource.", "ACCESS_DENIED", ex);
     }
 
@@ -222,11 +223,12 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Erreur lors du traitement du fichier", "MEDIA_STORAGE_ERROR", ex);
     }
 
-    // GlobalExceptionHandler — ajout
+
     @ExceptionHandler(TooManyRequestsException.class)
     public ResponseEntity<?> handleTooManyRequests(TooManyRequestsException ex) {
         return buildErrorResponse(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage(), "TOO_MANY_REQUESTS", ex);
     }
+
 
     private ResponseEntity<?> buildErrorResponse(HttpStatus status, String message, String code,Exception ex) {
         // Afficher la stack trace pour le debug

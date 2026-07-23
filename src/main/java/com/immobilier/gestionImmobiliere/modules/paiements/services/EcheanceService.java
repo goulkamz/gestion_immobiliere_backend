@@ -1,5 +1,7 @@
 package com.immobilier.gestionImmobiliere.modules.paiements.services;
 
+import com.immobilier.gestionImmobiliere.donnees.contrats.model.ContratLocation;
+import com.immobilier.gestionImmobiliere.donnees.contrats.model.ContratMandat;
 import com.immobilier.gestionImmobiliere.donnees.contrats.repository.ContratLocationRepository;
 import com.immobilier.gestionImmobiliere.donnees.contrats.repository.ContratMandatRepository;
 import com.immobilier.gestionImmobiliere.donnees.paiements.model.EcheanceLoyer;
@@ -8,10 +10,12 @@ import com.immobilier.gestionImmobiliere.donnees.paiements.model.TypeEcheance;
 import com.immobilier.gestionImmobiliere.donnees.paiements.repository.EcheanceLoyerRepository;
 import com.immobilier.gestionImmobiliere.exceptions.ResourceNotFoundException;
 import com.immobilier.gestionImmobiliere.modules.paiements.dto.responses.EcheanceResponseDTO;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -67,18 +71,29 @@ public class EcheanceService {
     }
 
 
-    @PostAuthorize(
-            "hasAnyRole('ADMIN','AGENT') " +
-                    "or @ownershipResolver.isEcheanceOwnedByClient(returnObject.type, returnObject.entiteId, authentication.principal.id) " +
-                    "or @ownershipResolver.isEcheanceOwnedByBailleur(returnObject.type, returnObject.entiteId, authentication.principal.id)"
-    )
-    public EcheanceResponseDTO getEcheanceById(Integer id) {
-        return toDto(findOrThrow(id));
+    public ResponseEntity<?> getByIdForCurrentUser(Integer id, Integer currentUserId,
+                                                   boolean isAdminOrAgent, boolean isBailleur) {
+        EcheanceLoyer echeance = findOrThrow(id);
+
+        if (!isAdminOrAgent) {
+            boolean autorise;
+            if (echeance.getEntiteEcheanceType() == TypeEcheance.MANDAT) {
+                ContratMandat mandat = contratMandatRepository.findById(echeance.getEntiteEcheanceId())
+                        .orElseThrow(() -> new EntityNotFoundException("Mandat introuvable"));
+                autorise = isBailleur && mandat.getCour().getProprietaire().getIdUser().equals(currentUserId);
+            } else {
+                ContratLocation location = contratLocationRepository.findById(echeance.getEntiteEcheanceId())
+                        .orElseThrow(() -> new EntityNotFoundException("Location introuvable"));
+                autorise = isBailleur
+                        ? location.getMaison().getCour().getProprietaire().getIdUser().equals(currentUserId)
+                        : location.getLocataire().getIdUser().equals(currentUserId); // CLIENT = locataire, ce champ-là reste "user"
+            }
+            if (!autorise) throw new AccessDeniedException("Vous n'avez pas accès à cette échéance");
+        }
+
+        return buildSuccessResponse(HttpStatus.OK, "Échéance trouvée", "ECHEANCE_FOUND", toDto(echeance));
     }
 
-    public ResponseEntity<?> getById(Integer id) {
-        return buildSuccessResponse(HttpStatus.OK, "Échéance trouvée", "ECHEANCE_FOUND", toDto(findOrThrow(id)));
-    }
 
     public ResponseEntity<?> getEnRetard() {
         List<EcheanceLoyer> enRetard = echeanceRepository.findByStatutAndDateEcheanceBefore(StatutEcheance.EN_ATTENTE, LocalDateTime.now());

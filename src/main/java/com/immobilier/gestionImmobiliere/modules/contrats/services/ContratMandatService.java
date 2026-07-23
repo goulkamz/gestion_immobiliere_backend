@@ -19,6 +19,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,17 +42,33 @@ public class ContratMandatService {
         this.echeanceGenerationService = echeanceGenerationService;
     }
 
-    public ResponseEntity<?> getAll(Integer idCour, StatutMandat statut, Pageable pageable) {
-        Page<ContratMandat> page = idCour != null
-                ? mandatRepository.findByCour_IdCour(idCour, pageable)
-                : (statut != null ? mandatRepository.findByStatut(statut, pageable) : mandatRepository.findAll(pageable));
+    public ResponseEntity<?> getAllForCurrentUser(Integer idCour, StatutMandat statut,
+                                                  Integer currentUserId, boolean isAdminOrAgent,
+                                                  Pageable pageable) {
+        Page<ContratMandat> page;
+
+        if (isAdminOrAgent) {
+            page = idCour != null
+                    ? mandatRepository.findByCour_IdCour(idCour, pageable)
+                    : (statut != null ? mandatRepository.findByStatut(statut, pageable) : mandatRepository.findAll(pageable));
+        } else {
+            // BAILLEUR : uniquement les mandats sur ses propres cours
+            page = mandatRepository.findByCour_Proprietaire_IdUser(currentUserId, pageable);
+        }
+
         return buildSuccessResponse(HttpStatus.OK, "Liste des mandats", "MANDAT_LIST", page.map(this::toDto));
     }
 
-    public ResponseEntity<?> getById(Integer id) {
-        return buildSuccessResponse(HttpStatus.OK, "Mandat trouvé", "MANDAT_FOUND", toDto(findOrThrow(id)));
-    }
+    public ResponseEntity<?> getByIdForCurrentUser(Integer id, Integer currentUserId, boolean isAdminOrAgent) {
+        ContratMandat mandat = findOrThrow(id);
 
+        if (!isAdminOrAgent) {
+            boolean autorise = mandat.getCour().getProprietaire().getIdUser().equals(currentUserId);
+            if (!autorise) throw new AccessDeniedException("Vous n'avez pas accès à ce mandat");
+        }
+
+        return buildSuccessResponse(HttpStatus.OK, "Mandat trouvé", "MANDAT_FOUND", toDto(mandat));
+    }
     @Transactional
     public ResponseEntity<?> create(CreateContratMandatDTO dto,Integer currentUserId) {
         Cour cour = courRepository.findById(dto.getIdCour())
