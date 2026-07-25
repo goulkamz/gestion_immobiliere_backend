@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.journal.audit;
 
+import jakarta.persistence.Embeddable;
 import jakarta.persistence.Entity;
 import org.hibernate.collection.spi.PersistentCollection;
 import org.hibernate.proxy.HibernateProxy;
@@ -7,16 +8,20 @@ import org.hibernate.proxy.HibernateProxy;
 import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Array;
+import java.lang.reflect.Field;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.UUID;
 
 @Component
 public class AuditValueNormalizer {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AuditValueNormalizer.class);
 
 
     /** Évite de sérialiser proxys non initialisés et collections lazy (risque LazyInitializationException). */
@@ -48,10 +53,7 @@ public class AuditValueNormalizer {
 
             Object id = proxy.getHibernateLazyInitializer().getIdentifier();
 
-            return proxy.getHibernateLazyInitializer()
-                    .getPersistentClass()
-                    .getSimpleName()
-                    + "#" + id;
+            return proxy.getHibernateLazyInitializer().getPersistentClass().getSimpleName() + "#" + id;
         }
 
         // ----------------------------
@@ -95,14 +97,20 @@ public class AuditValueNormalizer {
         // Entité JPA
         // ----------------------------
         if (valeur.getClass().isAnnotationPresent(Entity.class)) {
+            return valeur.getClass().getSimpleName() + "#" + extraireId(valeur);
+        }
 
-            return valeur.getClass().getSimpleName();
+        // ----------------------------
+        // Objet embarqué (@Embeddable)
+        // ----------------------------
+        if (valeur.getClass().isAnnotationPresent(Embeddable.class)) {
+            return normaliserEmbeddable(valeur);
         }
 
         // ----------------------------
         // Objet complexe
         // ----------------------------
-        //return String.valueOf(valeur);
+        log.warn("Type non géré par AuditValueNormalizer, données potentiellement perdues: {}", valeur.getClass().getName());
         return valeur.getClass().getSimpleName();
     }
 
@@ -119,5 +127,35 @@ public class AuditValueNormalizer {
                 || valeur instanceof OffsetDateTime
                 || valeur instanceof Instant
                 || valeur instanceof java.util.Date;
+    }
+
+    private Object extraireId(Object entite) {
+        try {
+            return entite.getClass().getMethod("getId").invoke(entite);
+        } catch (Exception e) {
+            return "id-inconnu"; // ne doit jamais faire échouer l'audit
+        }
+    }
+
+    /**
+     * Sérialise un @Embeddable champ par champ (récursivement via normalize)
+     * plutôt que de perdre son contenu derrière un simple nom de classe.
+     * Utile pour les objets valeur comme Adresse, PlageHoraire, Coordonnees...
+     */
+    private Object normaliserEmbeddable(Object embeddable) {
+        Map<String, Object> champs = new LinkedHashMap<>();
+        for (Field field : embeddable.getClass().getDeclaredFields()) {
+            if (java.lang.reflect.Modifier.isStatic(field.getModifiers())) {
+                continue;
+            }
+            field.setAccessible(true);
+            try {
+                Object valeurChamp = field.get(embeddable);
+                champs.put(field.getName(), normalize(valeurChamp)); // récursif
+            } catch (IllegalAccessException e) {
+                champs.put(field.getName(), "inaccessible");
+            }
+        }
+        return champs;
     }
 }
