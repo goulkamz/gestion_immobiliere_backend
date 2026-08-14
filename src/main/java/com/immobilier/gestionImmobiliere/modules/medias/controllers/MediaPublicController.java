@@ -4,7 +4,9 @@ import com.immobilier.gestionImmobiliere.donnees.medias.model.TypeEntiteMedia;
 import com.immobilier.gestionImmobiliere.modules.medias.apis.MediaPublicAPI;
 import com.immobilier.gestionImmobiliere.modules.medias.services.MediaService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RestController;
 
+@RestController
 public class MediaPublicController implements MediaPublicAPI {
 
     private final MediaService mediaService;

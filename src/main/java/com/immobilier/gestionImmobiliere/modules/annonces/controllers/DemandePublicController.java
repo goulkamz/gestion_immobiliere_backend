@@ -4,7 +4,9 @@ import com.immobilier.gestionImmobiliere.modules.annonces.apis.DemandePublicAPI;
 import com.immobilier.gestionImmobiliere.modules.annonces.dto.requests.CreateDemandeDTO;
 import com.immobilier.gestionImmobiliere.modules.annonces.services.DemandeService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RestController;
 
+@RestController
 public class DemandePublicController implements DemandePublicAPI {
 
     private final DemandeService demandeService;

@@ -24,7 +24,7 @@ public class MediaReconciliationService {
     private final MinioClient minioClient;
     private final MediaRepository mediaRepository;
 
-    @Value("${app.minio.bucket}")
+    @Value("${app.minio.bucket-medias}")
     private String bucket;
 
     public MediaReconciliationService(@Qualifier("minioClient") MinioClient minioClient, MediaRepository mediaRepository) {

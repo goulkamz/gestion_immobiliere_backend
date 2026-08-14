@@ -87,6 +87,16 @@ services:
       timeout: 5s
       retries: 5
 
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: gestion-immo-mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - immobiliere-network
+    restart: unless-stopped
+
   backend:
     build:
       context: .
@@ -95,22 +105,69 @@ services:
     ports:
       - "8080:8080"
     environment:
+      # Profil
+      - SPRING_PROFILES_ACTIVE=dev
+
+      # PostgreSQL
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/gestion_immobiliere
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
+
+      # JPA
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=validate
+      - SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT=org.hibernate.dialect.PostgreSQLDialect
+      - SPRING_JPA_SHOW_SQL=false
+      - SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL=true
+      - LOGGING_LEVEL_ORG_HIBERNATE_TYPE_DESCRIPTOR_SQL_BASICBINDER=TRACE
+
+      # JWT
+      - JWT_SECRET_ACCESS=${JWT_SECRET_ACCESS}
+      - JWT_SECRET_REFRESH=${JWT_SECRET_REFRESH}
+      - FINGER_SECRET_KEY=${FINGER_SECRET_KEY}
+      - JWT_ACCESS_EXPIRATION=900000
+      - JWT_REFRESH_EXPIRATION=604800000
+      - JWT_COOKIE_ACCESS_NAME=access_token
+      - JWT_COOKIE_REFRESH_NAME=refresh_token
+      - JWT_COOKIE_SECURE=true
+      - JWT_COOKIE_SAME_SITE=Strict
+      - JWT_REDIS_ENABLED=true
+
+      - APP_BASE_URL=http://localhost:8080
+
+      # Mail
+      - SPRING_MAIL_HOST=mailhog
+      - SPRING_MAIL_PORT=1025
+      - SPRING_MAIL_USERNAME=
+      - SPRING_MAIL_PASSWORD=
+      - SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH=false
+      - SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE=false
+
+      # Redis
       - SPRING_DATA_REDIS_HOST=redis
       - SPRING_DATA_REDIS_PORT=6379
       - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
+      - SPRING_DATA_REDIS_DATABASE=0
+      - SPRING_DATA_REDIS_LETTUCE_POOL_MAX_ACTIVE=20
+      - SPRING_DATA_REDIS_LETTUCE_POOL_MAX_IDLE=10
+      - SPRING_DATA_REDIS_LETTUCE_POOL_MIN_IDLE=2
+      - SPRING_DATA_REDIS_TIMEOUT=5000
+      - SPRING_DATA_REDIS_LETTUCE_SHUTDOWN_TIMEOUT=2000
+
+      # Médias
+      - APP_MEDIAS_STORAGE_PATH=/data/medias
+      - APP_MEDIAS_MAX_SIZE_IMAGE_MO=5
+      - APP_MEDIAS_MAX_SIZE_VIDEO_MO=50
+      - SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE=60MB
+      - SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE=60MB
+
+      # MinIO
       - APP_MINIO_ENDPOINT=http://minio:9000
       - APP_MINIO_PUBLIC_ENDPOINT=http://localhost:9000
       - APP_MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
       - APP_MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
-      - APP_MINIO_BUCKET=medias-immobilier
+      - APP_MINIO_BUCKET_MEDIAS=medias-immobilier
       - APP_MINIO_BUCKET_DOCUMENTS=documents
-      - APP_MEDIAS_MAX_SIZE_IMAGE_MO=5
-      - APP_MEDIAS_MAX_SIZE_VIDEO_MO=50
-      - SPRING_MAIL_HOST=mailhog
-      - SPRING_MAIL_PORT=1025
     depends_on:
       postgres:
         condition: service_healthy
@@ -124,16 +181,6 @@ services:
     networks:
       - immobiliere-network
 
-  # docker-compose.yml — nouveau service
-  mailhog:
-    image: mailhog/mailhog:latest
-    container_name: gestion-immo-mailhog
-    ports:
-      - "1025:1025"   # SMTP
-      - "8025:8025"   # Interface web pour voir les mails reçus
-    networks:
-      - immobiliere-network
-    restart: unless-stopped
 volumes:
   postgres-data:
     driver: local
