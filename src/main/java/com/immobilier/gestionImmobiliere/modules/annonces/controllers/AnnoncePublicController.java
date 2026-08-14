@@ -5,7 +5,9 @@ import com.immobilier.gestionImmobiliere.modules.annonces.apis.AnnoncePublicAPI;
 import com.immobilier.gestionImmobiliere.modules.annonces.services.AnnonceService;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RestController;
 
+@RestController
 public class AnnoncePublicController implements AnnoncePublicAPI {
 
     private final AnnonceService annonceService;

@@ -4,7 +4,9 @@ import com.immobilier.gestionImmobiliere.modules.localisation.apis.SecteurPublic
 import com.immobilier.gestionImmobiliere.modules.localisation.services.SecteurService;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RestController;
 
+@RestController
 public class SecteurPublicController implements SecteurPublicAPI {
 
     private final SecteurService secteurService;

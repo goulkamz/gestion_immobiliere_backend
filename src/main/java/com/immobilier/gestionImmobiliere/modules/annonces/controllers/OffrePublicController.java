@@ -4,7 +4,9 @@ import com.immobilier.gestionImmobiliere.modules.annonces.apis.OffrePublicAPI;
 import com.immobilier.gestionImmobiliere.modules.annonces.dto.requests.CreateOffreDTO;
 import com.immobilier.gestionImmobiliere.modules.annonces.services.OffreService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RestController;
 
+@RestController
 public class OffrePublicController implements OffrePublicAPI {
 
     private final OffreService offreService;

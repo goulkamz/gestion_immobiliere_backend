@@ -32,19 +32,19 @@ public class CourController implements CourAPI {
     }
 
     @Override
-    @PreAuthorize("hasRole('AGENT')")
+    //@PreAuthorize("hasRole('AGENT')")
     public ResponseEntity<?> create(CreateCourDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser) {
         return courService.create(dto, currentUser.getIdUser());
     }
 
     @Override
-    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
+    //@PreAuthorize("hasAnyRole('AGENT','ADMIN')")
     public ResponseEntity<?> update(Integer id, UpdateCourDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser) {
         return courService.update(id, dto, currentUser.getIdUser());
     }
 
     @Override
-    @PreAuthorize("hasRole('ADMIN')")
+    //@PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> delete(Integer id) {
         return courService.delete(id);
     }

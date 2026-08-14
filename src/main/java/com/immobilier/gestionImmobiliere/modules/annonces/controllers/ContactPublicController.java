@@ -4,7 +4,9 @@ import com.immobilier.gestionImmobiliere.modules.annonces.apis.ContactPublicAPI;
 import com.immobilier.gestionImmobiliere.modules.annonces.dto.requests.CreateContactDTO;
 import com.immobilier.gestionImmobiliere.modules.annonces.services.ContactService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RestController;
 
+@RestController
 public class ContactPublicController implements ContactPublicAPI {
 
     private final ContactService contactService;
