@@ -91,8 +91,8 @@ public class CourService {
         Cour cour = Cour.builder()
                 .secteur(secteur)
                 .proprietaire(proprietaire)
-                .referenceCours(dto.getReferenceCours())
-                .lotCours(dto.getLotCours())
+                .referenceCour(dto.getReferenceCour())
+                .lotCour(dto.getLotCour())
                 .numeroPorte(dto.getNumeroPorte())
                 .userCreate(currentUserId)
                 .dateCreate(LocalDateTime.now())
@@ -110,8 +110,8 @@ public class CourService {
                     .orElseThrow(() -> new ResourceNotFoundException("secteur",dto.getIdSecteur()));
             cour.setSecteur(secteur);
         }
-        if (dto.getReferenceCours() != null) cour.setReferenceCours(dto.getReferenceCours());
-        if (dto.getLotCours() != null) cour.setLotCours(dto.getLotCours());
+        if (dto.getReferenceCour() != null) cour.setReferenceCour(dto.getReferenceCour());
+        if (dto.getLotCour() != null) cour.setLotCour(dto.getLotCour());
         if (dto.getNumeroPorte() != null) cour.setNumeroPorte(dto.getNumeroPorte());
         cour.setUserUpdate(currentUserId);
         cour.setDateUpdate(LocalDateTime.now());
@@ -130,8 +130,8 @@ public class CourService {
         Cour cour = Cour.builder()
                 .secteur(secteur)
                 .proprietaire(proprietaire)
-                .referenceCours(dto.getReferenceCours())
-                .lotCours(dto.getLotCours())
+                .referenceCour(dto.getReferenceCour())
+                .lotCour(dto.getLotCour())
                 .numeroPorte(dto.getNumeroPorte())
                 .dateCreate(LocalDateTime.now())
                 .build();
@@ -148,8 +148,8 @@ public class CourService {
                     .orElseThrow(() -> new ResourceNotFoundException("secteur",dto.getIdSecteur()));
             cour.setSecteur(secteur);
         }
-        if (dto.getReferenceCours() != null) cour.setReferenceCours(dto.getReferenceCours());
-        if (dto.getLotCours() != null) cour.setLotCours(dto.getLotCours());
+        if (dto.getReferenceCour() != null) cour.setReferenceCour(dto.getReferenceCour());
+        if (dto.getLotCour() != null) cour.setLotCour(dto.getLotCour());
         if (dto.getNumeroPorte() != null) cour.setNumeroPorte(dto.getNumeroPorte());
         cour.setDateUpdate(LocalDateTime.now());
 
@@ -170,8 +170,8 @@ public class CourService {
     private CourResponseDTO toDto(Cour c) {
         return CourResponseDTO.builder()
                 .idCour(c.getIdCour())
-                .referenceCours(c.getReferenceCours())
-                .lotCours(c.getLotCours())
+                .referenceCour(c.getReferenceCour())
+                .lotCour(c.getLotCour())
                 .numeroPorte(c.getNumeroPorte())
                 .idSecteur(c.getSecteur().getIdSecteur())
                 .nomSecteur(c.getSecteur().getNomSecteur())

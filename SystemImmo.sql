@@ -93,7 +93,7 @@ CREATE SEQUENCE seq_paiement_echeance START 1;
 -- Types ENUM
 -- ==============================================================
 CREATE TYPE type_echeance_contrat AS ENUM ('MANDAT', 'LOCATION');
-CREATE TYPE type_entite_media AS ENUM ('COURS', 'ANNONCE', 'MAISON');
+CREATE TYPE type_entite_media AS ENUM ('COUR', 'ANNONCE', 'MAISON');
 
 -- ==============================================================
 -- Table: role
@@ -257,8 +257,8 @@ CREATE TABLE cour (
     id_cour INTEGER PRIMARY KEY DEFAULT nextval('seq_cour'),
     id_secteur INTEGER NOT NULL,
     id_user INTEGER NOT NULL,
-    reference_cours VARCHAR(254),
-    lot_cours VARCHAR(254),
+    reference_cour VARCHAR(254),
+    lot_cour VARCHAR(254),
     numero_porte INTEGER,
     image SMALLINT,
     user_create INTEGER,
@@ -448,7 +448,7 @@ CREATE TABLE paiement (
 -- ==============================================================
 CREATE TABLE echeance_loyer (
     id_echeance INTEGER PRIMARY KEY DEFAULT nextval('seq_echeance'),
-    entite_echeance_type type_echeance_contrat,
+    entite_echeance_type VARCHAR(50),
     entite_echeance_id INTEGER NOT NULL,
     date_echeance DATE,
     montant_du FLOAT8,
@@ -522,7 +522,7 @@ CREATE TABLE location_bien_service (
 -- ==============================================================
 CREATE TABLE medias (
     id_media INTEGER PRIMARY KEY DEFAULT nextval('seq_media'),
-    entite_type type_entite_media,
+    entite_type VARCHAR(254),
     entite_id INTEGER,
     type_media VARCHAR(254),
     media_path VARCHAR(254) NOT NULL,
@@ -534,7 +534,7 @@ CREATE TABLE medias (
     updated_at TIMESTAMP(6) DEFAULT NOW(),
     is_deleted BOOLEAN DEFAULT FALSE,
     CONSTRAINT chk_medias_entite CHECK (
-        (entite_type = 'COURS' AND entite_id IS NOT NULL) OR
+        (entite_type = 'COUR' AND entite_id IS NOT NULL) OR
         (entite_type = 'ANNONCE' AND entite_id IS NOT NULL) OR
         (entite_type = 'MAISON' AND entite_id IS NOT NULL)
     )

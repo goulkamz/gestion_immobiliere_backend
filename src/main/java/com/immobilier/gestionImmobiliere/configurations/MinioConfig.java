@@ -21,6 +21,9 @@ public class MinioConfig {
     @Value("${app.minio.secret-key}")
     private String secretKey;
 
+    @Value("${app.minio.region}")
+    private String region;
+
     /**
      * Client interne — utilisé par le backend pour uploader/supprimer les fichiers.
      * Endpoint résolu sur le réseau Docker interne (ex: http://minio:9000).
@@ -30,6 +33,7 @@ public class MinioConfig {
         return MinioClient.builder()
                 .endpoint(endpoint)
                 .credentials(accessKey, secretKey)
+                .region(region)
                 .build();
     }
 
@@ -43,6 +47,7 @@ public class MinioConfig {
         return MinioClient.builder()
                 .endpoint(publicEndpoint)
                 .credentials(accessKey, secretKey)
+                .region(region)
                 .build();
     }
 }

@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 public class ContratMandatResponseDTO {
     private Integer idMandat;
     private Integer idCour;
-    private String referenceCours;
+    private String referenceCour;
     private Integer idAgent;
     private String nomAgent;
     private LocalDateTime dateDebut;

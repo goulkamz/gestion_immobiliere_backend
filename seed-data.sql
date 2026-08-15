@@ -67,7 +67,7 @@ VALUES (
 -- ==============================================================
 -- Cour + Maisons
 -- ==============================================================
-INSERT INTO cour (id_secteur, id_user, reference_cours, lot_cours, numero_porte, date_create)
+INSERT INTO cour (id_secteur, id_user, reference_cour, lot_cour, numero_porte, date_create)
 VALUES (
     (SELECT id_secteur FROM secteur WHERE code_secteur = 'S12'),
     (SELECT id_user FROM users WHERE email = 'bailleur@gestimmo.test'),
@@ -77,10 +77,10 @@ VALUES (
 INSERT INTO maison (id_cour, type_maison, nom_commun_maison, nombre_piece,
                      loyer, caution, nombre_mois_caution, statut, date_create)
 VALUES
-    ((SELECT id_cour FROM cour WHERE reference_cours = 'COUR-2026-001'),
+    ((SELECT id_cour FROM cour WHERE reference_cour = 'COUR-2026-001'),
      'Villa', 'Maison A - Villa 3 pièces', 3, 150000, 300000, 2, 'LOUEE', NOW()),
 
-    ((SELECT id_cour FROM cour WHERE reference_cours = 'COUR-2026-001'),
+    ((SELECT id_cour FROM cour WHERE reference_cour = 'COUR-2026-001'),
      'Studio', 'Maison B - Studio', 1, 60000, 120000, 2, 'DISPONIBLE', NOW());
 
 -- ==============================================================
@@ -89,7 +89,7 @@ VALUES
 INSERT INTO contrat_mandat (id_cour, id_user, date_debut, date_fin, type_mandat,
                              commission, mode_facturation, statut)
 VALUES (
-    (SELECT id_cour FROM cour WHERE reference_cours = 'COUR-2026-001'),
+    (SELECT id_cour FROM cour WHERE reference_cour = 'COUR-2026-001'),
     (SELECT id_user FROM users WHERE email = 'agent@gestimmo.test'),
     NOW(), NOW() + INTERVAL '1 year', 'GESTION',
     10, 'MENSUEL', 'ACTIF'

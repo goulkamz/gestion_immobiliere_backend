@@ -184,7 +184,7 @@ public class MaisonService {
                 .nombreMoisCaution(m.getNombreMoisCaution())
                 .statut(m.getStatut())
                 .idCour(m.getCour().getIdCour())
-                .referenceCours(m.getCour().getReferenceCours())
+                .referenceCour(m.getCour().getReferenceCour())
                 .build();
     }
 }

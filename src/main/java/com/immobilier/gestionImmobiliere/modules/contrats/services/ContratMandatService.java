@@ -139,7 +139,7 @@ public class ContratMandatService {
         return ContratMandatResponseDTO.builder()
                 .idMandat(m.getIdMandat())
                 .idCour(m.getCour().getIdCour())
-                .referenceCours(m.getCour().getReferenceCours())
+                .referenceCour(m.getCour().getReferenceCour())
                 .idAgent(m.getAgent().getIdUser())
                 .nomAgent(m.getAgent().getNom() + " " + m.getAgent().getPrenom())
                 .dateDebut(m.getDateDebut())

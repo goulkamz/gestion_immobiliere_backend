@@ -10,7 +10,7 @@ import java.time.Instant;
 @Entity
 @Table(name = "pays")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-@SQLDelete(sql = "UPDATE localisation SET is_deleted = true WHERE id_pays = ?")
+@SQLDelete(sql = "UPDATE pays SET is_deleted = true WHERE id_pays = ?")
 @Where(clause = "is_deleted = false")
 public class Pays {
 
