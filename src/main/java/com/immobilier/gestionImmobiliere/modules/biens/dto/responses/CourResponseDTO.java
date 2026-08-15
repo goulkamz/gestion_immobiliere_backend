@@ -6,8 +6,8 @@ import lombok.Data;
 @Data @Builder
 public class CourResponseDTO {
     private Integer idCour;
-    private String referenceCours;
-    private String lotCours;
+    private String referenceCour;
+    private String lotCour;
     private Integer numeroPorte;
     private Integer idSecteur;
     private String nomSecteur;

@@ -22,15 +22,12 @@ public interface ReservationAPI {
     @PostMapping
     ResponseEntity<?> create(@Valid @RequestBody CreateReservationDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser);
 
-    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
     @PatchMapping("/{id}/confirmer")
     ResponseEntity<?> confirmer(@PathVariable Integer id, @AuthenticationPrincipal UserDetailsImpl currentUser);
 
-    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
     @PatchMapping("/{id}/annuler")
     ResponseEntity<?> annuler(@PathVariable Integer id, @AuthenticationPrincipal UserDetailsImpl currentUser);
 
-    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
     @PatchMapping("/{id}/convertir")
     ResponseEntity<?> convertir(@PathVariable Integer id, @RequestParam Double montantLoyer,
                                 @RequestParam(required = false) String typeContrat,

@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:15-alpine
+    image: postgres:17
     container_name: gestion-immo-postgres
     environment:
       POSTGRES_DB: gestion_immobiliere
@@ -11,7 +11,8 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./SystemImmo.sql:/docker-entrypoint-initdb.d/01-init.sql
-      - ./seed-data.sql:/docker-entrypoint-initdb.d/02-seed-data.sql
+      - ./cascade_soft_delete_triggers.sql:/docker-entrypoint-initdb.d/02-trigger.sql
+      - ./seed-data.sql:/docker-entrypoint-initdb.d/03-seed-data.sql
     networks:
       - immobiliere-network
     restart: unless-stopped
@@ -168,6 +169,7 @@ services:
       - APP_MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
       - APP_MINIO_BUCKET_MEDIAS=medias-immobilier
       - APP_MINIO_BUCKET_DOCUMENTS=documents
+      - APP_MINIO_REGION=${MINIO_REGION}
     depends_on:
       postgres:
         condition: service_healthy

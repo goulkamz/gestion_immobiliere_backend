@@ -30,11 +30,11 @@ public class Cour extends Model {
     @JoinColumn(name = "id_user", nullable = false)
     private User proprietaire;
 
-    @Column(name = "reference_cours", nullable = false)
-    private String referenceCours;
+    @Column(name = "reference_cour", nullable = false)
+    private String referenceCour;
 
-    @Column(name = "lot_cours")
-    private String lotCours;
+    @Column(name = "lot_cour")
+    private String lotCour;
 
     @Column(name = "numero_porte")
     private Integer numeroPorte;

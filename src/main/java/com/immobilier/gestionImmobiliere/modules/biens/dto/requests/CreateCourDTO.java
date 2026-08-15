@@ -8,7 +8,7 @@ import lombok.Data;
 public class CreateCourDTO {
     @NotNull private Integer idSecteur;
     @NotNull private Integer idProprietaire;
-    @NotBlank private String referenceCours;
-    private String lotCours;
+    @NotBlank private String referenceCour;
+    private String lotCour;
     private Integer numeroPorte;
 }

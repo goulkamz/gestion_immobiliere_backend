@@ -96,7 +96,7 @@ public class EcheanceService {
 
 
     public ResponseEntity<?> getEnRetard() {
-        List<EcheanceLoyer> enRetard = echeanceRepository.findByStatutAndDateEcheanceBefore(StatutEcheance.EN_ATTENTE, LocalDateTime.now());
+        List<EcheanceLoyer> enRetard = echeanceRepository.findByStatutAndDateEcheanceBefore(StatutEcheance.EN_ATTENTE, LocalDate.now());
         return buildSuccessResponse(HttpStatus.OK, "Échéances en retard", "ECHEANCE_EN_RETARD_LIST",
                 enRetard.stream().map(this::toDto).toList());
     }
@@ -106,7 +106,7 @@ public class EcheanceService {
      */
     @Transactional
     public int marquerEnRetard() {
-        List<EcheanceLoyer> expirees = echeanceRepository.findByStatutAndDateEcheanceBefore(StatutEcheance.EN_ATTENTE, LocalDateTime.now());
+        List<EcheanceLoyer> expirees = echeanceRepository.findByStatutAndDateEcheanceBefore(StatutEcheance.EN_ATTENTE, LocalDate.now());
         expirees.forEach(e -> e.setStatut(StatutEcheance.EN_RETARD));
         echeanceRepository.saveAll(expirees);
         return expirees.size();

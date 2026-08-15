@@ -15,5 +15,5 @@ public class MaisonResponseDTO {
     private Integer nombreMoisCaution;
     private StatutMaison statut;
     private Integer idCour;
-    private String referenceCours;
+    private String referenceCour;
 }

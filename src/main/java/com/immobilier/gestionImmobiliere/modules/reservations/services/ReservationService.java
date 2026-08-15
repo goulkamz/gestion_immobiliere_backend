@@ -102,6 +102,7 @@ public class ReservationService {
         if (reservation.getStatut() != StatutReservation.EN_ATTENTE) {
             throw new InvalidStatutTransitionException(reservation.getStatut().name(), StatutReservation.CONFIRMEE.name());
         }
+
         reservation.setStatut(StatutReservation.CONFIRMEE);
         reservationRepository.save(reservation);
         return buildSuccessResponse(HttpStatus.OK, "Réservation confirmée", "RESERVATION_CONFIRMEE", toDto(reservation));
@@ -156,6 +157,7 @@ public class ReservationService {
 
         return buildSuccessResponse(HttpStatus.CREATED, "Réservation convertie en contrat de location", "RESERVATION_CONVERTIE", contratDto2);
     }
+
     private ReservationMaison findOrThrow(Integer id) {
         return reservationRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("réservation", id));
     }

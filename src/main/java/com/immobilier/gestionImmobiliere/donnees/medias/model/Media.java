@@ -1,13 +1,11 @@
 package com.immobilier.gestionImmobiliere.donnees.medias.model;
 
-import com.immobilier.gestionImmobiliere.donnees.Model;
 import com.immobilier.gestionImmobiliere.donnees.Model_1;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity

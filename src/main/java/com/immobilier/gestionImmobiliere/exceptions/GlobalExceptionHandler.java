@@ -15,6 +15,11 @@ import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    private final org.springframework.core.env.Environment environment;
+
+    public GlobalExceptionHandler(org.springframework.core.env.Environment environment) {
+        this.environment = environment;
+    }
 
 
     // ========== EXCEPTIONS D'AUTHENTIFICATION ==========
@@ -80,7 +85,7 @@ public class GlobalExceptionHandler {
         ex.getBindingResult().getFieldErrors().forEach(error ->
                 errors.put(error.getField(), error.getDefaultMessage())
         );
-        if ("dev".equals(System.getProperty("spring.profiles.active"))) {
+        if (estProfilDev()) {
             ex.printStackTrace();
         }
 
@@ -229,10 +234,13 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage(), "TOO_MANY_REQUESTS", ex);
     }
 
+    private boolean estProfilDev() {
+        return java.util.Arrays.asList(environment.getActiveProfiles()).contains("dev");
+    }
 
     private ResponseEntity<?> buildErrorResponse(HttpStatus status, String message, String code,Exception ex) {
         // Afficher la stack trace pour le debug
-        if (ex != null && !(ex instanceof IllegalArgumentException) && !(ex instanceof BadCredentialsException) && "dev".equals(System.getProperty("spring.profiles.active"))) {
+        if (ex != null && !(ex instanceof IllegalArgumentException) && !(ex instanceof BadCredentialsException) && estProfilDev()) {
             ex.printStackTrace();
         }
         Map<String, Object> response = new HashMap<>();
@@ -242,7 +250,7 @@ public class GlobalExceptionHandler {
         response.put("timestamp", Instant.now().toString());
 
         // En développement, ajouter les détails de l'erreur
-        if (ex != null && System.getProperty("spring.profiles.active", "").equals("dev")) {
+        if (ex != null && estProfilDev()) {
             response.put("debug_message", ex.getMessage());
             response.put("exception_type", ex.getClass().getSimpleName());
         }

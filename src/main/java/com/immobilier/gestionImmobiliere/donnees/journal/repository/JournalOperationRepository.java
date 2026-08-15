@@ -15,8 +15,8 @@ public interface JournalOperationRepository extends JpaRepository<JournalOperati
             "(:idUser IS NULL OR j.idUser = :idUser) AND " +
             "(:action IS NULL OR j.action = :action) AND " +
             "(:entite IS NULL OR j.entite = :entite) AND " +
-            "(:dateDebut IS NULL OR j.dateAction >= :dateDebut) AND " +
-            "(:dateFin IS NULL OR j.dateAction <= :dateFin) " +
+            "(CAST(:dateDebut AS timestamp) IS NULL OR j.dateAction >= :dateDebut) AND "+
+            "(CAST(:dateFin AS timestamp) IS NULL OR j.dateAction <= :dateFin) "+
             "ORDER BY j.dateAction DESC")
     Page<JournalOperation> search(@Param("idUser") Integer idUser,
                                   @Param("action") String action,
