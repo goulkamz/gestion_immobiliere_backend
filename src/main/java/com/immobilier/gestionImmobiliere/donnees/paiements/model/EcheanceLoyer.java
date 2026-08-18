@@ -46,6 +46,6 @@ public class EcheanceLoyer extends Model {
     @Column(name = "user_create")
     private Integer userCreate;
 
-    @Column(name = "date_create")
-    private LocalDateTime dateCreate;
+    @Column(name = "user_update")
+    private Integer userUpdate;
 }

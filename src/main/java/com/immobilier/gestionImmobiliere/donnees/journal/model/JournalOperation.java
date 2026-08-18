@@ -46,16 +46,4 @@ public class JournalOperation extends Model_1 {
     @Column(name = "nouveau_contenu",columnDefinition = "jsonb")
     private String nouveauContenu;
 
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
-    public JournalOperation(){initTimestamp();}
-
-    public void initTimestamp() {
-        this.createdAt = CustomDate.now();
-        this.updatedAt = CustomDate.now();
-    }
 }

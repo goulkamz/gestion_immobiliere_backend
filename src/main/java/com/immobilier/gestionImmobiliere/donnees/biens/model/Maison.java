@@ -51,10 +51,4 @@ public class Maison extends Model {
 
     @Column(name = "user_update")
     private Integer userUpdate;
-
-    @Column(name = "date_create")
-    private LocalDateTime dateCreate;
-
-    @Column(name = "date_update")
-    private LocalDateTime dateUpdate;
 }

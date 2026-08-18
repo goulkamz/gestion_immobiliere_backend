@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.donnees;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.MappedSuperclass;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -15,10 +16,13 @@ import com.immobilier.gestionImmobiliere.utils.CustomDate;
     @AllArgsConstructor
     public class Model {
 
+        @Column(name = "is_deleted")
         private Boolean isDeleted = false;
 
+        @Column(name = "created_at")
         private LocalDateTime createdAt;
 
+        @Column(name = "updated_at")
         private LocalDateTime updatedAt;
 
         public Model() {
