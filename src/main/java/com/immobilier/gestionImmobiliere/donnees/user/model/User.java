@@ -56,9 +56,6 @@ import java.util.Date;
         @Column(name = "flag_actif")
         private boolean flagActif;
 
-        @Column(name = "date_create")
-        private LocalDateTime dateCreate;
-
         @Column(name = "date_last_login")
         private LocalDateTime dateLastLogin;
 

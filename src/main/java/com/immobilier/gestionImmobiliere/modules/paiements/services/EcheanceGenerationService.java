@@ -52,7 +52,6 @@ public class EcheanceGenerationService {
                     .montantDu(location.getMontantLoyer())
                     .montantPaye(0.0)
                     .statut(StatutEcheance.EN_ATTENTE)
-                    .dateCreate(LocalDateTime.now())
                     .build());
             courante = courante.plusMonths(1);
         }
@@ -92,7 +91,6 @@ public class EcheanceGenerationService {
                     .montantDu(montantEcheance)
                     .montantPaye(0.0)
                     .statut(StatutEcheance.EN_ATTENTE)
-                    .dateCreate(LocalDateTime.now())
                     .build());
             courante = courante.plusMonths(1);
         }
