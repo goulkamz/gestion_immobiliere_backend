@@ -215,8 +215,6 @@ CREATE TABLE categorie_bien_service (
     description VARCHAR(254),
     user_create INTEGER,
     user_update INTEGER,
-    created_at TIMESTAMP(6) DEFAULT NOW(),
-    updated_at TIMESTAMP(6) DEFAULT NOW(),
     is_deleted BOOLEAN DEFAULT FALSE
 );
 
@@ -482,7 +480,6 @@ CREATE TABLE journal_operation (
 CREATE TABLE location_bien_service (
     id_location_bien_service INTEGER PRIMARY KEY DEFAULT nextval('seq_location_service'),
     id_user INTEGER NOT NULL,
-    id_paiement INTEGER NOT NULL,
     id_bien_service INTEGER NOT NULL,
     destination VARCHAR(254),
     date_debut TIMESTAMP(6),
@@ -496,7 +493,6 @@ CREATE TABLE location_bien_service (
     updated_at TIMESTAMP(6) DEFAULT NOW(),
     is_deleted BOOLEAN DEFAULT FALSE,
     CONSTRAINT fk_location_user FOREIGN KEY (id_user) REFERENCES users(id_user),
-    CONSTRAINT fk_location_paiement FOREIGN KEY (id_paiement) REFERENCES paiement(id_paiement),
     CONSTRAINT fk_location_bienservice FOREIGN KEY (id_bien_service) REFERENCES bien_service(id_bien_service)
 );
 
@@ -556,6 +552,18 @@ CREATE TABLE paiement_echeance (
 );
 
 -- ==============================================================
+-- Table: paiement_location_bien_service (liaison, sur le modèle de paiement_echeance)
+-- ==============================================================
+CREATE TABLE paiement_location_bien_service (
+    id_location_bien_service INTEGER NOT NULL,
+    id_paiement INTEGER NOT NULL,
+    type_paiement VARCHAR(254) NOT NULL DEFAULT 'INITIAL', -- INITIAL, PROLONGATION
+    PRIMARY KEY (id_location_bien_service, id_paiement),
+    CONSTRAINT fk_plbs_location FOREIGN KEY (id_location_bien_service) REFERENCES location_bien_service(id_location_bien_service),
+    CONSTRAINT fk_plbs_paiement FOREIGN KEY (id_paiement) REFERENCES paiement(id_paiement)
+);
+
+-- ==============================================================
 -- Index
 -- ==============================================================
 CREATE INDEX idx_users_email ON users(email);
@@ -592,6 +600,9 @@ CREATE INDEX idx_reservation_maison ON reservation_maison(id_maison);
 CREATE INDEX idx_ville_pays ON ville(id_pays);
 CREATE INDEX idx_secteur_ville ON secteur(id_ville);
 CREATE INDEX idx_journal_user ON journal_operation(id_user);
+
+CREATE INDEX idx_plbs_location ON paiement_location_bien_service(id_location_bien_service);
+CREATE INDEX idx_plbs_paiement ON paiement_location_bien_service(id_paiement);
 
 -- ==============================================================
 -- Données initiales (rôles)

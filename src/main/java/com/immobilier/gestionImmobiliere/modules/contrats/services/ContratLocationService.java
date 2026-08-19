@@ -125,7 +125,6 @@ public class ContratLocationService {
                 .etatDesLieuxEntree(dto.getEtatDesLieuxEntree())
                 .statut(StatutLocation.ACTIF)
                 .userCreate(currentUserId)
-                .dateCreate(LocalDateTime.now())
                 .build();
         locationRepository.save(location);
 

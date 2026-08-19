@@ -234,6 +234,16 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage(), "TOO_MANY_REQUESTS", ex);
     }
 
+    /**
+     * Transition d'état invalide (ex: annuler une location déjà ACTIF,
+     * confirmer une location déjà confirmée, etc.) → 409 Conflict
+     */
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<?> handleIllegalState(IllegalStateException ex) {
+        return buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage(), "INVALID_STATE_TRANSITION",ex);
+    }
+
+
     private boolean estProfilDev() {
         return java.util.Arrays.asList(environment.getActiveProfiles()).contains("dev");
     }

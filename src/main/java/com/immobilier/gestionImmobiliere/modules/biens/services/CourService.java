@@ -95,7 +95,6 @@ public class CourService {
                 .lotCour(dto.getLotCour())
                 .numeroPorte(dto.getNumeroPorte())
                 .userCreate(currentUserId)
-                .dateCreate(LocalDateTime.now())
                 .build();
         courRepository.save(cour);
         return buildSuccessResponse(HttpStatus.CREATED, "Cour créée avec succès", "COUR_CREATED", toDto(cour));
@@ -114,7 +113,7 @@ public class CourService {
         if (dto.getLotCour() != null) cour.setLotCour(dto.getLotCour());
         if (dto.getNumeroPorte() != null) cour.setNumeroPorte(dto.getNumeroPorte());
         cour.setUserUpdate(currentUserId);
-        cour.setDateUpdate(LocalDateTime.now());
+        cour.setUpdatedAt(LocalDateTime.now());
 
         courRepository.save(cour);
         return buildSuccessResponse(HttpStatus.OK, "Cour mise à jour", "COUR_UPDATED", toDto(cour));
@@ -133,7 +132,7 @@ public class CourService {
                 .referenceCour(dto.getReferenceCour())
                 .lotCour(dto.getLotCour())
                 .numeroPorte(dto.getNumeroPorte())
-                .dateCreate(LocalDateTime.now())
+                .createdAt(LocalDateTime.now())
                 .build();
         courRepository.save(cour);
         return buildSuccessResponse(HttpStatus.CREATED, "Cour créée avec succès", "COUR_CREATED", toDto(cour));
@@ -151,7 +150,7 @@ public class CourService {
         if (dto.getReferenceCour() != null) cour.setReferenceCour(dto.getReferenceCour());
         if (dto.getLotCour() != null) cour.setLotCour(dto.getLotCour());
         if (dto.getNumeroPorte() != null) cour.setNumeroPorte(dto.getNumeroPorte());
-        cour.setDateUpdate(LocalDateTime.now());
+        cour.setUpdatedAt(LocalDateTime.now());
 
         courRepository.save(cour);
         return buildSuccessResponse(HttpStatus.OK, "Cour mise à jour", "COUR_UPDATED", toDto(cour));

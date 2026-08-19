@@ -148,7 +148,7 @@ public class UserAdminService {
                 .dateNaissance(u.getDateNaissance())
                 .flagActif(u.isFlagActif())
                 .role(u.getRole().getLibelleRole().name())
-                .dateCreate(u.getDateCreate())
+                .dateCreate(u.getCreatedAt())
                 .dateLastLogin(u.getDateLastLogin())
                 .build();
     }

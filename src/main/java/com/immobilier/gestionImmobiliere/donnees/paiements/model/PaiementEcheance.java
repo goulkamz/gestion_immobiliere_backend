@@ -2,12 +2,14 @@ package com.immobilier.gestionImmobiliere.donnees.paiements.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 
 import java.io.Serializable;
 
 @Entity
 @Table(name = "paiement_echeance")
-@Data @Builder @NoArgsConstructor @AllArgsConstructor
+@Data @SuperBuilder
+@NoArgsConstructor @AllArgsConstructor
 @IdClass(PaiementEcheance.PaiementEcheanceId.class)
 public class PaiementEcheance {
 

@@ -3,8 +3,13 @@ package com.immobilier.gestionImmobiliere.donnees;
 import com.immobilier.gestionImmobiliere.utils.CustomDate;
 import jakarta.persistence.Column;
 import jakarta.persistence.MappedSuperclass;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
+
 import java.time.LocalDateTime;
 
 
@@ -12,28 +17,29 @@ import java.time.LocalDateTime;
 @MappedSuperclass
 @Data
 @AllArgsConstructor
+@NoArgsConstructor
+@SuperBuilder
 public class Model_1 {
 
-        @Column(name = "is_deleted")
-        private Boolean isDeleted = false;
+    @Column(name = "is_deleted")
+    private Boolean isDeleted = false;
 
-        @Column(name = "created_at")
-        private LocalDateTime createdAt;
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
 
-        @Column(name = "updated_at")
-        private LocalDateTime updatedAt;
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 
-        public Model_1() {
-            initTimestamp();
-        }
 
-        public void initTimestamp() {
-            this.createdAt = CustomDate.now();
-            this.updatedAt = CustomDate.now();
-        }
+    @PrePersist
+    public void initTimestamp() {
+        if (this.createdAt == null) this.createdAt = CustomDate.now();
+        this.updatedAt = CustomDate.now();
+    }
 
-        public static class Model_1Builder {
-            public Model_1Builder() {}
-        }
+    @PreUpdate
+    public void onUpdate() {
+        this.updatedAt = CustomDate.now();
+    }
 
 }

@@ -5,6 +5,7 @@ import com.immobilier.gestionImmobiliere.donnees.biens.model.Cour;
 import com.immobilier.gestionImmobiliere.donnees.user.model.User;
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 
@@ -13,7 +14,8 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "contrat_mandat")
-@Data @Builder @NoArgsConstructor @AllArgsConstructor
+@Data @SuperBuilder
+@NoArgsConstructor @AllArgsConstructor
 @SQLDelete(sql = "UPDATE contrat_mandat SET is_deleted = true WHERE id_mandat = ?")
 @Where(clause = "is_deleted = false")
 public class ContratMandat extends Model {
