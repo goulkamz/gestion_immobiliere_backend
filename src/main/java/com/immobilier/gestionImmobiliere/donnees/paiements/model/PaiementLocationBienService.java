@@ -13,7 +13,7 @@ import java.io.Serializable;
 @Table(name = "paiement_location_bien_service")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @SuperBuilder
 @IdClass(PaiementLocationBienService.PaiementLocationId.class)
-public class PaiementLocationBienService extends Model {
+public class PaiementLocationBienService {
 
     @Id
     @Column(name = "id_location_bien_service")

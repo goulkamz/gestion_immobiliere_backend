@@ -8,7 +8,7 @@
 -- Users — un compte par rôle
 -- ==============================================================
 INSERT INTO users (id_role, nom, prenom, sexe, email, mot_de_passe, date_naissance,
-                    telephone, flag_actif, date_create)
+                    telephone, flag_actif, created_at)
 VALUES
     ((SELECT id_role FROM role WHERE libelle_role = 'ROLE_ADMIN'),
      'Admin', 'Système', 'M', 'admin@gestimmo.test',
@@ -49,13 +49,13 @@ VALUES
 -- ==============================================================
 -- Catégories + Biens/Services
 -- ==============================================================
-INSERT INTO categorie_bien_service (libelle, description, date_create)
+INSERT INTO categorie_bien_service (libelle, description, created_at)
 VALUES
     ('Véhicule', 'Location de véhicules', NOW()),
     ('Équipement', 'Location de matériel événementiel', NOW());
 
 INSERT INTO bien_service (id_secteur, id_categorie, id_user, libelle, description,
-                           prix_journalier, prix_mensuel, disponibilite, date_create)
+                           prix_journalier, prix_mensuel, disponibilite, created_at)
 VALUES (
     (SELECT id_secteur FROM secteur WHERE code_secteur = 'S12'),
     (SELECT id_categorie FROM categorie_bien_service WHERE libelle = 'Véhicule'),
@@ -67,7 +67,7 @@ VALUES (
 -- ==============================================================
 -- Cour + Maisons
 -- ==============================================================
-INSERT INTO cour (id_secteur, id_user, reference_cour, lot_cour, numero_porte, date_create)
+INSERT INTO cour (id_secteur, id_user, reference_cour, lot_cour, numero_porte, created_at)
 VALUES (
     (SELECT id_secteur FROM secteur WHERE code_secteur = 'S12'),
     (SELECT id_user FROM users WHERE email = 'bailleur@gestimmo.test'),
@@ -75,7 +75,7 @@ VALUES (
 );
 
 INSERT INTO maison (id_cour, type_maison, nom_commun_maison, nombre_piece,
-                     loyer, caution, nombre_mois_caution, statut, date_create)
+                     loyer, caution, nombre_mois_caution, statut, created_at)
 VALUES
     ((SELECT id_cour FROM cour WHERE reference_cour = 'COUR-2026-001'),
      'Villa', 'Maison A - Villa 3 pièces', 3, 150000, 300000, 2, 'LOUEE', NOW()),
@@ -100,7 +100,7 @@ VALUES (
 -- ==============================================================
 INSERT INTO contra_location (id_user, id_maison, date_entree, date_sortie,
                               montant_loyer, statut, type_contrat, depot_garantie,
-                              etat_des_lieux_entree, date_create)
+                              etat_des_lieux_entree, created_at)
 VALUES (
     (SELECT id_user FROM users WHERE email = 'client@gestimmo.test'),
     (SELECT id_maison FROM maison WHERE nom_commun_maison = 'Maison A - Villa 3 pièces'),
@@ -113,7 +113,7 @@ VALUES (
 -- Échéances de loyer (2 mois, une payée, une en attente)
 -- ==============================================================
 INSERT INTO echeance_loyer (entite_echeance_type, entite_echeance_id, date_echeance,
-                             montant_du, montant_paye, statut, date_create)
+                             montant_du, montant_paye, statut, created_at)
 VALUES
     ('LOCATION',
      (SELECT id_contra_location FROM contra_location LIMIT 1),

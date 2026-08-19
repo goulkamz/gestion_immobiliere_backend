@@ -215,6 +215,8 @@ CREATE TABLE categorie_bien_service (
     description VARCHAR(254),
     user_create INTEGER,
     user_update INTEGER,
+    created_at TIMESTAMP(6) DEFAULT NOW(),
+    updated_at TIMESTAMP(6) DEFAULT NOW(),
     is_deleted BOOLEAN DEFAULT FALSE
 );
 
