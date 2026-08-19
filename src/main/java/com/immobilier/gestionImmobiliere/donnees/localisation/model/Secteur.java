@@ -2,6 +2,7 @@ package com.immobilier.gestionImmobiliere.donnees.localisation.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 
@@ -9,7 +10,7 @@ import java.time.Instant;
 
 @Entity
 @Table(name = "secteur")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @SuperBuilder
 @SQLDelete(sql = "UPDATE secteur SET is_deleted = true WHERE id_secteur = ?")
 @Where(clause = "is_deleted = false")
 public class Secteur {

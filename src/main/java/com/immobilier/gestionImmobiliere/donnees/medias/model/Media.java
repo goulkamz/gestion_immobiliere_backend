@@ -3,6 +3,7 @@ package com.immobilier.gestionImmobiliere.donnees.medias.model;
 import com.immobilier.gestionImmobiliere.donnees.Model_1;
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 
@@ -10,7 +11,8 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "medias")
-@Data @Builder @NoArgsConstructor @AllArgsConstructor
+@Data @SuperBuilder
+@NoArgsConstructor @AllArgsConstructor
 @SQLDelete(sql = "UPDATE medias SET is_deleted = true WHERE id_media = ?")
 @Where(clause = "is_deleted = false")
 public class Media extends Model_1 {

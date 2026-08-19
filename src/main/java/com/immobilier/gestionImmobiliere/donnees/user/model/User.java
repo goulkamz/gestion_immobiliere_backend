@@ -9,6 +9,7 @@ import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -17,7 +18,7 @@ import java.util.Date;
     @Entity
     @Table(name = "users")
     @Data
-    @Builder
+    @SuperBuilder
     @AllArgsConstructor
     public class User extends Model {
 

@@ -72,7 +72,6 @@ public class MaisonService {
                 .nombreMoisCaution(dto.getNombreMoisCaution())
                 .statut(StatutMaison.DISPONIBLE)
                 .userCreate(currentUserId)
-                .dateCreate(LocalDateTime.now())
                 .build();
         maisonRepository.save(maison);
         return buildSuccessResponse(HttpStatus.CREATED, "Maison créée avec succès", "MAISON_CREATED", toDto(maison));
@@ -89,7 +88,7 @@ public class MaisonService {
         if (dto.getCaution() != null) maison.setCaution(dto.getCaution());
         if (dto.getNombreMoisCaution() != null) maison.setNombreMoisCaution(dto.getNombreMoisCaution());
         maison.setUserUpdate(currentUserId);
-        maison.setDateUpdate(LocalDateTime.now());
+        maison.setUpdatedAt(LocalDateTime.now());
 
         maisonRepository.save(maison);
         return buildSuccessResponse(HttpStatus.OK, "Maison mise à jour", "MAISON_UPDATED", toDto(maison));
@@ -110,7 +109,6 @@ public class MaisonService {
                 .caution(dto.getCaution())
                 .nombreMoisCaution(dto.getNombreMoisCaution())
                 .statut(StatutMaison.DISPONIBLE)
-                .dateCreate(LocalDateTime.now())
                 .build();
         maisonRepository.save(maison);
         return buildSuccessResponse(HttpStatus.CREATED, "Maison créée avec succès", "MAISON_CREATED", toDto(maison));
@@ -126,7 +124,7 @@ public class MaisonService {
         if (dto.getLoyer() != null) maison.setLoyer(dto.getLoyer());
         if (dto.getCaution() != null) maison.setCaution(dto.getCaution());
         if (dto.getNombreMoisCaution() != null) maison.setNombreMoisCaution(dto.getNombreMoisCaution());
-        maison.setDateUpdate(LocalDateTime.now());
+        maison.setUpdatedAt(LocalDateTime.now());
         maisonRepository.save(maison);
         return buildSuccessResponse(HttpStatus.OK, "Maison mise à jour", "MAISON_UPDATED", toDto(maison));
     }
@@ -142,7 +140,7 @@ public class MaisonService {
         }
         maison.setStatut(target);
         maison.setUserUpdate(currentUserId);
-        maison.setDateUpdate(LocalDateTime.now());
+        maison.setUpdatedAt(LocalDateTime.now());
         maisonRepository.save(maison);
         return buildSuccessResponse(HttpStatus.OK, "Statut mis à jour", "MAISON_STATUT_UPDATED", toDto(maison));
     }
@@ -158,7 +156,7 @@ public class MaisonService {
         }
 
         maison.setStatut(target);
-        maison.setDateUpdate(LocalDateTime.now());
+        maison.setUpdatedAt(LocalDateTime.now());
         maisonRepository.save(maison);
         return buildSuccessResponse(HttpStatus.OK, "Statut mis à jour", "MAISON_STATUT_UPDATED", toDto(maison));
     }

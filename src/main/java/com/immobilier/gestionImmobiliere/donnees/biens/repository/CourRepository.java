@@ -9,4 +9,5 @@ public interface CourRepository extends JpaRepository<Cour, Integer> {
     Page<Cour> findBySecteur_IdSecteur(Integer idSecteur, Pageable pageable);
     Page<Cour> findByProprietaire_IdUser(Integer idUser, Pageable pageable);
     Page<Cour> findBySecteur_IdSecteurAndProprietaire_IdUser(Integer idSecteur, Integer idUser, Pageable pageable);
+    long countByIsDeletedFalse();
 }
