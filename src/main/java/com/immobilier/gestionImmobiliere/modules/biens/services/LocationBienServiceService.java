@@ -187,8 +187,7 @@ public class LocationBienServiceService {
             throw new IllegalArgumentException("La nouvelle date de fin doit être postérieure à la date de début");
         }
 
-        LocalDateTime ancienneDateFin = location.getDateFin();
-        boolean estProlongation = dto.getNouvelleDateFin().isAfter(ancienneDateFin);
+        boolean estProlongation = dto.getNouvelleDateFin().isAfter(location.getDateFin());
 
         int nouvelleDuree = (int) Duration.between(location.getDateDebut(), dto.getNouvelleDateFin()).toDays();
         Double prixJournalier = location.getBienService().getPrixJournalier();
@@ -239,7 +238,7 @@ public class LocationBienServiceService {
         ModifierDureeLocationResponseDTO reponse = ModifierDureeLocationResponseDTO.builder()
                 .location(toDto(location))
                 .montantComplementEnregistre(montantComplementEnregistre)
-                .tropPercu(tropPercu)
+                .solde(tropPercu)
                 .build();
 
         String message = estProlongation

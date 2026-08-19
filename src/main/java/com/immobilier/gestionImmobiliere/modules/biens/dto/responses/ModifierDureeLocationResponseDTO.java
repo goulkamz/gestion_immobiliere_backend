@@ -7,5 +7,5 @@ import lombok.Data;
 public class ModifierDureeLocationResponseDTO {
     private LocationBienServiceResponseDTO location;
     private Double montantComplementEnregistre; // renseigné uniquement en cas de prolongation payée
-    private Double tropPercu;                    // renseigné uniquement en cas de raccourcissement avec écart positif
+    private Double solde;                    // renseigné uniquement en cas de raccourcissement avec écart positif
 }
