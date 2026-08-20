@@ -1,10 +1,7 @@
 package com.immobilier.gestionImmobiliere.modules.biens.controllers;
 
 import com.immobilier.gestionImmobiliere.modules.biens.apis.LocationBienServiceAPI;
-import com.immobilier.gestionImmobiliere.modules.biens.dto.requests.ConfirmerLocationDTO;
-import com.immobilier.gestionImmobiliere.modules.biens.dto.requests.CreateLocationBienServiceDTO;
-import com.immobilier.gestionImmobiliere.modules.biens.dto.requests.ModifierDureeLocationDTO;
-import com.immobilier.gestionImmobiliere.modules.biens.dto.requests.UpdateStatutLocationBienServiceDTO;
+import com.immobilier.gestionImmobiliere.modules.biens.dto.requests.*;
 import com.immobilier.gestionImmobiliere.modules.biens.services.LocationBienServiceService;
 import com.immobilier.gestionImmobiliere.modules.user.jwtService.UserDetailsImpl;
 import org.springframework.data.domain.Pageable;
@@ -64,5 +61,25 @@ public class LocationBienServiceController implements LocationBienServiceAPI {
     @Override
     public ResponseEntity<?> annuler(Integer id, UserDetailsImpl currentUser) {
         return locationService.annuler(id,currentUser);
+    }
+
+    /**
+     * @param id
+     * @param dto
+     * @param currentUser
+     * @return
+     */
+    @Override
+    public ResponseEntity<?> rembourser(Integer id, CreerRemboursementDTO dto, UserDetailsImpl currentUser) {
+        return locationService.rembourser(id,dto,currentUser.getIdUser());
+    }
+
+    /**
+     * @param id
+     * @return
+     */
+    @Override
+    public ResponseEntity<?> getRemboursements(Integer id) {
+        return locationService.getRemboursements(id);
     }
 }
