@@ -1,9 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.biens.apis;
 
-import com.immobilier.gestionImmobiliere.modules.biens.dto.requests.ConfirmerLocationDTO;
-import com.immobilier.gestionImmobiliere.modules.biens.dto.requests.CreateLocationBienServiceDTO;
-import com.immobilier.gestionImmobiliere.modules.biens.dto.requests.ModifierDureeLocationDTO;
-import com.immobilier.gestionImmobiliere.modules.biens.dto.requests.UpdateStatutLocationBienServiceDTO;
+import com.immobilier.gestionImmobiliere.modules.biens.dto.requests.*;
 import com.immobilier.gestionImmobiliere.modules.user.jwtService.UserDetailsImpl;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
@@ -41,6 +38,14 @@ public interface LocationBienServiceAPI {
     @PreAuthorize("hasAnyRole('AGENT','ADMIN','CLIENT')")
     @PatchMapping("/{id}/annuler")
     ResponseEntity<?> annuler(@PathVariable Integer id, @AuthenticationPrincipal UserDetailsImpl currentUser);
+
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
+    @PostMapping("/{id}/rembourser")
+    ResponseEntity<?> rembourser(@PathVariable Integer id, @Valid @RequestBody CreerRemboursementDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser);
+
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN','CLIENT')")
+    @GetMapping("/{id}/remboursements")
+    ResponseEntity<?> getRemboursements(@PathVariable Integer id);
 
     @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
     @PatchMapping("/{id}/statut")

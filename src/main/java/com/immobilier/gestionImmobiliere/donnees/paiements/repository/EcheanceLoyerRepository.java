@@ -26,4 +26,7 @@ public interface EcheanceLoyerRepository extends JpaRepository<EcheanceLoyer, In
                                         Pageable pageable);
 
     Page<EcheanceLoyer> findByEntiteEcheanceTypeAndEntiteEcheanceIdIn(TypeEcheance type, List<Integer> ids, Pageable pageable);
+
+    List<EcheanceLoyer> findByEntiteEcheanceTypeAndEntiteEcheanceIdAndDateEcheanceBetween(
+            TypeEcheance type, Integer entiteId, LocalDate debut, LocalDate fin);
 }

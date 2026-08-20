@@ -35,6 +35,7 @@ DROP TABLE IF EXISTS role CASCADE;
 DROP TABLE IF EXISTS paiement CASCADE;
 DROP TABLE IF EXISTS pending_registration CASCADE;
 DROP TABLE IF EXISTS password_reset_token CASCADE;
+DROP TABLE IF EXISTS remboursement CASCADE;
 
 DROP SEQUENCE IF EXISTS seq_annonce CASCADE;
 DROP SEQUENCE IF EXISTS seq_bien_service CASCADE;
@@ -60,6 +61,7 @@ DROP SEQUENCE IF EXISTS seq_ville CASCADE;
 DROP SEQUENCE IF EXISTS seq_pending_registration CASCADE;
 DROP SEQUENCE IF EXISTS seq_password_reset_token CASCADE;
 DROP SEQUENCE IF EXISTS seq_paiement_echeance CASCADE;
+DROP SEQUENCE IF EXISTS seq_remboursement CASCADE;
 
 -- ==============================================================
 -- Séquences
@@ -88,12 +90,15 @@ CREATE SEQUENCE seq_ville START 1;
 CREATE SEQUENCE seq_pending_registration START 1;
 CREATE SEQUENCE seq_password_reset_token START 1;
 CREATE SEQUENCE seq_paiement_echeance START 1;
+CREATE SEQUENCE seq_remboursement START 1;
 
 -- ==============================================================
 -- Types ENUM
 -- ==============================================================
 CREATE TYPE type_echeance_contrat AS ENUM ('MANDAT', 'LOCATION');
 CREATE TYPE type_entite_media AS ENUM ('COUR', 'ANNONCE', 'MAISON');
+CREATE TYPE type_entite_remboursement AS ENUM ('LOCATION_BIEN_SERVICE', 'CONTRA_LOCATION', 'ECHEANCE_LOYER');
+
 
 -- ==============================================================
 -- Table: role
@@ -566,6 +571,29 @@ CREATE TABLE paiement_location_bien_service (
 );
 
 -- ==============================================================
+-- Table: remboursement (historique des remboursements )
+-- ==============================================================
+CREATE TABLE remboursement (
+    id_remboursement INTEGER PRIMARY KEY DEFAULT nextval('seq_remboursement'),
+    entite_type type_entite_remboursement NOT NULL,
+    entite_id INTEGER NOT NULL,
+    montant FLOAT8 NOT NULL,
+    mode_remboursement VARCHAR(254),
+    reference VARCHAR(254),
+    motif VARCHAR(254),
+    user_create INTEGER,
+    user_update INTEGER,
+    created_at TIMESTAMP(6) DEFAULT NOW(),
+    updated_at TIMESTAMP(6) DEFAULT NOW(),
+    is_deleted BOOLEAN DEFAULT FALSE,
+    CONSTRAINT chk_remboursement_entite CHECK (
+        (entite_type = 'LOCATION_BIEN_SERVICE' AND entite_id IS NOT NULL) OR
+        (entite_type = 'CONTRA_LOCATION' AND entite_id IS NOT NULL) OR
+        (entite_type = 'ECHEANCE_LOYER' AND entite_id IS NOT NULL)
+    )
+);
+
+-- ==============================================================
 -- Index
 -- ==============================================================
 CREATE INDEX idx_users_email ON users(email);
@@ -605,6 +633,7 @@ CREATE INDEX idx_journal_user ON journal_operation(id_user);
 
 CREATE INDEX idx_plbs_location ON paiement_location_bien_service(id_location_bien_service);
 CREATE INDEX idx_plbs_paiement ON paiement_location_bien_service(id_paiement);
+CREATE INDEX idx_remboursement_entite ON remboursement(entite_type, entite_id);
 
 -- ==============================================================
 -- Données initiales (rôles)
