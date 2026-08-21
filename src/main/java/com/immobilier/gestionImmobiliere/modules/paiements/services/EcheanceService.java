@@ -10,6 +10,7 @@ import com.immobilier.gestionImmobiliere.donnees.paiements.model.TypeEcheance;
 import com.immobilier.gestionImmobiliere.donnees.paiements.repository.EcheanceLoyerRepository;
 import com.immobilier.gestionImmobiliere.exceptions.ResourceNotFoundException;
 import com.immobilier.gestionImmobiliere.modules.paiements.dto.responses.EcheanceResponseDTO;
+import com.immobilier.gestionImmobiliere.utils.DateUtils;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -117,11 +118,16 @@ public class EcheanceService {
     }
 
     private EcheanceResponseDTO toDto(EcheanceLoyer e) {
+        String moisLibelle = e.getDateEcheance() != null
+                ? DateUtils.nomMoisFrancais(e.getDateEcheance()) + " " + e.getDateEcheance().getYear()
+                : null;
+
         return EcheanceResponseDTO.builder()
                 .idEcheance(e.getIdEcheance())
                 .type(e.getEntiteEcheanceType())
                 .entiteId(e.getEntiteEcheanceId())
                 .dateEcheance(e.getDateEcheance())
+                .moisLibelle(moisLibelle)
                 .montantDu(e.getMontantDu())
                 .montantPaye(e.getMontantPaye())
                 .statut(e.getStatut())

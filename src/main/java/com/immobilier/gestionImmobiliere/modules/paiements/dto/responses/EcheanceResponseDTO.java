@@ -13,6 +13,7 @@ public class EcheanceResponseDTO {
     private TypeEcheance type;
     private Integer entiteId;
     private LocalDate dateEcheance;
+    private String moisLibelle;
     private Double montantDu;
     private Double montantPaye;
     private StatutEcheance statut;
