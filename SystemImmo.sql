@@ -97,7 +97,6 @@ CREATE SEQUENCE seq_remboursement START 1;
 -- ==============================================================
 CREATE TYPE type_echeance_contrat AS ENUM ('MANDAT', 'LOCATION');
 CREATE TYPE type_entite_media AS ENUM ('COUR', 'ANNONCE', 'MAISON');
-CREATE TYPE type_entite_remboursement AS ENUM ('LOCATION_BIEN_SERVICE', 'CONTRA_LOCATION', 'ECHEANCE_LOYER');
 
 
 -- ==============================================================
@@ -575,7 +574,7 @@ CREATE TABLE paiement_location_bien_service (
 -- ==============================================================
 CREATE TABLE remboursement (
     id_remboursement INTEGER PRIMARY KEY DEFAULT nextval('seq_remboursement'),
-    entite_type type_entite_remboursement NOT NULL,
+    entite_type VARCHAR(50) NOT NULL,
     entite_id INTEGER NOT NULL,
     montant FLOAT8 NOT NULL,
     mode_remboursement VARCHAR(254),
