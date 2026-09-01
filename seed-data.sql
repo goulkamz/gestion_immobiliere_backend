@@ -28,7 +28,12 @@ VALUES
     ((SELECT id_role FROM role WHERE libelle_role = 'ROLE_CLIENT'),
      'Kone', 'Ibrahim', 'M', 'client@gestimmo.test',
      '$2b$10$Cd6ZzZLgeG241M75v0ub1ea7cFQNsXwIwUpj0sXEGSyoEBhrI4NMu',
-     '1995-11-05', '70000004', TRUE, NOW());
+     '1995-11-05', '70000004', TRUE, NOW()),
+
+     ((SELECT id_role FROM role WHERE libelle_role = 'ROLE_CLIENT'),
+          'Sawadogo', 'Fatimata', 'F', 'client2@gestimmo.test',
+          '$2b$10$Cd6ZzZLgeG241M75v0ub1ea7cFQNsXwIwUpj0sXEGSyoEBhrI4NMu',
+          '1993-06-18', '70000005', TRUE, NOW());
 
 -- ==============================================================
 -- Localisation — pays / villes / secteurs
@@ -62,7 +67,14 @@ VALUES (
     (SELECT id_user FROM users WHERE email = 'agent@gestimmo.test'),
     'Toyota Hilux 2022', 'Pick-up 4x4 climatisé, idéal chantier ou voyage',
     35000, 800000, 'DISPONIBLE', NOW()
-);
+),
+(
+      (SELECT id_secteur FROM secteur WHERE code_secteur = 'S15'),
+      (SELECT id_categorie FROM categorie_bien_service WHERE libelle = 'Équipement'),
+      (SELECT id_user FROM users WHERE email = 'agent@gestimmo.test'),
+      'Kit sonorisation 500W', 'Sono complète avec micros et enceintes',
+      15000, NULL, 'DISPONIBLE', NOW()
+  );
 
 -- ==============================================================
 -- Cour + Maisons
@@ -189,6 +201,146 @@ VALUES (
     (SELECT id_user FROM users WHERE email = 'client@gestimmo.test'),
     (SELECT id_maison FROM maison WHERE nom_commun_maison = 'Maison B - Studio'),
     NOW() + INTERVAL '5 days', NOW() + INTERVAL '10 days', 'EN_ATTENTE'
+);
+
+-- ==============================================================
+-- Scénario A — Demande EN_ATTENTE (client, pas encore confirmée par l'agent)
+-- ==============================================================
+INSERT INTO location_bien_service (id_user, id_bien_service, destination, date_debut, date_fin,
+                                    duree, montant_total, statut, user_create, created_at)
+VALUES (
+    (SELECT id_user FROM users WHERE email = 'client@gestimmo.test'),
+    (SELECT id_bien_service FROM bien_service WHERE libelle = 'Toyota Hilux 2022'),
+    'Déplacement Bobo-Dioulasso',
+    NOW() + INTERVAL '2 days', NOW() + INTERVAL '5 days',
+    3, 105000, 'EN_ATTENTE',
+    (SELECT id_user FROM users WHERE email = 'client@gestimmo.test'),
+    NOW()
+);
+
+-- ==============================================================
+-- Scénario B — Location ACTIF avec paiement initial confirmé par l'agent
+-- ==============================================================
+INSERT INTO paiement (date_paiement, montant_paiement, mode_paiement, reference_paiement, user_create)
+VALUES (
+    NOW(), 45000, 'MOBILE_MONEY', 'PAY-2026-0002',
+    (SELECT id_user FROM users WHERE email = 'agent@gestimmo.test')
+);
+
+INSERT INTO location_bien_service (id_user, id_bien_service, destination, date_debut, date_fin,
+                                    duree, montant_total, statut, user_create, user_update, created_at)
+VALUES (
+    (SELECT id_user FROM users WHERE email = 'client2@gestimmo.test'),
+    (SELECT id_bien_service FROM bien_service WHERE libelle = 'Kit sonorisation 500W'),
+    'Événement mariage',
+    NOW() - INTERVAL '2 days', NOW() + INTERVAL '1 day',
+    3, 45000, 'ACTIF',
+    (SELECT id_user FROM users WHERE email = 'agent@gestimmo.test'),
+    (SELECT id_user FROM users WHERE email = 'agent@gestimmo.test'),
+    NOW()
+);
+
+INSERT INTO paiement_location_bien_service (id_location_bien_service, id_paiement, type_paiement)
+VALUES (
+    (SELECT id_location_bien_service FROM location_bien_service WHERE destination = 'Événement mariage'),
+    (SELECT id_paiement FROM paiement WHERE reference_paiement = 'PAY-2026-0002'),
+    'INITIAL'
+);
+
+-- ==============================================================
+-- Scénario C — Location ACTIF prolongée (paiement initial + complément)
+-- ==============================================================
+INSERT INTO paiement (date_paiement, montant_paiement, mode_paiement, reference_paiement, user_create)
+VALUES (
+    NOW() - INTERVAL '5 days', 140000, 'MOBILE_MONEY', 'PAY-2026-0003',
+    (SELECT id_user FROM users WHERE email = 'agent@gestimmo.test')
+);
+
+INSERT INTO location_bien_service (id_user, id_bien_service, destination, date_debut, date_fin,
+                                    duree, montant_total, statut, user_create, user_update, created_at)
+VALUES (
+    (SELECT id_user FROM users WHERE email = 'client@gestimmo.test'),
+    (SELECT id_bien_service FROM bien_service WHERE libelle = 'Toyota Hilux 2022'),
+    'Mission terrain prolongée',
+    NOW() - INTERVAL '5 days', NOW() + INTERVAL '2 days',
+    7, 245000, 'ACTIF',
+    (SELECT id_user FROM users WHERE email = 'agent@gestimmo.test'),
+    (SELECT id_user FROM users WHERE email = 'agent@gestimmo.test'),
+    NOW()
+);
+
+INSERT INTO paiement_location_bien_service (id_location_bien_service, id_paiement, type_paiement)
+VALUES (
+    (SELECT id_location_bien_service FROM location_bien_service WHERE destination = 'Mission terrain prolongée'),
+    (SELECT id_paiement FROM paiement WHERE reference_paiement = 'PAY-2026-0003'),
+    'INITIAL'
+);
+
+INSERT INTO paiement (date_paiement, montant_paiement, mode_paiement, reference_paiement, user_create)
+VALUES (
+    NOW(), 105000, 'ESPECES', 'PAY-2026-0004',
+    (SELECT id_user FROM users WHERE email = 'agent@gestimmo.test')
+);
+
+INSERT INTO paiement_location_bien_service (id_location_bien_service, id_paiement, type_paiement)
+VALUES (
+    (SELECT id_location_bien_service FROM location_bien_service WHERE destination = 'Mission terrain prolongée'),
+    (SELECT id_paiement FROM paiement WHERE reference_paiement = 'PAY-2026-0004'),
+    'PROLONGATION'
+);
+
+-- ==============================================================
+-- Scénario D — Location ACTIF raccourcie + remboursement partiel du trop-perçu
+-- ==============================================================
+INSERT INTO paiement (date_paiement, montant_paiement, mode_paiement, reference_paiement, user_create)
+VALUES (
+    NOW() - INTERVAL '3 days', 210000, 'MOBILE_MONEY', 'PAY-2026-0005',
+    (SELECT id_user FROM users WHERE email = 'agent@gestimmo.test')
+);
+
+-- Initialement 6 jours (210000), raccourcie à 4 jours (140000) -> trop-perçu de 70000
+INSERT INTO location_bien_service (id_user, id_bien_service, destination, date_debut, date_fin,
+                                    duree, montant_total, statut, user_create, user_update, created_at)
+VALUES (
+    (SELECT id_user FROM users WHERE email = 'client2@gestimmo.test'),
+    (SELECT id_bien_service FROM bien_service WHERE libelle = 'Toyota Hilux 2022'),
+    'Location raccourcie test',
+    NOW() - INTERVAL '3 days', NOW() + INTERVAL '1 day',
+    4, 140000, 'ACTIF',
+    (SELECT id_user FROM users WHERE email = 'agent@gestimmo.test'),
+    (SELECT id_user FROM users WHERE email = 'agent@gestimmo.test'),
+    NOW()
+);
+
+INSERT INTO paiement_location_bien_service (id_location_bien_service, id_paiement, type_paiement)
+VALUES (
+    (SELECT id_location_bien_service FROM location_bien_service WHERE destination = 'Location raccourcie test'),
+    (SELECT id_paiement FROM paiement WHERE reference_paiement = 'PAY-2026-0005'),
+    'INITIAL'
+);
+
+INSERT INTO remboursement (entite_type, entite_id, montant, mode_remboursement, reference, motif, user_create)
+VALUES (
+    'LOCATION_BIEN_SERVICE',
+    (SELECT id_location_bien_service FROM location_bien_service WHERE destination = 'Location raccourcie test'),
+    40000, 'ESPECES', 'RMB-2026-0001', 'Raccourcissement de durée',
+    (SELECT id_user FROM users WHERE email = 'agent@gestimmo.test')
+);
+
+-- ==============================================================
+-- Scénario E — Demande ANNULEE (rejetée par l'agent)
+-- ==============================================================
+INSERT INTO location_bien_service (id_user, id_bien_service, destination, date_debut, date_fin,
+                                    duree, montant_total, statut, user_create, user_update, created_at)
+VALUES (
+    (SELECT id_user FROM users WHERE email = 'client@gestimmo.test'),
+    (SELECT id_bien_service FROM bien_service WHERE libelle = 'Kit sonorisation 500W'),
+    'Demande annulée',
+    NOW() + INTERVAL '10 days', NOW() + INTERVAL '12 days',
+    2, 30000, 'ANNULE',
+    (SELECT id_user FROM users WHERE email = 'client@gestimmo.test'),
+    (SELECT id_user FROM users WHERE email = 'agent@gestimmo.test'),
+    NOW()
 );
 
 -- ==============================================================

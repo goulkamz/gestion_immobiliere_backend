@@ -23,6 +23,7 @@ import lombok.experimental.SuperBuilder;
 public class Model {
 
     @Column(name = "is_deleted")
+    @Builder.Default
     private Boolean isDeleted = false;
 
     @Column(name = "created_at")

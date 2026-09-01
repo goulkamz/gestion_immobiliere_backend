@@ -132,6 +132,7 @@ public class LocationBienServiceService {
         paiementLocationBienServiceRepository.save(PaiementLocationBienService.builder()
                 .idLocationBienService(location.getIdLocationBienService())
                 .idPaiement(paiement.getIdPaiement())
+                .paiement(paiement)
                 .typePaiement(TypePaiementLocationBienService.INITIAL)
                 .build());
 
@@ -206,6 +207,7 @@ public class LocationBienServiceService {
             paiementLocationBienServiceRepository.save(PaiementLocationBienService.builder()
                     .idLocationBienService(location.getIdLocationBienService())
                     .idPaiement(complement.getIdPaiement())
+                    .paiement(complement)
                     .typePaiement(TypePaiementLocationBienService.PROLONGATION)
                     .build());
         }
@@ -238,10 +240,7 @@ public class LocationBienServiceService {
      * = 0 : compte soldé.
      */
     private double[] calculerEncaisseRembourseSolde(LocationBienService location) {
-        double totalEncaisse = paiementLocationBienServiceRepository.findByIdLocationBienService(location.getIdLocationBienService())
-                .stream()
-                .mapToDouble(pl -> pl.getPaiement().getMontantPaiement())
-                .sum();
+        double totalEncaisse = paiementLocationBienServiceRepository.sumMontantByLocation(location.getIdLocationBienService());
 
         double totalRembourse = remboursementRepository.findByEntiteTypeAndEntiteIdAndIsDeletedFalse(TypeEntiteRemboursement.LOCATION_BIEN_SERVICE, location.getIdLocationBienService())
                 .stream()

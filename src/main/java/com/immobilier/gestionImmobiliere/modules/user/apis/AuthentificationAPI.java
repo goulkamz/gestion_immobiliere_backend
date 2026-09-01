@@ -36,15 +36,15 @@ public interface AuthentificationAPI {
         @PostMapping("/forgot-password/resend")
         ResponseEntity<?> resendResetToken(@Valid ForgotPasswordRequestDTO forgotPasswordRequestDTO);
 
-        // 🔹 Rafraîchit l'access token à partir du refresh token présent en cookie
+        // Rafraîchit l'access token à partir du refresh token présent en cookie
         @PostMapping("/refresh-token")
         ResponseEntity<?> refreshToken(HttpServletRequest request, HttpServletResponse response);
 
-        // 🔹 Déconnexion locale : révoque le refresh token courant et efface les cookies
+        // Déconnexion locale : révoque le refresh token courant et efface les cookies
         @PostMapping("/logout")
         ResponseEntity<?> logout(HttpServletRequest request, HttpServletResponse response);
 
-        // 🔹 Déconnexion globale : révoque tous les refresh tokens de l'utilisateur connecté
+        // Déconnexion globale : révoque tous les refresh tokens de l'utilisateur connecté
         @PostMapping("/logout-all")
         ResponseEntity<?> logoutAllDevices(HttpServletRequest request, HttpServletResponse response);
 }
