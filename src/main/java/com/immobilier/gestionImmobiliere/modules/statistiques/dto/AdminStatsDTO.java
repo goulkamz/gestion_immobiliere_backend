@@ -1,4 +1,4 @@
-package com.immobilier.gestionImmobiliere.modules.statistiques.dto.responses;
+package com.immobilier.gestionImmobiliere.modules.statistiques.dto;
 
 import lombok.Builder;
 import lombok.Data;
