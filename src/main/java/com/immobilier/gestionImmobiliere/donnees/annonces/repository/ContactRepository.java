@@ -8,4 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ContactRepository extends JpaRepository<Contact, Integer> {
     Page<Contact> findByStatut(StatutContact statut, Pageable pageable);
+
+    // Statistiques ContactRepository
+
+    long countByIsDeletedFalseAndStatut(StatutContact statut);
 }

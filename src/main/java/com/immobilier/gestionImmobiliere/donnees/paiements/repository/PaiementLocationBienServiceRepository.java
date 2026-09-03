@@ -15,4 +15,9 @@ public interface PaiementLocationBienServiceRepository extends JpaRepository<Pai
     @Query("SELECT COALESCE(SUM(p.montantPaiement), 0) FROM PaiementLocationBienService pl " +
             "JOIN pl.paiement p WHERE pl.idLocationBienService = :idLocation")
     Double sumMontantByLocation(@Param("idLocation") Integer idLocation);
+
+    //Statistiques PaiementLocationBienServiceRepository
+
+    @Query("SELECT COALESCE(SUM(p.montantPaiement),0) FROM PaiementLocationBienService pl JOIN pl.paiement p")
+    Double sumTotalEncaisse();
 }

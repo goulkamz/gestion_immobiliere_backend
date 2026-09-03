@@ -36,29 +36,14 @@ public interface UserRepository extends JpaRepository<User, Integer> {
     boolean existsByTelephoneAndIdUserNot(String telephone, Integer idUser);
     boolean existsByEmailAndIdUserNot(String email, Integer idUser);
 
+    // Statistiques userRepository
 
-    // Total utilisateurs actifs/inactifs
-    @Query("SELECT u.flagActif, COUNT(u) FROM User u WHERE u.isDeleted = false GROUP BY u.flagActif")
-    List<Object[]> countByFlagActif();
-
-    // Répartition par rôle
     @Query("SELECT r.libelleRole, COUNT(u) FROM User u JOIN u.role r WHERE u.isDeleted = false GROUP BY r.libelleRole")
-    List<Object[]> countUsersByRole();
+    List<Object[]> countByRole();
 
-    // Nouvelles inscriptions par jour (30 derniers jours)
-    @Query(value = "SELECT created_at, COUNT(*) FROM User " +
-            "WHERE is_deleted = false AND created_at >= CURRENT_DATE - INTERVAL '30 days' " +
-            "GROUP BY created_at ORDER BY created_at", nativeQuery = true)
-    List<Object[]> countInscriptionsParJour();
+    @Query(value = "SELECT COUNT(*) FROM users WHERE is_deleted = false AND date_create >= DATE_TRUNC('month', CURRENT_DATE)", nativeQuery = true)
+    long countInscriptionsCeMois();
 
-    // Nouvelles inscriptions par mois
-    @Query(value = "SELECT DATE_TRUNC('month', created_at) AS mois, COUNT(*) " +
-            "FROM User WHERE is_deleted = false GROUP BY mois ORDER BY mois", nativeQuery = true)
-    List<Object[]> countInscriptionsParMois();
-
-    // Connexions récentes (7 derniers jours)
-    @Query(value = "SELECT id_user, email, date_last_login FROM User " +
-            "WHERE is_deleted = false AND date_last_login >= CURRENT_DATE - INTERVAL '7 days' " +
-            "ORDER BY date_last_login DESC", nativeQuery = true)
-    List<Object[]> connexionsRecentes();
+    @Query(value = "SELECT COUNT(*) FROM users WHERE is_deleted = false AND date_last_login >= CURRENT_DATE - INTERVAL '7 days'", nativeQuery = true)
+    long countConnexionsRecentes();
 }

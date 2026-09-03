@@ -26,14 +26,9 @@ public class Remboursement extends Model {
     @Column(name = "entite_id", nullable = false)
     private Integer entiteId;
 
-    @Column(name = "montant", nullable = false)
-    private Double montant;
-
-    @Column(name = "mode_remboursement")
-    private String modeRemboursement;
-
-    @Column(name = "reference")
-    private String reference;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "id_paiement", nullable = false)
+    private Paiement paiement;
 
     @Column(name = "motif")
     private String motif;

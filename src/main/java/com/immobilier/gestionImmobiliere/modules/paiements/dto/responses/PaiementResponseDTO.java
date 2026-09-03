@@ -11,6 +11,7 @@ public class PaiementResponseDTO {
     private Integer idPaiement;
     private LocalDateTime datePaiement;
     private Double montantPaiement;
+    private String sens;
     private String modePaiement;
     private String referencePaiement;
     private List<Integer> idEcheancesCouvertes;

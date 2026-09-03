@@ -15,11 +15,8 @@ public interface BienServiceRepository extends JpaRepository<BienService,Integer
     Page<BienService> findBySecteur_IdSecteur(Integer idSecteur,Pageable pageable);
     Page<BienService> findByCategorie_IdCategorie(Integer idCategorie,Pageable pageable);
 
-    // Répartition par catégorie et disponibilité (admin)
-    @Query("SELECT c.libelle, bs.disponibilite, COUNT(bs) FROM BienService bs " +
-            "JOIN bs.categorie c WHERE bs.isDeleted = false GROUP BY c.libelle, bs.disponibilite")
-    List<Object[]> countByCategorieEtDisponibilite();
+    // Statistiques bienServiceRepository
 
-    // Nombre de biens disponibles (public + admin)
-    long countByIsDeletedFalseAndDisponibilite(StatutBienService disponibilite);
+    @Query("SELECT c.libelle, bs.disponibilite, COUNT(bs) FROM BienService bs JOIN bs.categorie c WHERE bs.isDeleted = false GROUP BY c.libelle, bs.disponibilite")
+    List<Object[]> countByCategorieEtDisponibilite();
 }
