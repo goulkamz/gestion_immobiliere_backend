@@ -9,7 +9,7 @@ import com.immobilier.gestionImmobiliere.donnees.user.repository.UserRepository;
 import com.immobilier.gestionImmobiliere.modules.statistiques.dto.BailleurTopDTO;
 import com.immobilier.gestionImmobiliere.modules.statistiques.dto.LocataireCreanceDTO;
 import com.immobilier.gestionImmobiliere.modules.statistiques.dto.VilleStatsDTO;
-import com.immobilier.gestionImmobiliere.modules.statistiques.dto.responses.AdminStatsDTO;
+import com.immobilier.gestionImmobiliere.modules.statistiques.dto.AdminStatsDTO;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
