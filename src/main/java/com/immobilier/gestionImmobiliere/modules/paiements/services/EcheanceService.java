@@ -5,13 +5,17 @@ import com.immobilier.gestionImmobiliere.donnees.contrats.model.ContratMandat;
 import com.immobilier.gestionImmobiliere.donnees.contrats.repository.ContratLocationRepository;
 import com.immobilier.gestionImmobiliere.donnees.contrats.repository.ContratMandatRepository;
 import com.immobilier.gestionImmobiliere.donnees.paiements.model.EcheanceLoyer;
+import com.immobilier.gestionImmobiliere.donnees.paiements.model.SensPaiement;
 import com.immobilier.gestionImmobiliere.donnees.paiements.model.StatutEcheance;
 import com.immobilier.gestionImmobiliere.donnees.paiements.model.TypeEcheance;
 import com.immobilier.gestionImmobiliere.donnees.paiements.repository.EcheanceLoyerRepository;
 import com.immobilier.gestionImmobiliere.exceptions.ResourceNotFoundException;
+import com.immobilier.gestionImmobiliere.modules.paiements.dto.requests.ConfirmerVirementDTO;
+import com.immobilier.gestionImmobiliere.modules.paiements.dto.responses.EcheanceMandatResponseDTO;
 import com.immobilier.gestionImmobiliere.modules.paiements.dto.responses.EcheanceResponseDTO;
 import com.immobilier.gestionImmobiliere.utils.DateUtils;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -21,6 +25,8 @@ import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -30,14 +36,22 @@ import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.build
 @Service
 public class EcheanceService {
 
+    @Value("${app.tolerance.location.jours}")
+    private int TOLERANCE_LOCATION_JOURS;
+
+    @Value("${app.tolerance.mandat.jours}")
+    private int TOLERANCE_MANDAT_JOURS;
+
     private final EcheanceLoyerRepository echeanceRepository;
     private final ContratLocationRepository contratLocationRepository;
     private final ContratMandatRepository contratMandatRepository;
+    private final PaiementService paiementService;
 
-    public EcheanceService(EcheanceLoyerRepository echeanceRepository, ContratLocationRepository contratLocationRepository, ContratMandatRepository contratMandatRepository) {
+    public EcheanceService(EcheanceLoyerRepository echeanceRepository, ContratLocationRepository contratLocationRepository, ContratMandatRepository contratMandatRepository, PaiementService paiementService) {
         this.echeanceRepository = echeanceRepository;
         this.contratLocationRepository = contratLocationRepository;
         this.contratMandatRepository = contratMandatRepository;
+        this.paiementService = paiementService;
     }
 
     // Remplace getAll() par une version filtrée par rôle
@@ -96,8 +110,14 @@ public class EcheanceService {
     }
 
 
-    public ResponseEntity<?> getEnRetard() {
-        List<EcheanceLoyer> enRetard = echeanceRepository.findByStatutAndDateEcheanceBefore(StatutEcheance.EN_ATTENTE, LocalDate.now());
+    public ResponseEntity<?> getEcheanceLocationEnRetard() {
+        List<EcheanceLoyer> enRetard = echeanceRepository.findByEntiteEcheanceTypeAndStatutAndDateEcheanceBefore(TypeEcheance.LOCATION,StatutEcheance.EN_RETARD, LocalDate.now());
+        return buildSuccessResponse(HttpStatus.OK, "Échéances en retard", "ECHEANCE_EN_RETARD_LIST",
+                enRetard.stream().map(this::toDto).toList());
+    }
+
+    public ResponseEntity<?> getEcheanceMandatEnRetard() {
+        List<EcheanceLoyer> enRetard = echeanceRepository.findByEntiteEcheanceTypeAndStatutAndDateEcheanceBefore(TypeEcheance.MANDAT,StatutEcheance.EN_RETARD, LocalDate.now());
         return buildSuccessResponse(HttpStatus.OK, "Échéances en retard", "ECHEANCE_EN_RETARD_LIST",
                 enRetard.stream().map(this::toDto).toList());
     }
@@ -106,12 +126,120 @@ public class EcheanceService {
      * Job de bascule EN_ATTENTE -> EN_RETARD (à brancher sur un @Scheduled quotidien).
      */
     @Transactional
-    public int marquerEnRetard() {
-        List<EcheanceLoyer> expirees = echeanceRepository.findByStatutAndDateEcheanceBefore(StatutEcheance.EN_ATTENTE, LocalDate.now());
+    public void marquerEcheanceLocationEnRetard() {
+        LocalDate seuil = LocalDate.now().minusDays(TOLERANCE_LOCATION_JOURS);
+        List<EcheanceLoyer> expirees = echeanceRepository.findByEntiteEcheanceTypeAndStatutAndDateEcheanceBefore(TypeEcheance.LOCATION,StatutEcheance.EN_ATTENTE, seuil);
         expirees.forEach(e -> e.setStatut(StatutEcheance.EN_RETARD));
         echeanceRepository.saveAll(expirees);
-        return expirees.size();
+        //return expirees.size();
     }
+
+    @Transactional
+    public void marquerEcheanceMandatEnRetard() {
+        LocalDate seuil = LocalDate.now().minusDays(TOLERANCE_MANDAT_JOURS);
+        List<EcheanceLoyer> expirees = echeanceRepository.findByEntiteEcheanceTypeAndStatutAndDateEcheanceBefore(TypeEcheance.MANDAT,StatutEcheance.EN_ATTENTE, seuil);
+        expirees.forEach(e -> e.setStatut(StatutEcheance.EN_RETARD));
+        echeanceRepository.saveAll(expirees);
+        //return expirees.size();
+    }
+
+    // ==================================================================
+    // MANDAT — calcul du reversement au bailleur
+    // ==================================================================
+
+    /**
+     * À la demande de l'agent (jamais automatique) — calcule pour un mandat/mois donné :
+     * - les loyers réellement encaissés ce mois (montant_paye des échéances LOCATION
+     *   des maisons de la cour, pas le loyer théorique) ;
+     * - la commission de l'agence, déduite selon le pourcentage du mandat ;
+     * - le net à reverser au bailleur.
+     * Crée une échéance MANDAT unique pour ce mandat/mois (anti-doublon).
+     * montantDu = net à reverser au bailleur | commissionDeduite = gain de l'agence.
+     */
+    @Transactional
+    public ResponseEntity<?> calculerReversementMandat(Integer idMandat, LocalDate periode, Integer currentAgentId) {
+        LocalDate debutMois = periode.withDayOfMonth(1);
+        LocalDate finMois = periode.withDayOfMonth(periode.lengthOfMonth());
+
+        boolean dejaCalcule = !echeanceRepository
+                .findByEntiteEcheanceTypeAndEntiteEcheanceIdAndDateEcheanceBetween(TypeEcheance.MANDAT, idMandat, debutMois, finMois)
+                .isEmpty();
+        if (dejaCalcule) {
+            throw new IllegalStateException("Le montant a déjà été calculé pour ce mandat sur cette période");
+        }
+
+        ContratMandat mandat = contratMandatRepository.findById(idMandat)
+                .orElseThrow(() -> new ResourceNotFoundException("mandat", idMandat));
+
+        Double loyersEncaisses = echeanceRepository.sumMontantPayeLocationParCourEtMois(mandat.getCour().getIdCour(), debutMois);
+        loyersEncaisses = loyersEncaisses != null ? loyersEncaisses : 0.0;
+
+        BigDecimal pourcentage = mandat.getCommission() != null ? mandat.getCommission() : BigDecimal.ZERO;
+        double commission = BigDecimal.valueOf(loyersEncaisses)
+                .multiply(pourcentage)
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP)
+                .doubleValue();
+        double montantNetAReverser = loyersEncaisses - commission;
+
+        EcheanceLoyer echeance = EcheanceLoyer.builder()
+                .entiteEcheanceType(TypeEcheance.MANDAT)
+                .entiteEcheanceId(idMandat)
+                .dateEcheance(debutMois)
+                .montantDu(montantNetAReverser)
+                .montantPaye(0.0)
+                .commissionDeduite(commission)
+                .statut(StatutEcheance.EN_ATTENTE)
+                .userCreate(currentAgentId)
+                .build();
+        echeanceRepository.save(echeance);
+
+        return buildSuccessResponse(HttpStatus.CREATED, "Montant à reverser calculé", "ECHEANCE_MANDAT_CALCULEE",
+                toMandatDto(echeance, loyersEncaisses));
+    }
+
+    /**
+     * Confirme le virement réel au bailleur — déclenché quand l'agence le décide,
+     * jamais automatique. Tout ou rien : le montant est celui de l'échéance,
+     * aucun ajustement possible. Réutilise le moteur générique de PaiementService
+     * (même traçabilité paiement_echeance que pour les loyers locataires).
+     */
+    @Transactional
+    public ResponseEntity<?> confirmerVirementMandat(Integer idEcheance, ConfirmerVirementDTO dto, Integer currentAgentId) {
+        EcheanceLoyer echeance = findOrThrow(idEcheance);
+
+        if (echeance.getEntiteEcheanceType() != TypeEcheance.MANDAT) {
+            throw new IllegalStateException("Cette échéance n'est pas de type MANDAT");
+        }
+        if (echeance.getStatut() == StatutEcheance.PAYE || echeance.getStatut() == StatutEcheance.ANNULE) {
+            throw new IllegalStateException("Cette échéance ne peut etre réglée");
+        }
+
+        paiementService.soldeEcheances(
+                List.of(idEcheance),
+                echeance.getMontantDu(),
+                dto.getModeVersement(),
+                dto.getReference(),
+                SensPaiement.SORTIE,
+                currentAgentId,
+                LocalDateTime.now());
+
+        return buildSuccessResponse(HttpStatus.OK, "Virement confirmé", "VIREMENT_MANDAT_CONFIRME", null);
+    }
+
+    /**
+     * Liste des échéances MANDAT EN_ATTENTE d'un mandat — utile pour l'agent
+     * qui veut voir ce qui reste à reverser, mois par mois.
+     */
+    public ResponseEntity<?> getReversementsEnAttente(Integer idMandat) {
+        List<EcheanceLoyer> liste = echeanceRepository
+                .findByEntiteEcheanceTypeAndEntiteEcheanceIdAndStatut(TypeEcheance.MANDAT, idMandat, StatutEcheance.EN_ATTENTE);
+        return buildSuccessResponse(HttpStatus.OK, "Reversements en attente", "ECHEANCES_MANDAT_EN_ATTENTE",
+                liste.stream().map(e -> toMandatDto(e, null)).toList());
+    }
+
+    // ==================================================================
+    // Utilitaires
+    // ==================================================================
 
     EcheanceLoyer findOrThrow(Integer id) {
         return echeanceRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("échéance", id));
@@ -130,6 +258,18 @@ public class EcheanceService {
                 .moisLibelle(moisLibelle)
                 .montantDu(e.getMontantDu())
                 .montantPaye(e.getMontantPaye())
+                .statut(e.getStatut())
+                .build();
+    }
+
+    private EcheanceMandatResponseDTO toMandatDto(EcheanceLoyer e, Double loyersEncaisses) {
+        return EcheanceMandatResponseDTO.builder()
+                .idEcheance(e.getIdEcheance())
+                .idMandat(e.getEntiteEcheanceId())
+                .periodeMois(e.getDateEcheance())
+                .loyersEncaisses(loyersEncaisses)
+                .commissionDeduite(e.getCommissionDeduite())
+                .montantNetAReverser(e.getMontantDu())
                 .statut(e.getStatut())
                 .build();
     }

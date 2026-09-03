@@ -20,4 +20,13 @@ public interface ContratMandatRepository extends JpaRepository<ContratMandat, In
 
     @Query("SELECT m.idMandat FROM ContratMandat m WHERE m.cour.proprietaire.idUser = :idUser")
     List<Integer> findIdsByProprietaire(@Param("idUser") Integer idUser);
+
+    //Statistiques contratMandatRepository
+
+    @Query("SELECT m.statut, COUNT(m) FROM ContratMandat m WHERE m.isDeleted = false GROUP BY m.statut")
+    List<Object[]> countByStatut();
+
+    @Query(value = "SELECT COUNT(*) FROM contrat_mandat WHERE is_deleted = false AND statut = 'ACTIF' " +
+            "AND date_fin BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days'", nativeQuery = true)
+    long countExpirantSous30Jours();
 }

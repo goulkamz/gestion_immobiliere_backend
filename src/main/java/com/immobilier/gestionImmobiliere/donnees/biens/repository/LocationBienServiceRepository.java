@@ -12,10 +12,8 @@ import java.util.List;
 public interface LocationBienServiceRepository extends JpaRepository<LocationBienService,Integer> {
     Page<LocationBienService> findByClient_IdUser(Integer idUser, Pageable pageable);
 
-    // Locations par statut (admin)
+    // Statistiques LocationBienServiceRepository
+
     @Query("SELECT l.statut, COUNT(l) FROM LocationBienService l WHERE l.isDeleted = false GROUP BY l.statut")
     List<Object[]> countByStatut();
-
-    // Locations réalisées (ACTIF/TERMINE) — compteur public "confiance"
-    long countByIsDeletedFalseAndStatutIn(List<StatutLocationBienService> statuts);
 }

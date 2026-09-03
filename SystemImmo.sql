@@ -425,6 +425,7 @@ CREATE TABLE offre (
 CREATE TABLE paiement (
     id_paiement INTEGER PRIMARY KEY DEFAULT nextval('seq_paiement'),
     date_paiement TIMESTAMP(6),
+    sens VARCHAR(20) NOT NULL DEFAULT 'ENTREE',
     montant_paiement FLOAT8,
     mode_paiement VARCHAR(254),
     reference_paiement VARCHAR(254),
@@ -446,6 +447,7 @@ CREATE TABLE echeance_loyer (
     date_echeance DATE,
     montant_du FLOAT8,
     montant_paye FLOAT8,
+    commission_deduite FLOAT8,
     statut VARCHAR(254),
     user_create INTEGER,
     user_update INTEGER,
@@ -574,17 +576,16 @@ CREATE TABLE paiement_location_bien_service (
 -- ==============================================================
 CREATE TABLE remboursement (
     id_remboursement INTEGER PRIMARY KEY DEFAULT nextval('seq_remboursement'),
+    id_paiement INTEGER NOT NULL,
     entite_type VARCHAR(50) NOT NULL,
     entite_id INTEGER NOT NULL,
-    montant FLOAT8 NOT NULL,
-    mode_remboursement VARCHAR(254),
-    reference VARCHAR(254),
     motif VARCHAR(254),
     user_create INTEGER,
     user_update INTEGER,
     created_at TIMESTAMP(6) DEFAULT NOW(),
     updated_at TIMESTAMP(6) DEFAULT NOW(),
     is_deleted BOOLEAN DEFAULT FALSE,
+    CONSTRAINT fk_remboursement_paiement FOREIGN KEY (id_paiement) REFERENCES paiement(id_paiement),
     CONSTRAINT chk_remboursement_entite CHECK (
         (entite_type = 'LOCATION_BIEN_SERVICE' AND entite_id IS NOT NULL) OR
         (entite_type = 'CONTRA_LOCATION' AND entite_id IS NOT NULL) OR

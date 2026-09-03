@@ -319,11 +319,12 @@ VALUES (
     'INITIAL'
 );
 
-INSERT INTO remboursement (entite_type, entite_id, montant, mode_remboursement, reference, motif, user_create)
+INSERT INTO remboursement (entite_type, id_paiement, entite_id, motif, user_create)
 VALUES (
     'LOCATION_BIEN_SERVICE',
+    (SELECT id_paiement FROM paiement WHERE reference_paiement = 'PAY-2026-0005'),
     (SELECT id_location_bien_service FROM location_bien_service WHERE destination = 'Location raccourcie test'),
-    40000, 'ESPECES', 'RMB-2026-0001', 'Raccourcissement de durée',
+    'Raccourcissement de durée',
     (SELECT id_user FROM users WHERE email = 'agent@gestimmo.test')
 );
 

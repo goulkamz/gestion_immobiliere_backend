@@ -25,6 +25,11 @@ public class Paiement extends Model {
     @Column(name = "date_paiement")
     private LocalDateTime datePaiement;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "sens", nullable = false)
+    @Builder.Default
+    private SensPaiement sens = SensPaiement.ENTREE;
+
     @Column(name = "montant_paiement")
     private Double montantPaiement;
 

@@ -134,7 +134,10 @@ services:
       - JWT_COOKIE_SAME_SITE=Strict
       - JWT_REDIS_ENABLED=true
 
+      # App
       - APP_BASE_URL=http://localhost:8080
+      - APP_TOLERANCE_LOCATION_JOURS=${APP_TOLERANCE_LOCATION_JOURS}
+      - APP_TOLERANCE_MANDAT_JOURS=${APP_TOLERANCE_MANDAT_JOURS}
 
       # Mail
       - SPRING_MAIL_HOST=mailhog

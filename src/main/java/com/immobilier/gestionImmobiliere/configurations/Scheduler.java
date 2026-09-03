@@ -31,26 +31,36 @@ public class Scheduler {
         userService.cleanExpiredPendingRegistrations();
     }
 
+    // Nettoyage tous les jours a 2h du matin
     @Scheduled(cron = "0 0 2 * * *")
     public void cleanExpiredPasswordResetToken() {
         passwordResetService.cleanExpiredPassordResetToken();
     }
 
+    // Nettoyage tous les jours a 2h du matin
     @Scheduled(cron = "0 0 2 * * *")
     public void cleanExpiredToken() {
         jwtUtils.cleanupExpiredTokens();
     }
 
-    @Scheduled(cron = "0 0 3 * * SUN") // dimanche 3h du matin, hors heures de charge
+    // dimanche 3h du matin, hors heures de charge
+    @Scheduled(cron = "0 0 3 * * SUN")
     public void nettoyerFichiersOrphelins() {
         mediaReconciliationService.nettoyerFichiersOrphelins();
     }
 
+    // Nettoyage tous les jours a 1h du matin
     @Scheduled(cron = "0 0 1 * * *")
-    public void nettoyerAnnonce(){annonceService.expirerAnnoncesAutomatiquement();}
+    public void nettoyerAnnonce(){
+        annonceService.expirerAnnoncesAutomatiquement();
+    }
 
+    // Nettoyage tous les jours a 1h du matin
     @Scheduled(cron = "0 0 1 * * *")
-    public void marquerChantierExpireEnRetard(){echeanceService.marquerEnRetard();}
+    public void marquerChantierExpireEnRetard(){
+        echeanceService.marquerEcheanceLocationEnRetard();
+        echeanceService.marquerEcheanceMandatEnRetard();
+    }
 
     /**
      * Déclenché le 31 décembre à 23h50 (avant minuit, LocalDate.now() rend
@@ -58,9 +68,8 @@ public class Scheduler {
      * pour tous les contrats actifs.
      * Cron : sec min heure jour mois jourSemaine
      */
-    @Scheduled(cron = "0 50 23 31 12 *")
+    @Scheduled(cron = "0 10 0 1 1 *")
     public void regenererEcheancesFinAnnee() {
-        int locations = echeanceGenerationService.regenererEcheancesAnnuellesLocations();
-        int mandats = echeanceGenerationService.regenererEcheancesAnnuellesMandats();
+        echeanceGenerationService.regenererEcheancesAnnuellesLocations();
     }
 }

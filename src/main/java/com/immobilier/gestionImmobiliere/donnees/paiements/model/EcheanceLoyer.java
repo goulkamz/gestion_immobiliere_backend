@@ -41,6 +41,9 @@ public class EcheanceLoyer extends Model {
     @Column(name = "montant_paye")
     private Double montantPaye;
 
+    @Column(name = "commission_deduite")
+    private Double commissionDeduite;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "statut")
     private StatutEcheance statut;

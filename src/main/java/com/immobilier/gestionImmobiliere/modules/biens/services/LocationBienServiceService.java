@@ -242,10 +242,7 @@ public class LocationBienServiceService {
     private double[] calculerEncaisseRembourseSolde(LocationBienService location) {
         double totalEncaisse = paiementLocationBienServiceRepository.sumMontantByLocation(location.getIdLocationBienService());
 
-        double totalRembourse = remboursementRepository.findByEntiteTypeAndEntiteIdAndIsDeletedFalse(TypeEntiteRemboursement.LOCATION_BIEN_SERVICE, location.getIdLocationBienService())
-                .stream()
-                .mapToDouble(Remboursement::getMontant)
-                .sum();
+        double totalRembourse = remboursementRepository.sumMontantByEntite(TypeEntiteRemboursement.LOCATION_BIEN_SERVICE, location.getIdLocationBienService());
 
         double solde = location.getMontantTotal() - totalEncaisse + totalRembourse;
         return new double[]{totalEncaisse, totalRembourse, solde};
@@ -276,12 +273,20 @@ public class LocationBienServiceService {
                             ") dépasse le trop-perçu disponible (" + tropPercuDisponible + ")");
         }
 
+        Paiement paiement = Paiement.builder()
+                .datePaiement(LocalDateTime.now())
+                .montantPaiement(dto.getMontant())
+                .modePaiement(dto.getModeRemboursement())
+                .referencePaiement(dto.getReference())
+                .sens(SensPaiement.SORTIE)
+                .userCreate(currentAgentId)
+                .build();
+        paiementRepository.save(paiement);
+
         Remboursement remboursement = Remboursement.builder()
                 .entiteType(TypeEntiteRemboursement.LOCATION_BIEN_SERVICE)
                 .entiteId(location.getIdLocationBienService())
-                .montant(dto.getMontant())
-                .modeRemboursement(dto.getModeRemboursement())
-                .reference(dto.getReference())
+                .paiement(paiement)
                 .motif(dto.getMotif())
                 .userCreate(currentAgentId)
                 .build();
@@ -289,11 +294,11 @@ public class LocationBienServiceService {
 
         RemboursementResponseDTO reponse = RemboursementResponseDTO.builder()
                 .idRemboursement(remboursement.getIdRemboursement())
-                .montant(remboursement.getMontant())
-                .modeRemboursement(remboursement.getModeRemboursement())
-                .reference(remboursement.getReference())
+                .montant(paiement.getMontantPaiement())
+                .modeRemboursement(paiement.getModePaiement())
+                .reference(paiement.getReferencePaiement())
                 .motif(remboursement.getMotif())
-                .dateRemboursement(remboursement.getCreatedAt())
+                .dateRemboursement(paiement.getDatePaiement())
                 .build();
 
         return buildSuccessResponse(HttpStatus.CREATED, "Remboursement enregistré", "REMBOURSEMENT_CREATED", reponse);
@@ -308,11 +313,11 @@ public class LocationBienServiceService {
                 .stream()
                 .map(r -> RemboursementResponseDTO.builder()
                         .idRemboursement(r.getIdRemboursement())
-                        .montant(r.getMontant())
-                        .modeRemboursement(r.getModeRemboursement())
-                        .reference(r.getReference())
+                        .montant(r.getPaiement().getMontantPaiement())
+                        .modeRemboursement(r.getPaiement().getModePaiement())
+                        .reference(r.getPaiement().getReferencePaiement())
                         .motif(r.getMotif())
-                        .dateRemboursement(r.getCreatedAt())
+                        .dateRemboursement(r.getPaiement().getDatePaiement())
                         .build())
                 .toList();
         return buildSuccessResponse(HttpStatus.OK, "Historique des remboursements", "REMBOURSEMENT_LIST", result);
