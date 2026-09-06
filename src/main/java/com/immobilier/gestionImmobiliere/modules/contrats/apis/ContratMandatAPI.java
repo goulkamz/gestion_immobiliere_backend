@@ -27,7 +27,7 @@ public interface ContratMandatAPI {
     @PatchMapping("/{id}/activer")
     ResponseEntity<?> activer(@PathVariable Integer id, @AuthenticationPrincipal UserDetailsImpl currentUser);
 
-    @PatchMapping("/{id}/resilier")
+    @PatchMapping("/{id}/resilierContratLocation")
     ResponseEntity<?> resilier(@PathVariable Integer id, @Valid @RequestBody ResilierMandatDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser);
 
     @DeleteMapping("/{id}")

@@ -6,6 +6,7 @@ import com.immobilier.gestionImmobiliere.donnees.biens.repository.MaisonReposito
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.ContratLocation;
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.StatutLocation;
 import com.immobilier.gestionImmobiliere.donnees.contrats.repository.ContratLocationRepository;
+import com.immobilier.gestionImmobiliere.donnees.paiements.model.TypeEcheance;
 import com.immobilier.gestionImmobiliere.donnees.user.model.User;
 import com.immobilier.gestionImmobiliere.donnees.user.repository.UserRepository;
 import com.immobilier.gestionImmobiliere.exceptions.InvalidStatutTransitionException;
@@ -14,8 +15,8 @@ import com.immobilier.gestionImmobiliere.exceptions.ResourceNotFoundException;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.CreateContratLocationDTO;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.TerminerLocationDTO;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.responses.ContratLocationResponseDTO;
-import com.immobilier.gestionImmobiliere.modules.journal.services.JournalService;
 import com.immobilier.gestionImmobiliere.modules.paiements.services.EcheanceGenerationService;
+import com.immobilier.gestionImmobiliere.modules.paiements.services.EcheanceService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -24,6 +25,7 @@ import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
@@ -35,13 +37,15 @@ public class ContratLocationService {
     private final MaisonRepository maisonRepository;
     private final UserRepository userRepository;
     private final EcheanceGenerationService echeanceGenerationService;
+    private final EcheanceService echeanceService;
 
 
-    public ContratLocationService(ContratLocationRepository locationRepository, MaisonRepository maisonRepository, UserRepository userRepository, EcheanceGenerationService echeanceGenerationService) {
+    public ContratLocationService(ContratLocationRepository locationRepository, MaisonRepository maisonRepository, UserRepository userRepository, EcheanceGenerationService echeanceGenerationService, EcheanceService echeanceService) {
         this.locationRepository = locationRepository;
         this.maisonRepository = maisonRepository;
         this.userRepository = userRepository;
         this.echeanceGenerationService = echeanceGenerationService;
+        this.echeanceService = echeanceService;
     }
 
     /**
@@ -139,7 +143,6 @@ public class ContratLocationService {
     @Transactional
     public ResponseEntity<?> terminer(Integer id, TerminerLocationDTO dto,Integer currentUserId) {
         ContratLocation location = findOrThrow(id);
-        String ancienStatut = location.getStatut().name();
 
         if (location.getStatut() != StatutLocation.ACTIF) {
             throw new InvalidStatutTransitionException(location.getStatut().name(), StatutLocation.TERMINE.name());
@@ -148,30 +151,35 @@ public class ContratLocationService {
         location.setStatut(StatutLocation.TERMINE);
         location.setEtatDesLieuxSortie(dto.getEtatDesLieuxSortie());
         location.setDateSortie(dto.getDateSortie() != null ? dto.getDateSortie() : LocalDateTime.now());
+        location.setUserUpdate(currentUserId);
         locationRepository.save(location);
 
         Maison maison = location.getMaison();
         maison.setStatut(StatutMaison.DISPONIBLE);
         maisonRepository.save(maison);
 
+        echeanceService.supprimerEcheancesFutures(location.getIdContratLocation(),LocalDate.now());
+
         return buildSuccessResponse(HttpStatus.OK, "Contrat terminé, maison redevenue disponible", "LOCATION_TERMINEE", toDto(location));
     }
 
     @Transactional
-    public ResponseEntity<?> resilier(Integer id,Integer currentUserId) {
+    public ResponseEntity<?> resilierContratLocation(Integer id, Integer currentUserId) {
         ContratLocation location = findOrThrow(id);
-        String ancienStatut = location.getStatut().name();
 
         if (location.getStatut() != StatutLocation.ACTIF) {
             throw new InvalidStatutTransitionException(location.getStatut().name(), StatutLocation.RESILIE.name());
         }
 
         location.setStatut(StatutLocation.RESILIE);
+        location.setUserUpdate(currentUserId);
         locationRepository.save(location);
 
         Maison maison = location.getMaison();
         maison.setStatut(StatutMaison.DISPONIBLE);
         maisonRepository.save(maison);
+
+        echeanceService.supprimerEcheancesFutures(location.getIdContratLocation(), LocalDate.now());
 
         return buildSuccessResponse(HttpStatus.OK, "Contrat résilié, maison redevenue disponible", "LOCATION_RESILIEE", toDto(location));
     }

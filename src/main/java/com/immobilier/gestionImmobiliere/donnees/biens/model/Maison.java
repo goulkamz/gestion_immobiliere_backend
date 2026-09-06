@@ -40,6 +40,9 @@ public class Maison extends Model {
     @Column(name = "caution")
     private Double caution;
 
+    @Column(name = "avance")
+    private Double avance;
+
     @Column(name = "nombre_mois_caution")
     private Integer nombreMoisCaution;
 

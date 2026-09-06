@@ -21,6 +21,8 @@ import java.time.LocalDateTime;
 import java.time.chrono.ChronoLocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class EcheanceGenerationService {
@@ -85,29 +87,35 @@ public class EcheanceGenerationService {
      * pour lesquels une échéance existe déjà pour cette entité (évite les doublons
      * lors de la régénération annuelle).
      */
-    private int genererMoisManquants(Integer entiteId, LocalDate debut, LocalDate fin, Double montant) {
-        List<LocalDate> moisExistants = echeanceRepository
-                .findByEntiteEcheanceTypeAndEntiteEcheanceIdAndDateEcheanceBetween(TypeEcheance.LOCATION, entiteId, debut, fin.plusMonths(1))
-                .stream().map(EcheanceLoyer::getDateEcheance).toList();
+    // Au lieu de : courante = debut.plusMonths(1), incrémenté par mois
+    // -> dateEcheance = toujours le 1er du mois suivant le mois d'occupation
+
+    private int genererMoisManquants(Integer entiteId, LocalDate debutOccupation, LocalDate fin, Double montant) {
+        LocalDate moisOccupe = debutOccupation.withDayOfMonth(1); // normalise au 1er du mois d'entrée
+        LocalDate finNormalisee = fin.withDayOfMonth(fin.lengthOfMonth());
+
+        Set<LocalDate> moisExistants = echeanceRepository
+                .findByEntiteEcheanceTypeAndEntiteEcheanceIdAndDateEcheanceBetween(
+                        TypeEcheance.LOCATION, entiteId, moisOccupe.plusMonths(1), finNormalisee.plusMonths(1))
+                .stream().map(EcheanceLoyer::getDateEcheance).collect(Collectors.toSet());
 
         List<EcheanceLoyer> aCreer = new ArrayList<>();
-        LocalDate courante = debut.plusMonths(1); // 1ère échéance due un mois après l'entrée, pas le jour même
-        while (!courante.isAfter(fin.plusMonths(1))) {
-            LocalDate finalCourante = courante;
-            boolean existeDeja = moisExistants.stream()
-                    .anyMatch(d -> d.getYear() == finalCourante.getYear() && d.getMonth() == finalCourante.getMonth());
+        LocalDate courant = moisOccupe;
+        while (!courant.isAfter(finNormalisee)) {
+            LocalDate dateEcheance = courant.plusMonths(1).withDayOfMonth(1); // toujours le 1er du mois suivant
+            boolean existeDeja = moisExistants.contains(dateEcheance);
             if (!existeDeja) {
                 aCreer.add(EcheanceLoyer.builder()
                         .entiteEcheanceType(TypeEcheance.LOCATION)
                         .entiteEcheanceId(entiteId)
-                        .dateEcheance(courante)
+                        .dateEcheance(dateEcheance)
                         .montantDu(montant)
                         .montantPaye(0.0)
                         .commissionDeduite(0.0)
                         .statut(StatutEcheance.EN_ATTENTE)
                         .build());
             }
-            courante = courante.plusMonths(1);
+            courant = courant.plusMonths(1);
         }
         echeanceRepository.saveAll(aCreer);
         return aCreer.size();

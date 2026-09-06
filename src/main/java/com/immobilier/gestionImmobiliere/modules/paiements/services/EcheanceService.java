@@ -21,7 +21,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -109,6 +108,23 @@ public class EcheanceService {
         return buildSuccessResponse(HttpStatus.OK, "Échéance trouvée", "ECHEANCE_FOUND", toDto(echeance));
     }
 
+    /**
+     * Supprime (soft delete) les échéances LOCATION des mois suivant la résiliation.
+     * Le mois de la résiliation reste dû intégralement (le locataire occupait ce mois,
+     * même partiellement) — seule l'échéance du mois de résiliation est CONSERVÉE.
+     */
+    @Transactional
+    public void supprimerEcheancesFutures(Integer idContratLocation, LocalDate dateResiliation) {
+        LocalDate moisResiliation = dateResiliation.withDayOfMonth(1);
+        LocalDate premierMoisASupprimer = moisResiliation.plusMonths(2); // date d'échéance du mois SUIVANT celui de la résiliation
+
+        List<EcheanceLoyer> aSupprimer = echeanceRepository
+                .findByEntiteEcheanceTypeAndEntiteEcheanceIdAndDateEcheanceGreaterThanEqualAndStatutNot(
+                        TypeEcheance.LOCATION, idContratLocation, premierMoisASupprimer, StatutEcheance.PAYE);
+
+        echeanceRepository.deleteAll(aSupprimer);
+    }
+
 
     public ResponseEntity<?> getEcheanceLocationEnRetard() {
         List<EcheanceLoyer> enRetard = echeanceRepository.findByEntiteEcheanceTypeAndStatutAndDateEcheanceBefore(TypeEcheance.LOCATION,StatutEcheance.EN_RETARD, LocalDate.now());
@@ -137,7 +153,9 @@ public class EcheanceService {
     @Transactional
     public void marquerEcheanceMandatEnRetard() {
         LocalDate seuil = LocalDate.now().minusDays(TOLERANCE_MANDAT_JOURS);
-        List<EcheanceLoyer> expirees = echeanceRepository.findByEntiteEcheanceTypeAndStatutAndDateEcheanceBefore(TypeEcheance.MANDAT,StatutEcheance.EN_ATTENTE, seuil);
+        List<EcheanceLoyer> expirees =
+                echeanceRepository.
+                        findByEntiteEcheanceTypeAndStatutAndDateEcheanceBefore(TypeEcheance.MANDAT,StatutEcheance.EN_ATTENTE, seuil);
         expirees.forEach(e -> e.setStatut(StatutEcheance.EN_RETARD));
         echeanceRepository.saveAll(expirees);
         //return expirees.size();
@@ -171,15 +189,15 @@ public class EcheanceService {
         ContratMandat mandat = contratMandatRepository.findById(idMandat)
                 .orElseThrow(() -> new ResourceNotFoundException("mandat", idMandat));
 
-        Double loyersEncaisses = echeanceRepository.sumMontantPayeLocationParCourEtMois(mandat.getCour().getIdCour(), debutMois);
-        loyersEncaisses = loyersEncaisses != null ? loyersEncaisses : 0.0;
+        Double loyersDus = echeanceRepository.sumMontantDuLocationParCourEtMois(mandat.getCour().getIdCour(), debutMois);
+        loyersDus = loyersDus != null ? loyersDus : 0.0;
 
         BigDecimal pourcentage = mandat.getCommission() != null ? mandat.getCommission() : BigDecimal.ZERO;
-        double commission = BigDecimal.valueOf(loyersEncaisses)
+        double commission = BigDecimal.valueOf(loyersDus)
                 .multiply(pourcentage)
                 .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP)
                 .doubleValue();
-        double montantNetAReverser = loyersEncaisses - commission;
+        double montantNetAReverser = loyersDus - commission;
 
         EcheanceLoyer echeance = EcheanceLoyer.builder()
                 .entiteEcheanceType(TypeEcheance.MANDAT)
@@ -194,7 +212,7 @@ public class EcheanceService {
         echeanceRepository.save(echeance);
 
         return buildSuccessResponse(HttpStatus.CREATED, "Montant à reverser calculé", "ECHEANCE_MANDAT_CALCULEE",
-                toMandatDto(echeance, loyersEncaisses));
+                toMandatDto(echeance, loyersDus));
     }
 
     /**
@@ -262,12 +280,12 @@ public class EcheanceService {
                 .build();
     }
 
-    private EcheanceMandatResponseDTO toMandatDto(EcheanceLoyer e, Double loyersEncaisses) {
+    private EcheanceMandatResponseDTO toMandatDto(EcheanceLoyer e, Double loyersDus) {
         return EcheanceMandatResponseDTO.builder()
                 .idEcheance(e.getIdEcheance())
                 .idMandat(e.getEntiteEcheanceId())
                 .periodeMois(e.getDateEcheance())
-                .loyersEncaisses(loyersEncaisses)
+                .montantLoyersDus(loyersDus)
                 .commissionDeduite(e.getCommissionDeduite())
                 .montantNetAReverser(e.getMontantDu())
                 .statut(e.getStatut())

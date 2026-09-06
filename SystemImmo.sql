@@ -281,6 +281,7 @@ CREATE TABLE maison (
     nombre_piece INTEGER,
     loyer FLOAT8,
     caution FLOAT8,
+    avance FLOAT8,
     nombre_mois_caution INTEGER,
     statut VARCHAR(254),
     user_create INTEGER,

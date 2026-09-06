@@ -70,6 +70,7 @@ public class MaisonService {
                 .loyer(dto.getLoyer())
                 .caution(dto.getCaution())
                 .nombreMoisCaution(dto.getNombreMoisCaution())
+                .avance(dto.getAvance())
                 .statut(StatutMaison.DISPONIBLE)
                 .userCreate(currentUserId)
                 .build();

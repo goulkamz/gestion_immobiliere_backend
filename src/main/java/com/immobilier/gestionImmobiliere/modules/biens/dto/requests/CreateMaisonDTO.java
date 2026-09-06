@@ -11,5 +11,6 @@ public class CreateMaisonDTO {
     private Integer nombrePiece;
     private Double loyer;
     private Double caution;
+    private Double avance;
     private Integer nombreMoisCaution;
 }

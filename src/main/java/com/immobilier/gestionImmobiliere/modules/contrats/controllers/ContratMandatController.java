@@ -45,7 +45,7 @@ public class ContratMandatController implements ContratMandatAPI {
     @Override
     @PreAuthorize("hasRole('AGENT')")
     public ResponseEntity<?> activer(Integer id, @AuthenticationPrincipal UserDetailsImpl currentUser) {
-        return mandatService.activer(id, currentUser.getIdUser());
+        return mandatService.activer(id, currentUser);
     }
 
     @Override
