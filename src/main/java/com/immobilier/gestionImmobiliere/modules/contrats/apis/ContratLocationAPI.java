@@ -29,6 +29,6 @@ public interface ContratLocationAPI {
     @PatchMapping("/{id}/terminer")
     ResponseEntity<?> terminer(@PathVariable Integer id, @Valid @RequestBody TerminerLocationDTO dto,@AuthenticationPrincipal UserDetailsImpl currentUser);
 
-    @PatchMapping("/{id}/resilier")
-    ResponseEntity<?> resilier(@PathVariable Integer id,@AuthenticationPrincipal UserDetailsImpl currentUser);
+    @PatchMapping("/{id}/resilierContratLocation")
+    ResponseEntity<?> resilierContratLocation(@PathVariable Integer id, @AuthenticationPrincipal UserDetailsImpl currentUser);
 }

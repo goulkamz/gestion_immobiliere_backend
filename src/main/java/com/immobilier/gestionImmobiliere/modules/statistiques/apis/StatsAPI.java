@@ -6,6 +6,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.time.LocalDate;
+
 @RequestMapping("/api/stats")
 public interface StatsAPI {
 
@@ -24,4 +26,13 @@ public interface StatsAPI {
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/admin/locataires/creances")
     ResponseEntity<?> getLocatairesEnCreance();
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/admin/bailleurs/creanciers")
+    ResponseEntity<?> getBailleursCreanciers();
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/admin/gain-mensuel")
+    ResponseEntity<?> getGainAgenceDuMois(@RequestParam(required = false) LocalDate periode);
+
 }

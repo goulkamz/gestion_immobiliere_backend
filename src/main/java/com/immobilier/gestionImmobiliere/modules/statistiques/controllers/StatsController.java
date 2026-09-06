@@ -5,6 +5,8 @@ import com.immobilier.gestionImmobiliere.modules.statistiques.services.AdminStat
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
+
 @RestController
 public class StatsController implements StatsAPI {
 
@@ -33,4 +35,10 @@ public class StatsController implements StatsAPI {
     public ResponseEntity<?> getLocatairesEnCreance() {
         return adminStatsService.getLocatairesEnCreance();
     }
+
+    @Override
+    public ResponseEntity<?> getBailleursCreanciers() { return adminStatsService.getBailleursCreanciers(); }
+
+    @Override
+    public ResponseEntity<?> getGainAgenceDuMois(LocalDate periode) { return adminStatsService.getGainAgenceDuMois(periode); }
 }

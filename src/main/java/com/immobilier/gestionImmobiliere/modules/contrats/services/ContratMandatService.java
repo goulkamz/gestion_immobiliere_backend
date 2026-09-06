@@ -1,10 +1,15 @@
 package com.immobilier.gestionImmobiliere.modules.contrats.services;
 
 import com.immobilier.gestionImmobiliere.donnees.biens.model.Cour;
+import com.immobilier.gestionImmobiliere.donnees.biens.model.Maison;
+import com.immobilier.gestionImmobiliere.donnees.biens.model.StatutMaison;
 import com.immobilier.gestionImmobiliere.donnees.biens.repository.CourRepository;
+import com.immobilier.gestionImmobiliere.donnees.contrats.model.ContratLocation;
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.ContratMandat;
+import com.immobilier.gestionImmobiliere.donnees.contrats.model.StatutLocation;
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.StatutMandat;
 import com.immobilier.gestionImmobiliere.donnees.contrats.repository.ContratMandatRepository;
+import com.immobilier.gestionImmobiliere.donnees.paiements.model.TypeEcheance;
 import com.immobilier.gestionImmobiliere.donnees.user.model.User;
 import com.immobilier.gestionImmobiliere.donnees.user.repository.UserRepository;
 import com.immobilier.gestionImmobiliere.exceptions.InvalidStatutTransitionException;
@@ -12,8 +17,10 @@ import com.immobilier.gestionImmobiliere.exceptions.MandatActifExistantException
 import com.immobilier.gestionImmobiliere.exceptions.ResourceNotFoundException;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.CreateContratMandatDTO;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.ResilierMandatDTO;
+
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.responses.ContratMandatResponseDTO;
-import com.immobilier.gestionImmobiliere.modules.paiements.services.EcheanceGenerationService;
+import com.immobilier.gestionImmobiliere.modules.paiements.services.EcheanceService;
+import com.immobilier.gestionImmobiliere.modules.user.jwtService.UserDetailsImpl;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -22,6 +29,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
@@ -32,13 +40,14 @@ public class ContratMandatService {
     private final ContratMandatRepository mandatRepository;
     private final CourRepository courRepository;
     private final UserRepository userRepository;
+    private final EcheanceService echeanceService;
 
 
-    public ContratMandatService(ContratMandatRepository mandatRepository, CourRepository courRepository, UserRepository userRepository) {
+    public ContratMandatService(ContratMandatRepository mandatRepository, CourRepository courRepository, UserRepository userRepository, EcheanceService echeanceService) {
         this.mandatRepository = mandatRepository;
         this.courRepository = courRepository;
         this.userRepository = userRepository;
-
+        this.echeanceService = echeanceService;
     }
 
     public ResponseEntity<?> getAllForCurrentUser(Integer idCour, StatutMandat statut,
@@ -72,8 +81,8 @@ public class ContratMandatService {
     public ResponseEntity<?> create(CreateContratMandatDTO dto,Integer currentUserId) {
         Cour cour = courRepository.findById(dto.getIdCour())
                 .orElseThrow(() -> new ResourceNotFoundException("cour", dto.getIdCour()));
-        User agent = userRepository.findById(dto.getIdAgent())
-                .orElseThrow(() -> new ResourceNotFoundException("agent", dto.getIdAgent()));
+        User agent = userRepository.findById(currentUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("agent", currentUserId));
 
         ContratMandat mandat = ContratMandat.builder()
                 .cour(cour)
@@ -90,9 +99,8 @@ public class ContratMandatService {
     }
 
     @Transactional
-    public ResponseEntity<?> activer(Integer id, Integer currentUserId) {
+    public ResponseEntity<?> activer(Integer id, UserDetailsImpl currentUser) {
         ContratMandat mandat = findOrThrow(id);
-        String ancienStatut = mandat.getStatut().name();
 
         if (mandat.getStatut() != StatutMandat.EN_ATTENTE) {
             throw new InvalidStatutTransitionException(mandat.getStatut().name(), StatutMandat.ACTIF.name());
@@ -102,24 +110,36 @@ public class ContratMandatService {
             throw new MandatActifExistantException(mandat.getCour().getIdCour());
         }
 
+        User agent = userRepository.findById(currentUser.getIdUser())
+                .orElseThrow(() -> new ResourceNotFoundException("agent", currentUser.getIdUser()));
+
         mandat.setStatut(StatutMandat.ACTIF);
+        mandat.setAgent(agent);
         mandatRepository.save(mandat);
         return buildSuccessResponse(HttpStatus.OK, "Mandat activé", "MANDAT_ACTIVATED", toDto(mandat));
     }
 
+
     @Transactional
     public ResponseEntity<?> resilier(Integer id, ResilierMandatDTO dto,Integer currentUserId) {
         ContratMandat mandat = findOrThrow(id);
-        String ancienStatut = mandat.getStatut().name();
 
         if (mandat.getStatut() != StatutMandat.ACTIF) {
             throw new InvalidStatutTransitionException(mandat.getStatut().name(), StatutMandat.RESILIE.name());
         }
 
+        User agent = userRepository.findById(currentUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("agent", currentUserId));
+
+
         mandat.setStatut(StatutMandat.RESILIE);
+        mandat.setAgent(agent);
         mandat.setMotifResiliation(dto.getMotifResiliation());
         mandat.setDateResiliation(LocalDateTime.now());
         mandatRepository.save(mandat);
+
+        //echeanceService.supprimerEcheancesFutures(mandat.getIdMandat(), LocalDate.now());
+
         return buildSuccessResponse(HttpStatus.OK, "Mandat résilié", "MANDAT_RESILIE", toDto(mandat));
     }
 

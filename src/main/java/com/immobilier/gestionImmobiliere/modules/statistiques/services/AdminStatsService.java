@@ -6,14 +6,13 @@ import com.immobilier.gestionImmobiliere.donnees.biens.repository.*;
 import com.immobilier.gestionImmobiliere.donnees.contrats.repository.*;
 import com.immobilier.gestionImmobiliere.donnees.paiements.repository.*;
 import com.immobilier.gestionImmobiliere.donnees.user.repository.UserRepository;
-import com.immobilier.gestionImmobiliere.modules.statistiques.dto.BailleurTopDTO;
-import com.immobilier.gestionImmobiliere.modules.statistiques.dto.LocataireCreanceDTO;
-import com.immobilier.gestionImmobiliere.modules.statistiques.dto.VilleStatsDTO;
-import com.immobilier.gestionImmobiliere.modules.statistiques.dto.AdminStatsDTO;
+import com.immobilier.gestionImmobiliere.modules.statistiques.dto.*;
+import com.immobilier.gestionImmobiliere.utils.DateUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -100,14 +99,6 @@ public class AdminStatsService {
         return buildSuccessResponse(HttpStatus.OK, "Statistiques administrateur", "ADMIN_STATS", stats);
     }
 
-    private Map<String, Long> toMap(java.util.List<Object[]> rows) {
-        Map<String, Long> result = new HashMap<>();
-        for (Object[] row : rows) {
-            result.put(String.valueOf(row[0]), ((Number) row[1]).longValue());
-        }
-        return result;
-    }
-
 
     public ResponseEntity<?> getStatsParVille() {
         List<Object[]> maisonsParVille = maisonRepository.countMaisonsParVille();
@@ -155,6 +146,41 @@ public class AdminStatsService {
                 .toList();
 
         return buildSuccessResponse(HttpStatus.OK, "Locataires en créance", "LOCATAIRES_EN_CREANCE", result);
+    }
+
+    public ResponseEntity<?> getBailleursCreanciers() {
+        List<BailleurCreancierDTO> result = echeanceLoyerRepository.bailleursCreanciers().stream()
+                .map(row -> BailleurCreancierDTO.builder()
+                        .idBailleur((Integer) row[0])
+                        .nomComplet((String) row[1])
+                        .periodeMois(((java.sql.Date) row[2]).toLocalDate())
+                        .montantDu(((Number) row[3]).doubleValue())
+                        .build())
+                .toList();
+
+        return buildSuccessResponse(HttpStatus.OK, "Bailleurs en attente de reversement", "BAILLEURS_CREANCIERS", result);
+    }
+
+    public ResponseEntity<?> getGainAgenceDuMois(LocalDate periode) {
+        LocalDate debutMois = (periode != null ? periode : LocalDate.now()).withDayOfMonth(1);
+        Double commissions = echeanceLoyerRepository.sumCommissionAgenceDuMois(debutMois);
+        Double montantDuBailleurs = echeanceLoyerRepository.sumMontantDuAuxBailleursDuMois(debutMois);
+
+        GainAgenceDTO result = GainAgenceDTO.builder()
+                .periodeMois(DateUtils.nomMoisFrancais(debutMois) + " " + debutMois.getYear())
+                .totalCommissions(commissions)
+                .totalReverseAuxBailleurs(montantDuBailleurs)
+                .build();
+
+        return buildSuccessResponse(HttpStatus.OK, "Gain de l'agence du mois", "GAIN_AGENCE_MOIS", result);
+    }
+
+    private Map<String, Long> toMap(java.util.List<Object[]> rows) {
+        Map<String, Long> result = new HashMap<>();
+        for (Object[] row : rows) {
+            result.put(String.valueOf(row[0]), ((Number) row[1]).longValue());
+        }
+        return result;
     }
 
 }

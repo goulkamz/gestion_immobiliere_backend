@@ -57,7 +57,7 @@ public class ContratLocationController implements ContratLocationAPI {
 
     @Override
     @PreAuthorize("hasRole('AGENT')")
-    public ResponseEntity<?> resilier(Integer id,@AuthenticationPrincipal UserDetailsImpl currentUser) {
-        return locationService.resilier(id,currentUser.getIdUser());
+    public ResponseEntity<?> resilierContratLocation(Integer id, @AuthenticationPrincipal UserDetailsImpl currentUser) {
+        return locationService.resilierContratLocation(id,currentUser.getIdUser());
     }
 }

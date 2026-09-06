@@ -18,6 +18,7 @@ public interface EcheanceLoyerRepository extends JpaRepository<EcheanceLoyer, In
     List<EcheanceLoyer> findByIdEcheanceIn(List<Integer> ids);
     List<EcheanceLoyer> findByEntiteEcheanceTypeAndStatutAndDateEcheanceBefore(TypeEcheance type,StatutEcheance statut, LocalDate date);
     List<EcheanceLoyer> findByEntiteEcheanceTypeAndEntiteEcheanceIdAndStatut(TypeEcheance type, Integer entiteId, StatutEcheance statut);
+    List<EcheanceLoyer> findByEntiteEcheanceTypeAndEntiteEcheanceIdAndDateEcheanceGreaterThanEqualAndStatutNot(TypeEcheance type, Integer entiteId, LocalDate date, StatutEcheance statutExclu);
 
     @Query("SELECT e FROM EcheanceLoyer e WHERE " +
             "(e.entiteEcheanceType = 'LOCATION' AND e.entiteEcheanceId IN :locationIds) OR " +
@@ -31,12 +32,12 @@ public interface EcheanceLoyerRepository extends JpaRepository<EcheanceLoyer, In
     List<EcheanceLoyer> findByEntiteEcheanceTypeAndEntiteEcheanceIdAndDateEcheanceBetween(
             TypeEcheance type, Integer entiteId, LocalDate debut, LocalDate fin);
 
-    @Query(value = "SELECT COALESCE(SUM(e.montant_paye), 0) FROM echeance_loyer e " +
+    @Query(value = "SELECT COALESCE(SUM(e.montant_du), 0) FROM echeance_loyer e " +
             "JOIN contra_location cl ON cl.id_contra_location = e.entite_echeance_id AND e.entite_echeance_type = 'LOCATION' " +
             "JOIN maison m ON m.id_maison = cl.id_maison " +
             "WHERE m.id_cour = :idCour AND e.is_deleted = false " +
             "AND DATE_TRUNC('month', e.date_echeance) = DATE_TRUNC('month', CAST(:periode AS date))", nativeQuery = true)
-    Double sumMontantPayeLocationParCourEtMois(@Param("idCour") Integer idCour, @Param("periode") LocalDate periode);
+    Double sumMontantDuLocationParCourEtMois(@Param("idCour") Integer idCour, @Param("periode") LocalDate periode);
 
     // Statistiques echeanceLoyerRepository
 
@@ -53,7 +54,9 @@ public interface EcheanceLoyerRepository extends JpaRepository<EcheanceLoyer, In
             "FROM echeance_loyer e " +
             "JOIN contra_location cl ON cl.id_contra_location = e.entite_echeance_id AND e.entite_echeance_type = 'LOCATION' " +
             "JOIN users u ON u.id_user = cl.id_user " +
-            "WHERE e.statut IN ('EN_ATTENTE', 'EN_RETARD') AND e.is_deleted = false " +
+            "WHERE e.date_echeance <= CURRENT_DATE " +
+            "AND e.statut NOT IN ('PAYE', 'ANNULE') " +
+            "AND e.is_deleted = false " +
             "GROUP BY u.id_user, u.nom, u.prenom " +
             "HAVING SUM(e.montant_du - e.montant_paye) > 0 " +
             "ORDER BY montantDu DESC", nativeQuery = true)
@@ -68,4 +71,15 @@ public interface EcheanceLoyerRepository extends JpaRepository<EcheanceLoyer, In
             "WHERE entite_echeance_type = 'MANDAT' AND is_deleted = false " +
             "AND DATE_TRUNC('month', date_echeance) = DATE_TRUNC('month', CAST(:periode AS date))", nativeQuery = true)
     Double sumCommissionAgenceDuMois(@Param("periode") LocalDate periode);
+
+    @Query(value = "SELECT u.id_user AS idBailleur, u.nom || ' ' || u.prenom AS nomComplet, " +
+            "e.date_echeance AS periode, e.montant_du AS montantDu " +
+            "FROM echeance_loyer e " +
+            "JOIN contrat_mandat m ON m.id_mandat = e.entite_echeance_id " +
+            "JOIN cour c ON c.id_cour = m.id_cour " +
+            "JOIN users u ON u.id_user = c.id_user " +
+            "WHERE e.entite_echeance_type = 'MANDAT' AND e.statut = 'EN_ATTENTE' AND e.is_deleted = false " +
+            "ORDER BY e.date_echeance ASC", nativeQuery = true)
+    List<Object[]> bailleursCreanciers();
+
 }

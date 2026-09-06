@@ -3,6 +3,7 @@ package com.immobilier.gestionImmobiliere.modules.statistiques.dto;
 import lombok.Builder;
 import lombok.Data;
 
+import java.util.List;
 import java.util.Map;
 
 @Data @Builder
@@ -12,6 +13,7 @@ public class AdminStatsDTO {
     private long totalUtilisateurs;
     private Map<String, Long> utilisateursParRole;
     private long inscriptionsCeMois;
+    private long connexionsRecentes7j;
 
     // --- Biens immobiliers ---
     private long totalCours;
@@ -41,6 +43,4 @@ public class AdminStatsDTO {
     private long offresNonTraitees;
     private long contactsNonLus;
 
-    // --- Activité système ---
-    private long connexionsRecentes7j;
 }
