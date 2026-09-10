@@ -25,4 +25,6 @@ public interface CourRepository extends JpaRepository<Cour, Integer> {
             "GROUP BY u.id_user, u.nom, u.prenom " +
             "ORDER BY nbMaisons DESC LIMIT :limite", nativeQuery = true)
     List<Object[]> topBailleursParNbMaisons(@Param("limite") int limite);
+
+    long countByProprietaire_IdUserAndIsDeletedFalse(Integer idBailleur);
 }

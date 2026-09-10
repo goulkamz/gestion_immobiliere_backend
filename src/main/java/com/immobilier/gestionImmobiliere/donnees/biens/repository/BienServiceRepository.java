@@ -19,4 +19,6 @@ public interface BienServiceRepository extends JpaRepository<BienService,Integer
 
     @Query("SELECT c.libelle, bs.disponibilite, COUNT(bs) FROM BienService bs JOIN bs.categorie c WHERE bs.isDeleted = false GROUP BY c.libelle, bs.disponibilite")
     List<Object[]> countByCategorieEtDisponibilite();
+
+    long countByIsDeletedFalseAndDisponibilite(StatutBienService disponibilite);
 }

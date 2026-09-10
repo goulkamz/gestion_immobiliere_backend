@@ -17,9 +17,7 @@ public class StatsController implements StatsAPI {
     }
 
     @Override
-    public ResponseEntity<?> getAdminStats() {
-        return adminStatsService.getStats();
-    }
+    public ResponseEntity<?> getAdminStats() { return adminStatsService.getStats(); }
 
     @Override
     public ResponseEntity<?> getStatsParVille() {

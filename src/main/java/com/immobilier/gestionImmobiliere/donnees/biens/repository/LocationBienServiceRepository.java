@@ -16,4 +16,10 @@ public interface LocationBienServiceRepository extends JpaRepository<LocationBie
 
     @Query("SELECT l.statut, COUNT(l) FROM LocationBienService l WHERE l.isDeleted = false GROUP BY l.statut")
     List<Object[]> countByStatut();
+
+    List<LocationBienService> findByStatutOrderByDateDebutAsc(StatutLocationBienService statut);
+
+    List<LocationBienService> findByClient_IdUserOrderByDateDebutDesc(Integer idClient);
+
+    long countByIsDeletedFalseAndStatutIn(List<StatutLocationBienService> statuts);
 }
