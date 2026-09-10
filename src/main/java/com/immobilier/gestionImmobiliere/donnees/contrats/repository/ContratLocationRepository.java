@@ -39,4 +39,9 @@ public interface ContratLocationRepository extends JpaRepository<ContratLocation
             "WHERE cl.statut = 'ACTIF' AND cl.is_deleted = false " +
             "GROUP BY v.nom_ville ORDER BY nbLocataires DESC", nativeQuery = true)
     List<Object[]> countLocatairesActifsParVille();
+
+    List<ContratLocation> findByLocataire_IdUser(Integer idLocataire);
+
+    long countByIsDeletedFalseAndStatutIn(List<StatutLocation> statuts);
+
 }

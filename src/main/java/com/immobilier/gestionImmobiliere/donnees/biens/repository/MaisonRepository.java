@@ -34,4 +34,15 @@ public interface MaisonRepository extends JpaRepository<Maison, Integer> {
             "GROUP BY v.nom_ville ORDER BY nbMaisons DESC", nativeQuery = true)
     List<Object[]> countMaisonsParVille();
 
+
+    @Query("SELECT m.statut, COUNT(m) FROM Maison m WHERE m.cour.proprietaire.idUser = :idBailleur AND m.isDeleted = false GROUP BY m.statut")
+    List<Object[]> countByStatutPourBailleur(@Param("idBailleur") Integer idBailleur);
+
+    @Query(value = "SELECT ROUND((COUNT(*) FILTER (WHERE m.statut = 'LOUEE')::NUMERIC / NULLIF(COUNT(*),0)) * 100, 2) " +
+            "FROM maison m JOIN cour c ON c.id_cour = m.id_cour " +
+            "WHERE c.id_user = :idBailleur AND m.is_deleted = false", nativeQuery = true)
+    Double tauxOccupationPourBailleur(@Param("idBailleur") Integer idBailleur);
+
+    long countByIsDeletedFalseAndStatut(StatutMaison statut);
+
 }

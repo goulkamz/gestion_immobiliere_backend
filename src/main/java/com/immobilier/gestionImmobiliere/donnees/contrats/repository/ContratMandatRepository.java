@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface ContratMandatRepository extends JpaRepository<ContratMandat, Integer> {
     Page<ContratMandat> findByCour_IdCour(Integer idCour, Pageable pageable);
@@ -29,4 +30,10 @@ public interface ContratMandatRepository extends JpaRepository<ContratMandat, In
     @Query(value = "SELECT COUNT(*) FROM contrat_mandat WHERE is_deleted = false AND statut = 'ACTIF' " +
             "AND date_fin BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days'", nativeQuery = true)
     long countExpirantSous30Jours();
+
+    List<ContratMandat> findByAgent_IdUser(Integer idAgent);
+
+
+    @Query("SELECT m FROM ContratMandat m WHERE m.cour.proprietaire.idUser = :idBailleur AND m.statut = com.immobilier.gestionImmobiliere.donnees.contrats.model.StatutMandat.ACTIF AND m.isDeleted = false")
+    Optional<ContratMandat> findMandatActifPourBailleur(@Param("idBailleur") Integer idBailleur);
 }

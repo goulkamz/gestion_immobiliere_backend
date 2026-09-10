@@ -17,5 +17,7 @@ public interface AnnonceRepository extends JpaRepository<Annonce, Integer> {
     // Statistiques AnnonceRepository
 
     @Query("SELECT a.statut, COUNT(a) FROM Annonce a WHERE a.isDeleted = false GROUP BY a.statut")
-    List<Object[]> countByStatut();   // Annonce
+    List<Object[]> countByStatut();
+
+    List<Annonce> findTop5ByIsDeletedFalseAndStatutOrderByDatePublicationDesc(StatutAnnonce statut);
 }

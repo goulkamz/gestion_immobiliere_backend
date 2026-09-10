@@ -82,4 +82,35 @@ public interface EcheanceLoyerRepository extends JpaRepository<EcheanceLoyer, In
             "ORDER BY e.date_echeance ASC", nativeQuery = true)
     List<Object[]> bailleursCreanciers();
 
+    // EcheanceLoyerRepository — retard, tous types confondus, pour un agent
+    @Query(value = "SELECT e.id_echeance, e.entite_echeance_type, " +
+            "CASE WHEN e.entite_echeance_type = 'LOCATION' " +
+            "     THEN m.nom_commun_maison || ' - ' || u.nom || ' ' || u.prenom " +
+            "     ELSE 'Mandat cour ' || c.reference_cour END AS libelle, " +
+            "e.montant_du, e.date_echeance " +
+            "FROM echeance_loyer e " +
+            "LEFT JOIN contra_location cl ON cl.id_contra_location = e.entite_echeance_id AND e.entite_echeance_type = 'LOCATION' " +
+            "LEFT JOIN maison m ON m.id_maison = cl.id_maison " +
+            "LEFT JOIN users u ON u.id_user = cl.id_user " +
+            "LEFT JOIN contrat_mandat cm ON " +
+            "    (e.entite_echeance_type = 'MANDAT' AND cm.id_mandat = e.entite_echeance_id) " +
+            "    OR (e.entite_echeance_type = 'LOCATION' AND cm.id_cour = m.id_cour AND cm.statut = 'ACTIF') " +
+            "LEFT JOIN cour c ON c.id_cour = cm.id_cour " +
+            "WHERE e.statut = 'EN_RETARD' AND e.is_deleted = false AND cm.id_user = :idAgent " +
+            "ORDER BY e.date_echeance ASC", nativeQuery = true)
+    List<Object[]> echeancesEnRetardPourAgent(@Param("idAgent") Integer idAgent);
+
+    @Query(value = "SELECT e.date_echeance, e.montant_du, e.montant_paye, e.statut " +
+            "FROM echeance_loyer e " +
+            "JOIN contrat_mandat m ON m.id_mandat = e.entite_echeance_id " +
+            "JOIN cour c ON c.id_cour = m.id_cour " +
+            "WHERE e.entite_echeance_type = 'MANDAT' AND c.id_user = :idBailleur AND e.is_deleted = false " +
+            "ORDER BY e.date_echeance DESC", nativeQuery = true)
+    List<Object[]> revenusPourBailleur(@Param("idBailleur") Integer idBailleur);
+
+
+    @Query("SELECT e FROM EcheanceLoyer e WHERE e.entiteEcheanceType = com.immobilier.gestionImmobiliere.donnees.paiements.model.TypeEcheance.LOCATION " +
+            "AND e.entiteEcheanceId IN :idsContrats AND e.isDeleted = false ORDER BY e.dateEcheance DESC")
+    List<EcheanceLoyer> findEcheancesPourLocataire(@Param("idsContrats") List<Integer> idsContrats);
+
 }

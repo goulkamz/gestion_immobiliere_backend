@@ -23,4 +23,9 @@ public interface RemboursementRepository extends JpaRepository<Remboursement, In
             "WHERE r.entiteType = com.immobilier.gestionImmobiliere.donnees.paiements.model.TypeEntiteRemboursement.LOCATION_BIEN_SERVICE " +
             "AND r.isDeleted = false")
     Double sumRembourseBienService();
+
+    @Query("SELECT r FROM Remboursement r JOIN LocationBienService l ON l.idLocationBienService = r.entiteId " +
+            "WHERE r.entiteType = com.immobilier.gestionImmobiliere.donnees.paiements.model.TypeEntiteRemboursement.LOCATION_BIEN_SERVICE " +
+            "AND l.client.idUser = :idClient AND r.isDeleted = false ORDER BY r.paiement.datePaiement DESC")
+    List<Remboursement> findRemboursementsPourClient(@Param("idClient") Integer idClient);
 }

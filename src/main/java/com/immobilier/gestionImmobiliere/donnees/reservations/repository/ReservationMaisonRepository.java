@@ -1,6 +1,7 @@
 package com.immobilier.gestionImmobiliere.donnees.reservations.repository;
 
 import com.immobilier.gestionImmobiliere.donnees.reservations.model.ReservationMaison;
+import com.immobilier.gestionImmobiliere.donnees.reservations.model.StatutReservation;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -28,4 +29,8 @@ public interface ReservationMaisonRepository extends JpaRepository<ReservationMa
     List<ReservationMaison> findConflits(@Param("idMaison") Integer idMaison,
                                          @Param("dateDebut") LocalDateTime dateDebut,
                                          @Param("dateFin") LocalDateTime dateFin);
+
+    // Statistiques
+
+    List<ReservationMaison> findByStatutOrderByDateDebutAsc(StatutReservation statut);
 }
