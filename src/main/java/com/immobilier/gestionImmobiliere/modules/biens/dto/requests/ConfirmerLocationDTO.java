@@ -4,11 +4,12 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
 public class ConfirmerLocationDTO {
-    @NotNull private Double montantPaiement;
+    @NotNull private BigDecimal montantPaiement;
     @NotBlank private String modePaiement;
     private String referencePaiement;
     // Optionnel : l'agent peut ajuster les dates si négociées au comptoir

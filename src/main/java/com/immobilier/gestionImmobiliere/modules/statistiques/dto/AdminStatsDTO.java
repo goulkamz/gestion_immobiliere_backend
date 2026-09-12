@@ -1,8 +1,10 @@
 package com.immobilier.gestionImmobiliere.modules.statistiques.dto;
 
+import com.immobilier.gestionImmobiliere.modules.statistiques.projection.SumEncaisse;
 import lombok.Builder;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -18,8 +20,8 @@ public class AdminStatsDTO {
     // --- Biens immobiliers ---
     private long totalCours;
     private Map<String, Long> maisonsParStatut;
-    private Double tauxOccupationMaisons;
-    private Map<String, Long> biensServiceParDisponibilite;
+    private BigDecimal tauxOccupationMaisons;
+    private Map<String, Map<String, Long>> biensServiceParDisponibilite;
 
     // --- Contrats ---
     private Map<String, Long> mandatsParStatut;
@@ -27,15 +29,15 @@ public class AdminStatsDTO {
     private long mandatsExpirantSous30Jours;
 
     // --- Finances : loyers & commissions (echeance_loyer) ---
-    private Double montantDuTotal;
-    private Double montantPayeTotal;
+    private BigDecimal montantDuTotal;
+    private BigDecimal montantPayeTotal;
     private long nombreEcheancesEnRetard;
-    private Double montantEcheancesEnRetard;
+    private BigDecimal montantEcheancesEnRetard;
 
     // --- Finances : locations biens/services ---
     private Map<String, Long> locationsBienServiceParStatut;
-    private Double totalEncaisseBienService;
-    private Double totalRembourseBienService;
+    private BigDecimal totalEncaisseBienService;
+    private BigDecimal totalRembourseBienService;
 
     // --- Annonces & mise en relation ---
     private Map<String, Long> annoncesParStatut;

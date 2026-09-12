@@ -4,6 +4,7 @@ import com.immobilier.gestionImmobiliere.donnees.contrats.model.StatutLocation;
 import lombok.Builder;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data @Builder
@@ -15,6 +16,6 @@ public class ContratLocationResponseDTO {
     private String nomCommunMaison;
     private LocalDateTime dateEntree;
     private LocalDateTime dateSortie;
-    private Double montantLoyer;
+    private BigDecimal montantLoyer;
     private StatutLocation statut;
 }

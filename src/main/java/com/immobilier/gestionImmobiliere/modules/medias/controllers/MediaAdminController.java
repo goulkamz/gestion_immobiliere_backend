@@ -4,6 +4,7 @@ import com.immobilier.gestionImmobiliere.donnees.medias.model.TypeEntiteMedia;
 import com.immobilier.gestionImmobiliere.modules.medias.apis.MediaAdminAPI;
 import com.immobilier.gestionImmobiliere.modules.medias.dto.requests.ReorderMediaDTO;
 import com.immobilier.gestionImmobiliere.modules.medias.dto.requests.UploadMediaDTO;
+import com.immobilier.gestionImmobiliere.modules.medias.dto.requests.UploadMultipleMediaDTO;
 import com.immobilier.gestionImmobiliere.modules.medias.services.MediaService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -22,6 +23,12 @@ public class MediaAdminController implements MediaAdminAPI {
     @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
     public ResponseEntity<?> upload(UploadMediaDTO dto) {
         return mediaService.upload(dto);
+    }
+
+    @Override
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
+    public ResponseEntity<?> uploadMultiple(UploadMultipleMediaDTO dto) {
+        return mediaService.uploadMultiple(dto);
     }
 
     @Override

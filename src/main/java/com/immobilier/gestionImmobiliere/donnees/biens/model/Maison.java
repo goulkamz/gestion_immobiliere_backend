@@ -7,6 +7,7 @@ import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -35,13 +36,13 @@ public class Maison extends Model {
     private Integer nombrePiece;
 
     @Column(name = "loyer")
-    private Double loyer;
+    private BigDecimal loyer;
 
     @Column(name = "caution")
-    private Double caution;
+    private BigDecimal caution;
 
     @Column(name = "avance")
-    private Double avance;
+    private BigDecimal avance;
 
     @Column(name = "nombre_mois_caution")
     private Integer nombreMoisCaution;

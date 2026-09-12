@@ -4,6 +4,8 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
+import java.math.BigDecimal;
+
 @Data
 public class CreateDemandeDTO {
     @NotBlank private String nomComplet;
@@ -11,6 +13,6 @@ public class CreateDemandeDTO {
     private String telephone;
     private String typeBien;
     private String localisationSouhaite;
-    private Double budgetMax;
+    private BigDecimal budgetMax;
     private String description;
 }

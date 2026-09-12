@@ -8,6 +8,7 @@ import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -43,7 +44,7 @@ public class Annonce extends Model_1 {
     private StatutAnnonce statut;
 
     @Column(name = "prix")
-    private Double prix;
+    private BigDecimal prix;
 
     @Column(name = "localisation")
     private String localisation;

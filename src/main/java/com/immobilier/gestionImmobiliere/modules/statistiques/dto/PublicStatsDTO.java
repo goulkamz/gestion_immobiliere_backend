@@ -5,6 +5,7 @@ import lombok.Data;
 
 @Data @Builder
 public class PublicStatsDTO {
+    private long maisonsDisponibles;
     private long biensDisponibles;
     private long villesCouvertes;
     private long secteursCouverts;

@@ -15,6 +15,7 @@ import com.immobilier.gestionImmobiliere.exceptions.ResourceNotFoundException;
 import com.immobilier.gestionImmobiliere.modules.biens.dto.requests.*;
 import com.immobilier.gestionImmobiliere.modules.biens.dto.responses.LocationBienServiceResponseDTO;
 import com.immobilier.gestionImmobiliere.modules.biens.dto.responses.ModifierDureeLocationResponseDTO;
+import com.immobilier.gestionImmobiliere.modules.biens.dto.responses.PaiementLocationBienServiceResponseDTO;
 import com.immobilier.gestionImmobiliere.modules.biens.dto.responses.RemboursementResponseDTO;
 import com.immobilier.gestionImmobiliere.modules.user.jwtService.UserDetailsImpl;
 import org.springframework.data.domain.Page;
@@ -25,8 +26,11 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
@@ -40,6 +44,7 @@ public class LocationBienServiceService {
     private final UserRepository userRepository;
     private final PaiementLocationBienServiceRepository paiementLocationBienServiceRepository;
     private final RemboursementRepository remboursementRepository;
+
 
     public LocationBienServiceService(LocationBienServiceRepository locationRepository, LocationBienServiceRepository locationBienServiceRepository, BienServiceRepository bienServiceRepository,
                                       PaiementRepository paiementRepository, UserRepository userRepository, PaiementLocationBienServiceRepository paiementLocationBienServiceRepository, RemboursementRepository remboursementRepository) {
@@ -87,8 +92,23 @@ public class LocationBienServiceService {
         User client = userRepository.findById(currentUserId)
                 .orElseThrow(() -> new ResourceNotFoundException("user", currentUserId));
 
-        int dureeEstimee = (int) Duration.between(dto.getDateDebut(), dto.getDateFin()).toDays();
-        double montantEstime = dureeEstimee * (bien.getPrixJournalier() != null ? bien.getPrixJournalier() : 0);
+        if (dto.getDateFin().isBefore(dto.getDateDebut())) {
+            throw new IllegalArgumentException("La date de fin doit être après la date de début");
+        }
+
+        long dureeEstimee = ChronoUnit.DAYS.between(dto.getDateDebut().toLocalDate(), dto.getDateFin().toLocalDate());
+
+        if (dureeEstimee <= 0) {
+            throw new IllegalArgumentException("La durée doit être d'au moins 1 jour");
+        }
+
+        BigDecimal prix = bien.getPrixJournalier() != null
+                ? bien.getPrixJournalier()
+                : BigDecimal.ZERO;
+
+        BigDecimal montantEstime = prix
+                .multiply(BigDecimal.valueOf(dureeEstimee))
+                .setScale(2, RoundingMode.HALF_UP);
 
         LocationBienService location = LocationBienService.builder()
                 .client(client)
@@ -114,11 +134,24 @@ public class LocationBienServiceService {
     @Transactional
     public ResponseEntity<?> confirmer(Integer id, ConfirmerLocationDTO dto, Integer currentAgentId) {
         LocationBienService location = findOrThrow(id);
+        BigDecimal coutJournalier = location.getBienService().getPrixJournalier();
+        long njrs = ChronoUnit.DAYS.between(dto.getDateDebut().toLocalDate(), dto.getDateFin().toLocalDate());
+        if (njrs <= 0) {
+            throw new IllegalArgumentException("La date de fin doit être postérieure à la date de début");
+        }
+        BigDecimal coutMax = coutJournalier.multiply(BigDecimal.valueOf(njrs));
+
+        if (dto.getMontantPaiement() == null) {
+            throw new IllegalArgumentException("Le montant de paiement est obligatoire");
+        }
+
+        if (dto.getMontantPaiement().compareTo(coutMax) > 0) {
+            dto.setMontantPaiement(coutMax);
+        }
 
         if (location.getStatut() != StatutLocationBienService.EN_ATTENTE) {
             throw new IllegalStateException("Seule une location EN_ATTENTE peut être confirmée");
         }
-
         // Création du paiement réceptionné par l'agent
         Paiement paiement = Paiement.builder()
                 .datePaiement(LocalDateTime.now())
@@ -139,7 +172,7 @@ public class LocationBienServiceService {
         // Ajustement des dates si l'agent les a modifiées au comptoir
         LocalDateTime dateDebut = dto.getDateDebut() != null ? dto.getDateDebut() : location.getDateDebut();
         LocalDateTime dateFin = dto.getDateFin() != null ? dto.getDateFin() : location.getDateFin();
-        int dureeFinale = (int) Duration.between(dateDebut, dateFin).toDays();
+        long dureeFinale =  ChronoUnit.DAYS.between(dateDebut.toLocalDate(), dateFin.toLocalDate());
 
 
         location.setDateDebut(dateDebut);
@@ -184,17 +217,32 @@ public class LocationBienServiceService {
         if (location.getStatut() != StatutLocationBienService.ACTIF) {
             throw new IllegalStateException("Seule une location ACTIVE peut voir sa durée modifiée");
         }
+
+        if (dto.getNouvelleDateFin() == null) {
+            throw new IllegalArgumentException("La nouvelle date de fin est obligatoire");
+        }
+
         if (!dto.getNouvelleDateFin().isAfter(location.getDateDebut())) {
             throw new IllegalArgumentException("La nouvelle date de fin doit être postérieure à la date de début");
         }
 
         boolean estProlongation = dto.getNouvelleDateFin().isAfter(location.getDateFin());
 
-        int nouvelleDuree = (int) Duration.between(location.getDateDebut(), dto.getNouvelleDateFin()).toDays();
-        Double prixJournalier = location.getBienService().getPrixJournalier();
-        double nouveauMontant = nouvelleDuree * (prixJournalier != null ? prixJournalier : 0);
+        long nouvelleDuree =  ChronoUnit.DAYS.between(location.getDateDebut().toLocalDate(), dto.getNouvelleDateFin().toLocalDate());
 
-        if (estProlongation && dto.getMontantComplement() != null && dto.getMontantComplement() > 0) {
+        if (nouvelleDuree <= 0) {
+            throw new IllegalArgumentException("La durée doit être d'au moins 1 jour");
+        }
+
+        BigDecimal prixJournalier = location.getBienService().getPrixJournalier();
+
+        if (prixJournalier == null || prixJournalier.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalStateException("Prix journalier manquant ou invalide");
+        }
+
+        BigDecimal nouveauMontant = prixJournalier.multiply(BigDecimal.valueOf(nouvelleDuree)).setScale(2, RoundingMode.HALF_UP);
+
+        if (estProlongation && dto.getMontantComplement() != null && dto.getMontantComplement().compareTo(BigDecimal.ZERO) > 0) {
             Paiement complement = Paiement.builder()
                     .datePaiement(LocalDateTime.now())
                     .montantPaiement(dto.getMontantComplement())
@@ -220,7 +268,7 @@ public class LocationBienServiceService {
 
         locationBienServiceRepository.save(location);
 
-        double[] chiffres = calculerEncaisseRembourseSolde(location);
+        BigDecimal[] chiffres = calculerEncaisseRembourseSolde(location);
 
         ModifierDureeLocationResponseDTO reponse = ModifierDureeLocationResponseDTO.builder()
                 .location(toDto(location))
@@ -239,13 +287,13 @@ public class LocationBienServiceService {
      * < 0 : trop-perçu non encore remboursé.
      * = 0 : compte soldé.
      */
-    private double[] calculerEncaisseRembourseSolde(LocationBienService location) {
-        double totalEncaisse = paiementLocationBienServiceRepository.sumMontantByLocation(location.getIdLocationBienService());
+    private BigDecimal[] calculerEncaisseRembourseSolde(LocationBienService location) {
+        BigDecimal totalEncaisse = paiementLocationBienServiceRepository.sumMontantByLocation(location.getIdLocationBienService());
 
-        double totalRembourse = remboursementRepository.sumMontantByEntite(TypeEntiteRemboursement.LOCATION_BIEN_SERVICE, location.getIdLocationBienService());
+        BigDecimal totalRembourse = remboursementRepository.sumMontantByEntite(TypeEntiteRemboursement.LOCATION_BIEN_SERVICE, location.getIdLocationBienService());
 
-        double solde = location.getMontantTotal() - totalEncaisse + totalRembourse;
-        return new double[]{totalEncaisse, totalRembourse, solde};
+        BigDecimal solde = location.getMontantTotal().subtract(totalEncaisse).add(totalRembourse);
+        return new BigDecimal []{totalEncaisse, totalRembourse, solde};
     }
 
     /**
@@ -260,14 +308,19 @@ public class LocationBienServiceService {
             throw new IllegalStateException("Le remboursement n'est possible que sur une location ACTIVE");
         }
 
-        double[] chiffres = calculerEncaisseRembourseSolde(location);
-        double soldeActuel = chiffres[2];
+        BigDecimal [] chiffres = calculerEncaisseRembourseSolde(location);
+        BigDecimal soldeActuel = chiffres[2];
 
-        if (soldeActuel >= 0) {
+        if (soldeActuel.compareTo(BigDecimal.ZERO) >= 0) {
             throw new IllegalStateException("Aucun trop-perçu à rembourser sur cette location");
         }
-        double tropPercuDisponible = -soldeActuel;
-        if (dto.getMontant() > tropPercuDisponible) {
+        BigDecimal tropPercuDisponible = soldeActuel.negate();
+
+        BigDecimal montant = dto.getMontant();
+        if (montant == null) {
+            throw new IllegalArgumentException("Le montant du remboursement est obligatoire");
+        }
+        if (dto.getMontant().compareTo(tropPercuDisponible) > 0) {
             throw new IllegalArgumentException(
                     "Le montant du remboursement (" + dto.getMontant() +
                             ") dépasse le trop-perçu disponible (" + tropPercuDisponible + ")");
@@ -358,6 +411,19 @@ public class LocationBienServiceService {
     }
 
     private LocationBienServiceResponseDTO toDto(LocationBienService l) {
+
+        List<PaiementLocationBienServiceResponseDTO> historique = paiementLocationBienServiceRepository
+                .findByIdLocationBienService(l.getIdLocationBienService())
+                .stream()
+                .map(pl -> PaiementLocationBienServiceResponseDTO.builder()
+                        .idPaiement(pl.getIdPaiement())
+                        .montant(pl.getPaiement().getMontantPaiement())
+                        .modePaiement(pl.getPaiement().getModePaiement())
+                        .typePaiement(pl.getTypePaiement())
+                        .datePaiement(pl.getPaiement().getDatePaiement())
+                        .build())
+                .toList();
+
         return LocationBienServiceResponseDTO.builder()
                 .idLocationBienService(l.getIdLocationBienService())
                 .idClient(l.getClient().getIdUser())
@@ -370,6 +436,7 @@ public class LocationBienServiceService {
                 .duree(l.getDuree())
                 .montantTotal(l.getMontantTotal())
                 .statut(l.getStatut())
+                .historiquePaiements(historique)
                 .build();
     }
 }

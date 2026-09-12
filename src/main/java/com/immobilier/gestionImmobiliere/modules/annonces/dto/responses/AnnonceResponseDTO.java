@@ -4,6 +4,7 @@ import com.immobilier.gestionImmobiliere.donnees.annonces.model.StatutAnnonce;
 import lombok.Builder;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data @Builder
@@ -15,6 +16,6 @@ public class AnnonceResponseDTO {
     private LocalDateTime datePublication;
     private LocalDateTime dateExpiration;
     private StatutAnnonce statut;
-    private Double prix;
+    private BigDecimal prix;
     private String localisation;
 }

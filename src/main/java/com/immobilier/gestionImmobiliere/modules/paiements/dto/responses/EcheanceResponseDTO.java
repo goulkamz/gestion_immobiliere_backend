@@ -5,6 +5,7 @@ import com.immobilier.gestionImmobiliere.donnees.paiements.model.TypeEcheance;
 import lombok.Builder;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Data @Builder
@@ -14,7 +15,7 @@ public class EcheanceResponseDTO {
     private Integer entiteId;
     private LocalDate dateEcheance;
     private String moisLibelle;
-    private Double montantDu;
-    private Double montantPaye;
+    private BigDecimal montantDu;
+    private BigDecimal montantPaye;
     private StatutEcheance statut;
 }

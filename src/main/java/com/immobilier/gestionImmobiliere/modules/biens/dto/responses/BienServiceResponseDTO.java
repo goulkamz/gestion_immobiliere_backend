@@ -4,13 +4,15 @@ import com.immobilier.gestionImmobiliere.donnees.biens.model.StatutBienService;
 import lombok.Builder;
 import lombok.Data;
 
+import java.math.BigDecimal;
+
 @Data @Builder
 public class BienServiceResponseDTO {
     private Integer idBienService;
     private String libelle;
     private String description;
-    private Double prixJournalier;
-    private Double prixMensuel;
+    private BigDecimal prixJournalier;
+    private BigDecimal prixMensuel;
     private StatutBienService disponibilite;
     private Integer idSecteur;
     private String nomSecteur;

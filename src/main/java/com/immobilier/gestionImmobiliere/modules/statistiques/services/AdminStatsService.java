@@ -7,11 +7,15 @@ import com.immobilier.gestionImmobiliere.donnees.contrats.repository.*;
 import com.immobilier.gestionImmobiliere.donnees.paiements.repository.*;
 import com.immobilier.gestionImmobiliere.donnees.user.repository.UserRepository;
 import com.immobilier.gestionImmobiliere.modules.statistiques.dto.*;
+import com.immobilier.gestionImmobiliere.modules.statistiques.projection.SumDuPaye;
+import com.immobilier.gestionImmobiliere.modules.statistiques.projection.SumRetard;
 import com.immobilier.gestionImmobiliere.utils.DateUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
@@ -62,8 +66,11 @@ public class AdminStatsService {
     }
 
     public ResponseEntity<?> getStats() {
-        Object[] sumEcheances = echeanceLoyerRepository.sumDuEtPaye();
-        Object[] sumRetard = echeanceLoyerRepository.sumEnRetard();
+        SumDuPaye sumEcheances = echeanceLoyerRepository.sumDuEtPaye();
+        SumRetard sumRetard = echeanceLoyerRepository.sumEnRetard();
+
+        BigDecimal encaisse    = defaultZero(paiementLocationRepository.sumTotalEncaisse().getTotal());
+        BigDecimal rembourse   = defaultZero(remboursementRepository.sumRembourseBienService());
 
         AdminStatsDTO stats = AdminStatsDTO.builder()
                 .totalUtilisateurs(userRepository.count())
@@ -72,21 +79,21 @@ public class AdminStatsService {
 
                 .totalCours(courRepository.count())
                 .maisonsParStatut(toMap(maisonRepository.countByStatut()))
-                .tauxOccupationMaisons(maisonRepository.tauxOccupation())
-                .biensServiceParDisponibilite(toMap(bienServiceRepository.countByCategorieEtDisponibilite()))
+                .tauxOccupationMaisons(maisonRepository.tauxOccupation().setScale(2, RoundingMode.HALF_UP))
+                .biensServiceParDisponibilite(toMapImbrique(bienServiceRepository.countByCategorieEtDisponibilite()))
 
                 .mandatsParStatut(toMap(contratMandatRepository.countByStatut()))
                 .contratsLocationParStatut(toMap(contratLocationRepository.countByStatut()))
                 .mandatsExpirantSous30Jours(contratMandatRepository.countExpirantSous30Jours())
 
-                .montantDuTotal((Double) sumEcheances[0])
-                .montantPayeTotal((Double) sumEcheances[1])
-                .nombreEcheancesEnRetard((Long) sumRetard[0])
-                .montantEcheancesEnRetard((Double) sumRetard[1])
+                .montantDuTotal(sumEcheances.getMontantDu() == null ? BigDecimal.ZERO : sumEcheances.getMontantDu())
+                .montantPayeTotal(sumEcheances.getMontantPaye() == null ? BigDecimal.ZERO : sumEcheances.getMontantPaye())
+                .nombreEcheancesEnRetard(sumRetard.getNombre())
+                .montantEcheancesEnRetard(sumRetard.getMontant() == null ? BigDecimal.ZERO : sumRetard.getMontant())
 
                 .locationsBienServiceParStatut(toMap(locationBienServiceRepository.countByStatut()))
-                .totalEncaisseBienService(paiementLocationRepository.sumTotalEncaisse())
-                .totalRembourseBienService(remboursementRepository.sumRembourseBienService())
+                .totalEncaisseBienService(encaisse)
+                .totalRembourseBienService(rembourse)
 
                 .annoncesParStatut(toMap(annonceRepository.countByStatut()))
                 .demandesParStatut(toMap(demandeRepository.countByStatut()))
@@ -181,6 +188,23 @@ public class AdminStatsService {
             result.put(String.valueOf(row[0]), ((Number) row[1]).longValue());
         }
         return result;
+    }
+
+    private Map<String, Map<String, Long>> toMapImbrique(java.util.List<Object[]> rows) {
+        Map<String, Map<String, Long>> result = new HashMap<>();
+        for (Object[] row : rows) {
+            String categorie = String.valueOf(row[0]);
+            String disponibilite = String.valueOf(row[1]);
+            long count = ((Number) row[2]).longValue();
+
+            result.computeIfAbsent(categorie, k -> new HashMap<>())
+                    .put(disponibilite, count);
+        }
+        return result;
+    }
+
+    private static BigDecimal defaultZero(BigDecimal v) {
+        return v == null ? BigDecimal.ZERO : v;
     }
 
 }

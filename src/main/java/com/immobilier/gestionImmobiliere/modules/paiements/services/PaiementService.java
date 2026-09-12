@@ -15,6 +15,7 @@ import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -84,7 +85,7 @@ public class PaiementService {
      *   pour une couverture partielle (traçabilité F16).
      */
     @Transactional
-    public Paiement soldeEcheances(List<Integer> idEcheances, Double montant, String modePaiement,
+    public Paiement soldeEcheances(List<Integer> idEcheances, BigDecimal montant, String modePaiement,
                                    String reference, SensPaiement sens, Integer currentUserId, LocalDateTime datePaiement) {
         List<EcheanceLoyer> echeances = echeanceRepository.findByIdEcheanceIn(idEcheances);
 
@@ -94,16 +95,18 @@ public class PaiementService {
 
         echeances.sort(Comparator.comparing(EcheanceLoyer::getDateEcheance));
 
-        double totalResteDu = 0.0;
+        BigDecimal totalResteDu = BigDecimal.ZERO;
         for (EcheanceLoyer e : echeances) {
             if (e.getStatut() == StatutEcheance.PAYE || e.getStatut() == StatutEcheance.ANNULE) {
                 throw new EcheanceDejaPayeeException(e.getIdEcheance());
             }
-            double dejaPaye = e.getMontantPaye() != null ? e.getMontantPaye() : 0.0;
-            totalResteDu += (e.getMontantDu() - dejaPaye);
+            BigDecimal dejaPaye = e.getMontantPaye() != null ? e.getMontantPaye() : BigDecimal.ZERO;
+            totalResteDu = totalResteDu.add(e.getMontantDu().subtract(dejaPaye));
         }
 
-        if (montant > totalResteDu + 0.01) {
+        BigDecimal tolerance = new BigDecimal("0.01");
+
+        if (montant.compareTo(totalResteDu.add(tolerance)) > 0) {
             throw new MontantPaiementInvalideException(totalResteDu, montant);
         }
 
@@ -117,17 +120,17 @@ public class PaiementService {
                 .build();
         paiementRepository.save(paiement);
 
-        double montantRestant = montant;
+        BigDecimal montantRestant = montant;
         for (EcheanceLoyer e : echeances) {
-            if (montantRestant <= 0) break;
+            if (montantRestant.signum() <= 0) break;
 
-            double dejaPaye = e.getMontantPaye() != null ? e.getMontantPaye() : 0.0;
-            double resteDu = e.getMontantDu() - dejaPaye;
-            if (resteDu <= 0) continue;
+            BigDecimal dejaPaye = e.getMontantPaye() != null ? e.getMontantPaye() : BigDecimal.ZERO;
+            BigDecimal resteDu = e.getMontantDu().subtract(dejaPaye);
+            if (resteDu.signum() <= 0) continue;
 
-            double montantApplique = Math.min(montantRestant, resteDu);
-            e.setMontantPaye(dejaPaye + montantApplique);
-            e.setStatut(e.getMontantPaye() >= e.getMontantDu() ? StatutEcheance.PAYE : StatutEcheance.EN_ATTENTE);
+            BigDecimal montantApplique = montantRestant.min(resteDu);
+            e.setMontantPaye(dejaPaye.add(montantApplique));
+            e.setStatut(e.getMontantPaye().compareTo(e.getMontantDu()) >= 0 ? StatutEcheance.PAYE : StatutEcheance.EN_ATTENTE);
             echeanceRepository.save(e);
 
             paiementEcheanceRepository.save(PaiementEcheance.builder()
@@ -135,7 +138,7 @@ public class PaiementService {
                     .idPaiement(paiement.getIdPaiement())
                     .build());
 
-            montantRestant -= montantApplique;
+            montantRestant = montantRestant.subtract(montantApplique);
         }
 
         return paiement;

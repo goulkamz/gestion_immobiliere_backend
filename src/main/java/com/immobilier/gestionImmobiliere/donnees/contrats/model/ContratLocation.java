@@ -9,6 +9,7 @@ import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -39,7 +40,7 @@ public class ContratLocation extends Model {
     private LocalDateTime dateSortie;
 
     @Column(name = "montant_loyer")
-    private Double montantLoyer;
+    private BigDecimal montantLoyer;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "statut")

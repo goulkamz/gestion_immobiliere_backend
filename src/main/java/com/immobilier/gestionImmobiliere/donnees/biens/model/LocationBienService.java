@@ -12,6 +12,7 @@ import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -53,10 +54,10 @@ public class LocationBienService extends Model {
     private LocalDateTime dateFin;
 
     @Column(name = "duree")
-    private Integer duree;
+    private Long duree;
 
     @Column(name = "montant_total")
-    private Double montantTotal;
+    private BigDecimal montantTotal;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "statut", length = 254)

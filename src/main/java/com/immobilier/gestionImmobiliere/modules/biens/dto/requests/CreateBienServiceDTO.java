@@ -4,6 +4,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
+import java.math.BigDecimal;
+
 @Data
 public class CreateBienServiceDTO {
     @NotNull private Integer idSecteur;
@@ -13,6 +15,6 @@ public class CreateBienServiceDTO {
     @NotBlank
     private String libelle;
     private String description;
-    private Double prixJournalier;
-    private Double prixMensuel;
+    private BigDecimal prixJournalier;
+    private BigDecimal prixMensuel;
 }

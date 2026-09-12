@@ -10,6 +10,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigDecimal;
+
 @RestController
 @PreAuthorize("hasAnyRole('CLIENT','AGENT','ADMIN','BAILLEUR')")
 public class ReservationController implements ReservationAPI {
@@ -61,7 +63,7 @@ public class ReservationController implements ReservationAPI {
     // Conversion en contrat de location : action métier réservée à Agent/Admin
     @Override
     @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
-    public ResponseEntity<?> convertir(Integer id, Double montantLoyer, String typeContrat,
+    public ResponseEntity<?> convertir(Integer id, BigDecimal montantLoyer, String typeContrat,
                                        @AuthenticationPrincipal UserDetailsImpl currentUser) {
         return reservationService.convertirEnLocation(id, montantLoyer, typeContrat, currentUser.getIdUser());
     }

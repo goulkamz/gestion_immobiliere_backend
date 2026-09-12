@@ -3,12 +3,15 @@ package com.immobilier.gestionImmobiliere.donnees.paiements.repository;
 import com.immobilier.gestionImmobiliere.donnees.paiements.model.EcheanceLoyer;
 import com.immobilier.gestionImmobiliere.donnees.paiements.model.StatutEcheance;
 import com.immobilier.gestionImmobiliere.donnees.paiements.model.TypeEcheance;
+import com.immobilier.gestionImmobiliere.modules.statistiques.projection.SumDuPaye;
+import com.immobilier.gestionImmobiliere.modules.statistiques.projection.SumRetard;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -37,16 +40,16 @@ public interface EcheanceLoyerRepository extends JpaRepository<EcheanceLoyer, In
             "JOIN maison m ON m.id_maison = cl.id_maison " +
             "WHERE m.id_cour = :idCour AND e.is_deleted = false " +
             "AND DATE_TRUNC('month', e.date_echeance) = DATE_TRUNC('month', CAST(:periode AS date))", nativeQuery = true)
-    Double sumMontantDuLocationParCourEtMois(@Param("idCour") Integer idCour, @Param("periode") LocalDate periode);
+    BigDecimal sumMontantDuLocationParCourEtMois(@Param("idCour") Integer idCour, @Param("periode") LocalDate periode);
 
     // Statistiques echeanceLoyerRepository
 
-    @Query("SELECT COALESCE(SUM(e.montantDu),0), COALESCE(SUM(e.montantPaye),0) FROM EcheanceLoyer e WHERE e.isDeleted = false")
-    Object[] sumDuEtPaye();
+    @Query("SELECT COALESCE(SUM(e.montantDu),0) AS montantDu, COALESCE(SUM(e.montantPaye),0) AS montantPaye FROM EcheanceLoyer e WHERE e.isDeleted = false")
+    SumDuPaye sumDuEtPaye();
 
-    @Query("SELECT COUNT(e), COALESCE(SUM(e.montantDu - e.montantPaye),0) FROM EcheanceLoyer e " +
+    @Query("SELECT COALESCE(COUNT(e),0) AS nombre, COALESCE(SUM(e.montantDu - e.montantPaye),0) AS montant FROM EcheanceLoyer e " +
             "WHERE e.isDeleted = false AND e.statut = com.immobilier.gestionImmobiliere.donnees.paiements.model.StatutEcheance.EN_RETARD")
-    Object[] sumEnRetard();
+    SumRetard sumEnRetard();
 
     @Query(value = "SELECT u.id_user AS idLocataire, u.nom || ' ' || u.prenom AS nomComplet, " +
             "COUNT(e.id_echeance) FILTER (WHERE e.statut = 'EN_RETARD') AS nbEnRetard, " +
