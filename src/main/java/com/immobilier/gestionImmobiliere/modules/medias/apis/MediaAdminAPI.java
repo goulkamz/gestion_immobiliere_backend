@@ -2,6 +2,7 @@ package com.immobilier.gestionImmobiliere.modules.medias.apis;
 
 import com.immobilier.gestionImmobiliere.modules.medias.dto.requests.ReorderMediaDTO;
 import com.immobilier.gestionImmobiliere.modules.medias.dto.requests.UploadMediaDTO;
+import com.immobilier.gestionImmobiliere.modules.medias.dto.requests.UploadMultipleMediaDTO;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -14,6 +15,10 @@ public interface MediaAdminAPI {
 
     @PostMapping(consumes = "multipart/form-data")
     ResponseEntity<?> upload(@Valid @ModelAttribute UploadMediaDTO dto);
+
+    @PostMapping(value = "/multiple", consumes = "multipart/form-data")
+    ResponseEntity<?> uploadMultiple(@ModelAttribute UploadMultipleMediaDTO dto);
+
 
     @DeleteMapping("/{id}")
     ResponseEntity<?> delete(@PathVariable Integer id);

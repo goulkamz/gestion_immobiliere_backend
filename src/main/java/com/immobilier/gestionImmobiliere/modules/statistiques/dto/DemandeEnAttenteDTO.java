@@ -4,6 +4,7 @@ import com.immobilier.gestionImmobiliere.donnees.biens.model.StatutLocationBienS
 import lombok.Builder;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data @Builder
@@ -13,6 +14,6 @@ public class DemandeEnAttenteDTO {
     private String nomClient;
     private LocalDateTime dateDebut;
     private LocalDateTime dateFin;
-    private Double montantEstime;
+    private BigDecimal montantEstime;
     private StatutLocationBienService statut;
 }

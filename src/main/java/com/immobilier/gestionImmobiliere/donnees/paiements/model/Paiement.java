@@ -7,6 +7,7 @@ import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -31,7 +32,7 @@ public class Paiement extends Model {
     private SensPaiement sens = SensPaiement.ENTREE;
 
     @Column(name = "montant_paiement")
-    private Double montantPaiement;
+    private BigDecimal montantPaiement;
 
     @Column(name = "mode_paiement")
     private String modePaiement;

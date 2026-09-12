@@ -35,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 import static java.time.temporal.ChronoUnit.MINUTES;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
@@ -63,12 +64,14 @@ public class UserService {
     }
 
 
+    @Transactional
     public ResponseEntity<?> authenticateUser(AuthenticateDTO authenticateDTO,HttpServletRequest request, HttpServletResponse response) {
 
             Authentication authentication = authenticationManager
                     .authenticate(new UsernamePasswordAuthenticationToken(authenticateDTO.getUsername(), authenticateDTO.getPassword()));
 
                 UserDetailsImpl user = (UserDetailsImpl) authentication.getPrincipal();
+                userRepository.touchLastLogin(user.getUsername(), LocalDateTime.now());
                 List<String> roles=getUserRoles(user);
 
             String accessToken = generateJwtCookie(user,roles, request,response);

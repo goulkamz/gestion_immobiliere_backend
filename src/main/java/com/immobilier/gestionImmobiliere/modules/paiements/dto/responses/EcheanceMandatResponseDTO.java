@@ -4,6 +4,7 @@ import com.immobilier.gestionImmobiliere.donnees.paiements.model.StatutEcheance;
 import lombok.Builder;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Data @Builder
@@ -11,8 +12,8 @@ public class EcheanceMandatResponseDTO {
     private Integer idEcheance;
     private Integer idMandat;
     private LocalDate periodeMois;
-    private Double montantLoyersDus;   // null si non recalculé (ex: liste getEnAttente)
-    private Double commissionDeduite;
-    private Double montantNetAReverser;
+    private BigDecimal montantLoyersDus;   // null si non recalculé (ex: liste getEnAttente)
+    private BigDecimal commissionDeduite;
+    private BigDecimal montantNetAReverser;
     private StatutEcheance statut;
 }

@@ -16,6 +16,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
@@ -44,10 +45,10 @@ public class ClientStatsService {
     public ResponseEntity<?> getMesLocations(Integer idClient) {
         List<ClientLocationDTO> result = locationBienServiceRepository.findByClient_IdUserOrderByDateDebutDesc(idClient).stream()
                 .map(l -> {
-                    double totalEncaisse = paiementLocationRepository.sumMontantByLocation(l.getIdLocationBienService());
-                    double totalRembourse = remboursementRepository.sumMontantByEntite(
+                    BigDecimal totalEncaisse = paiementLocationRepository.sumMontantByLocation(l.getIdLocationBienService());
+                    BigDecimal totalRembourse = remboursementRepository.sumMontantByEntite(
                             TypeEntiteRemboursement.LOCATION_BIEN_SERVICE, l.getIdLocationBienService());
-                    double solde = l.getMontantTotal() - totalEncaisse + totalRembourse;
+                    BigDecimal solde = l.getMontantTotal().subtract(totalEncaisse).add(totalRembourse);
 
                     return ClientLocationDTO.builder()
                             .idLocation(l.getIdLocationBienService())

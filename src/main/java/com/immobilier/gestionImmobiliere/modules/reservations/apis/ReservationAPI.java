@@ -9,6 +9,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
+
 @RequestMapping("/api/reservations")
 public interface ReservationAPI {
 
@@ -29,7 +31,7 @@ public interface ReservationAPI {
     ResponseEntity<?> annuler(@PathVariable Integer id, @AuthenticationPrincipal UserDetailsImpl currentUser);
 
     @PatchMapping("/{id}/convertir")
-    ResponseEntity<?> convertir(@PathVariable Integer id, @RequestParam Double montantLoyer,
+    ResponseEntity<?> convertir(@PathVariable Integer id, @RequestParam BigDecimal montantLoyer,
                                 @RequestParam(required = false) String typeContrat,
                                 @AuthenticationPrincipal UserDetailsImpl currentUser);
 }

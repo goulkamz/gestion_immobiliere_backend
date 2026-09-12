@@ -12,6 +12,7 @@ import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Entity
@@ -50,10 +51,10 @@ public class BienService extends Model {
     private String description;
 
     @Column(name = "prix_journalier")
-    private Double prixJournalier;
+    private BigDecimal prixJournalier;
 
     @Column(name = "prix_mensuel")
-    private Double prixMensuel;
+    private BigDecimal prixMensuel;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "disponibilite", length = 254)

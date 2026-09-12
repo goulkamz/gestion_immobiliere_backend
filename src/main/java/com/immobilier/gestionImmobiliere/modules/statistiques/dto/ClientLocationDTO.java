@@ -4,6 +4,7 @@ import com.immobilier.gestionImmobiliere.donnees.biens.model.StatutLocationBienS
 import lombok.Builder;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data @Builder
@@ -12,8 +13,8 @@ public class ClientLocationDTO {
     private String libelleBien;
     private LocalDateTime dateDebut;
     private LocalDateTime dateFin;
-    private Double montantTotal;
-    private Double totalEncaisse;
-    private Double solde;   // positif = reste à payer, négatif = trop-perçu
+    private BigDecimal montantTotal;
+    private BigDecimal totalEncaisse;
+    private BigDecimal solde;   // positif = reste à payer, négatif = trop-perçu
     private StatutLocationBienService statut;
 }

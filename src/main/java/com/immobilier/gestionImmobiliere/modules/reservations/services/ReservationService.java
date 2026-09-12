@@ -21,6 +21,8 @@ import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+
 import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
 
 @Service
@@ -133,7 +135,7 @@ public class ReservationService {
      * pour éviter de dupliquer la logique de création de bail (génération d'échéances incluse).
      */
     @Transactional
-    public ResponseEntity<?> convertirEnLocation(Integer id, Double montantLoyer, String typeContrat, Integer currentUserId) {
+    public ResponseEntity<?> convertirEnLocation(Integer id, BigDecimal montantLoyer, String typeContrat, Integer currentUserId) {
         ReservationMaison reservation = findOrThrow(id);
 
         if (reservation.getStatut() != StatutReservation.CONFIRMEE) {

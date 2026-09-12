@@ -49,6 +49,14 @@ public class Scheduler {
         mediaReconciliationService.nettoyerFichiersOrphelins();
     }
 
+    /**
+     * Job quotidien — purge définitivement les médias soft-deleted depuis plus de
+     * `retentionJours` : supprime le fichier réel sur MinIO PUIS la ligne DB (hard delete).
+     * Avant ce délai, le média reste techniquement récupérable (is_deleted=true,
+     * fichier toujours présent sur MinIO).
+     */
+    @Scheduled(cron = "0 30 2 * * *")
+    public void purgerMediasSupprimes(){mediaReconciliationService.purgerMediasSupprimes();}
     // Nettoyage tous les jours a 1h du matin
     @Scheduled(cron = "0 0 1 * * *")
     public void nettoyerAnnonce(){

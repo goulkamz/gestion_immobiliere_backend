@@ -8,6 +8,7 @@ import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -39,7 +40,7 @@ public class Demande extends Model_1 {
     private String localisationSouhaite;
 
     @Column(name = "budget_max")
-    private Double budgetMax;
+    private BigDecimal budgetMax;
 
     @Column(name = "description")
     private String description;

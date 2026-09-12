@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 public interface RemboursementRepository extends JpaRepository<Remboursement, Integer> {
@@ -14,7 +15,7 @@ public interface RemboursementRepository extends JpaRepository<Remboursement, In
 
     @Query("SELECT COALESCE(SUM(r.paiement.montantPaiement), 0) FROM Remboursement r " +
             "WHERE r.entiteType = :type AND r.entiteId = :id AND r.isDeleted = false")
-    Double sumMontantByEntite(@Param("type") TypeEntiteRemboursement type, @Param("id") Integer id);
+    BigDecimal sumMontantByEntite(@Param("type") TypeEntiteRemboursement type, @Param("id") Integer id);
 
     // Statistiques RemboursementRepository
 
@@ -22,7 +23,7 @@ public interface RemboursementRepository extends JpaRepository<Remboursement, In
             "JOIN r.paiement p " +
             "WHERE r.entiteType = com.immobilier.gestionImmobiliere.donnees.paiements.model.TypeEntiteRemboursement.LOCATION_BIEN_SERVICE " +
             "AND r.isDeleted = false")
-    Double sumRembourseBienService();
+    BigDecimal sumRembourseBienService();
 
     @Query("SELECT r FROM Remboursement r JOIN LocationBienService l ON l.idLocationBienService = r.entiteId " +
             "WHERE r.entiteType = com.immobilier.gestionImmobiliere.donnees.paiements.model.TypeEntiteRemboursement.LOCATION_BIEN_SERVICE " +

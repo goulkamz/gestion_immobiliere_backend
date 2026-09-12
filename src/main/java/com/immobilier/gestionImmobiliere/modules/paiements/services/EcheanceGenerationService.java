@@ -90,7 +90,7 @@ public class EcheanceGenerationService {
     // Au lieu de : courante = debut.plusMonths(1), incrémenté par mois
     // -> dateEcheance = toujours le 1er du mois suivant le mois d'occupation
 
-    private int genererMoisManquants(Integer entiteId, LocalDate debutOccupation, LocalDate fin, Double montant) {
+    private int genererMoisManquants(Integer entiteId, LocalDate debutOccupation, LocalDate fin, BigDecimal montant) {
         LocalDate moisOccupe = debutOccupation.withDayOfMonth(1); // normalise au 1er du mois d'entrée
         LocalDate finNormalisee = fin.withDayOfMonth(fin.lengthOfMonth());
 
@@ -110,8 +110,8 @@ public class EcheanceGenerationService {
                         .entiteEcheanceId(entiteId)
                         .dateEcheance(dateEcheance)
                         .montantDu(montant)
-                        .montantPaye(0.0)
-                        .commissionDeduite(0.0)
+                        .montantPaye(BigDecimal.ZERO)
+                        .commissionDeduite(BigDecimal.ZERO)
                         .statut(StatutEcheance.EN_ATTENTE)
                         .build());
             }

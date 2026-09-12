@@ -46,8 +46,8 @@ public class PublicStatsService {
 
 
     public ResponseEntity<?> getStats() {
-        long biensDisponibles = maisonRepository.countByIsDeletedFalseAndStatut(StatutMaison.DISPONIBLE)
-                + bienServiceRepository.countByIsDeletedFalseAndDisponibilite(StatutBienService.DISPONIBLE);
+        long maisonsDisponibles = maisonRepository.countByIsDeletedFalseAndStatut(StatutMaison.DISPONIBLE);
+        long biensDisponibles = bienServiceRepository.countByIsDeletedFalseAndDisponibilite(StatutBienService.DISPONIBLE);
 
         long locationsRealisees = locationBienServiceRepository.countByIsDeletedFalseAndStatutIn(
                 List.of(StatutLocationBienService.ACTIF, StatutLocationBienService.TERMINE))
@@ -55,6 +55,7 @@ public class PublicStatsService {
                 List.of(StatutLocation.ACTIF, StatutLocation.TERMINE));
 
         PublicStatsDTO result = PublicStatsDTO.builder()
+                .maisonsDisponibles(maisonsDisponibles)
                 .biensDisponibles(biensDisponibles)
                 .villesCouvertes(secteurRepository.countVillesCouvertes())
                 .secteursCouverts(secteurRepository.countByIsDeletedFalse())

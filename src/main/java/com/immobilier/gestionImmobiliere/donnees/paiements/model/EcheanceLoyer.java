@@ -8,6 +8,7 @@ import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.Where;
 
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -36,13 +37,13 @@ public class EcheanceLoyer extends Model {
     private LocalDate dateEcheance;
 
     @Column(name = "montant_du")
-    private Double montantDu;
+    private BigDecimal montantDu;
 
     @Column(name = "montant_paye")
-    private Double montantPaye;
+    private BigDecimal montantPaye;
 
     @Column(name = "commission_deduite")
-    private Double commissionDeduite;
+    private BigDecimal commissionDeduite;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "statut")

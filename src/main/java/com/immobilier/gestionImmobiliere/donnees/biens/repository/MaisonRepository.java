@@ -22,8 +22,8 @@ public interface MaisonRepository extends JpaRepository<Maison, Integer> {
     @Query("SELECT m.statut, COUNT(m) FROM Maison m WHERE m.isDeleted = false GROUP BY m.statut")
     List<Object[]> countByStatut();
 
-    @Query(value = "SELECT ROUND((COUNT(*) FILTER (WHERE statut = 'LOUEE')::NUMERIC / NULLIF(COUNT(*),0)) * 100, 2) FROM maison WHERE is_deleted = false", nativeQuery = true)
-    Double tauxOccupation();
+    @Query(value = "SELECT ROUND((CAST(COUNT(*) FILTER (WHERE statut = 'LOUEE') AS NUMERIC) / NULLIF(COUNT(*),0)) * 100, 2) FROM maison WHERE is_deleted = false", nativeQuery = true)
+    BigDecimal tauxOccupation();
 
     @Query(value = "SELECT v.nom_ville AS nomVille, COUNT(m.id_maison) AS nbMaisons " +
             "FROM maison m " +
@@ -38,7 +38,7 @@ public interface MaisonRepository extends JpaRepository<Maison, Integer> {
     @Query("SELECT m.statut, COUNT(m) FROM Maison m WHERE m.cour.proprietaire.idUser = :idBailleur AND m.isDeleted = false GROUP BY m.statut")
     List<Object[]> countByStatutPourBailleur(@Param("idBailleur") Integer idBailleur);
 
-    @Query(value = "SELECT ROUND((COUNT(*) FILTER (WHERE m.statut = 'LOUEE')::NUMERIC / NULLIF(COUNT(*),0)) * 100, 2) " +
+    @Query(value = "SELECT ROUND((CAST(COUNT(*) FILTER (WHERE m.statut = 'LOUEE') AS NUMERIC) / NULLIF(COUNT(*),0)) * 100, 2) " +
             "FROM maison m JOIN cour c ON c.id_cour = m.id_cour " +
             "WHERE c.id_user = :idBailleur AND m.is_deleted = false", nativeQuery = true)
     Double tauxOccupationPourBailleur(@Param("idBailleur") Integer idBailleur);

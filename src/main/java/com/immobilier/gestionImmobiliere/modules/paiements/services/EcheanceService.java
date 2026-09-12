@@ -35,10 +35,10 @@ import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.build
 @Service
 public class EcheanceService {
 
-    @Value("${app.tolerance.location.jours}")
+    @Value("${app.tolerance-location-jours}")
     private int TOLERANCE_LOCATION_JOURS;
 
-    @Value("${app.tolerance.mandat.jours}")
+    @Value("${app.tolerance-mandat-jours}")
     private int TOLERANCE_MANDAT_JOURS;
 
     private final EcheanceLoyerRepository echeanceRepository;
@@ -189,22 +189,22 @@ public class EcheanceService {
         ContratMandat mandat = contratMandatRepository.findById(idMandat)
                 .orElseThrow(() -> new ResourceNotFoundException("mandat", idMandat));
 
-        Double loyersDus = echeanceRepository.sumMontantDuLocationParCourEtMois(mandat.getCour().getIdCour(), debutMois);
-        loyersDus = loyersDus != null ? loyersDus : 0.0;
+        BigDecimal loyersDus = echeanceRepository.sumMontantDuLocationParCourEtMois(mandat.getCour().getIdCour(), debutMois);
+        loyersDus = loyersDus != null ? loyersDus : BigDecimal.ZERO;
 
         BigDecimal pourcentage = mandat.getCommission() != null ? mandat.getCommission() : BigDecimal.ZERO;
-        double commission = BigDecimal.valueOf(loyersDus)
+        BigDecimal commission = loyersDus
                 .multiply(pourcentage)
-                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP)
-                .doubleValue();
-        double montantNetAReverser = loyersDus - commission;
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+
+        BigDecimal montantNetAReverser = loyersDus.subtract(commission);
 
         EcheanceLoyer echeance = EcheanceLoyer.builder()
                 .entiteEcheanceType(TypeEcheance.MANDAT)
                 .entiteEcheanceId(idMandat)
                 .dateEcheance(debutMois)
                 .montantDu(montantNetAReverser)
-                .montantPaye(0.0)
+                .montantPaye(BigDecimal.ZERO)
                 .commissionDeduite(commission)
                 .statut(StatutEcheance.EN_ATTENTE)
                 .userCreate(currentAgentId)
@@ -280,7 +280,7 @@ public class EcheanceService {
                 .build();
     }
 
-    private EcheanceMandatResponseDTO toMandatDto(EcheanceLoyer e, Double loyersDus) {
+    private EcheanceMandatResponseDTO toMandatDto(EcheanceLoyer e, BigDecimal loyersDus) {
         return EcheanceMandatResponseDTO.builder()
                 .idEcheance(e.getIdEcheance())
                 .idMandat(e.getEntiteEcheanceId())

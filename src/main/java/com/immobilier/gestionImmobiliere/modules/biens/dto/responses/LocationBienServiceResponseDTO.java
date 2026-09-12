@@ -4,6 +4,7 @@ import com.immobilier.gestionImmobiliere.donnees.biens.model.StatutLocationBienS
 import lombok.Builder;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -14,12 +15,11 @@ public class LocationBienServiceResponseDTO {
     private String nomClient;
     private Integer idBienService;
     private String libelleBienService;
-    private Integer idPaiement;
     private String destination;
     private LocalDateTime dateDebut;
     private LocalDateTime dateFin;
-    private Integer duree;
-    private Double montantTotal;
+    private Long duree;
+    private BigDecimal montantTotal;
     private StatutLocationBienService statut;
     private List<PaiementLocationBienServiceResponseDTO> historiquePaiements;
 

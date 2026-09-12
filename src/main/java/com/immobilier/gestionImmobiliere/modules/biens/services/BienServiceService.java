@@ -2,6 +2,7 @@ package com.immobilier.gestionImmobiliere.modules.biens.services;
 
 import com.immobilier.gestionImmobiliere.donnees.biens.model.BienService;
 import com.immobilier.gestionImmobiliere.donnees.biens.model.CategorieBienService;
+import com.immobilier.gestionImmobiliere.donnees.biens.model.StatutBienService;
 import com.immobilier.gestionImmobiliere.donnees.biens.repository.BienServiceRepository;
 import com.immobilier.gestionImmobiliere.donnees.biens.repository.CategorieBienServiceRepository;
 import com.immobilier.gestionImmobiliere.donnees.localisation.model.Secteur;
@@ -71,6 +72,7 @@ public class BienServiceService {
         BienService bien = BienService.builder()
                 .secteur(secteur)
                 .categorie(categorie)
+                .disponibilite(StatutBienService.DISPONIBLE)
                 .gestionnaire(gestionnaire)
                 .libelle(dto.getLibelle())
                 .description(dto.getDescription())
