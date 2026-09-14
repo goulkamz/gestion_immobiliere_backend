@@ -2,9 +2,11 @@ package com.immobilier.gestionImmobiliere.modules.contrats.controllers;
 
 import com.immobilier.gestionImmobiliere.modules.contrats.apis.ContratLocationAPI;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.CreateContratLocationDTO;
+import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.ResilierLocationDTO;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.TerminerLocationDTO;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.responses.ContratLocationResponseDTO;
 import com.immobilier.gestionImmobiliere.modules.contrats.services.ContratLocationService;
+import com.immobilier.gestionImmobiliere.modules.paiements.dto.requests.ConfirmerReglementSortieDTO;
 import com.immobilier.gestionImmobiliere.modules.user.jwtService.UserDetailsImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -44,20 +46,31 @@ public class ContratLocationController implements ContratLocationAPI {
     }
 
     @Override
-    @PreAuthorize("hasRole('AGENT')")
+    @PreAuthorize("hasRole('AGENT','ADMIN')")
     public ContratLocationResponseDTO create(CreateContratLocationDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser) {
         return locationService.createFromReservation(dto, currentUser.getIdUser());
     }
 
     @Override
-    @PreAuthorize("hasRole('AGENT')")
-    public ResponseEntity<?> terminer(Integer id, TerminerLocationDTO dto,@AuthenticationPrincipal UserDetailsImpl currentUser) {
+    @PreAuthorize("hasRole('AGENT','ADMIN')")
+    public ResponseEntity<?> terminer(Integer id, TerminerLocationDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser) {
         return locationService.terminer(id, dto,currentUser.getIdUser());
     }
 
     @Override
-    @PreAuthorize("hasRole('AGENT')")
-    public ResponseEntity<?> resilierContratLocation(Integer id, @AuthenticationPrincipal UserDetailsImpl currentUser) {
-        return locationService.resilierContratLocation(id,currentUser.getIdUser());
+    @PreAuthorize("hasRole('AGENT','ADMIN')")
+    public ResponseEntity<?> resilierContratLocation(Integer id,ResilierLocationDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser) {
+        return locationService.resilierContratLocation(id,dto,currentUser.getIdUser());
+    }
+
+
+    @Override
+    public ResponseEntity<?> reglerDecompteSortie(Integer idDecompte, ConfirmerReglementSortieDTO dto, UserDetailsImpl currentUser) {
+        return locationService.reglerDecompteSortie(idDecompte, dto, currentUser.getIdUser());
+    }
+
+    @Override
+    public ResponseEntity<?> getDecompteSortie(Integer id) {
+        return locationService.getDecompteSortie(id);
     }
 }

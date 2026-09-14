@@ -5,6 +5,8 @@ import com.immobilier.gestionImmobiliere.donnees.biens.model.LocationBienService
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.Where;
 
 import java.io.Serializable;
 
@@ -13,6 +15,8 @@ import java.io.Serializable;
 @Table(name = "paiement_location_bien_service")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @SuperBuilder
 @IdClass(PaiementLocationBienService.PaiementLocationId.class)
+@SQLDelete(sql = "UPDATE paiement_location_bien_service SET is_deleted = true WHERE id_location_bien_service = ?")
+@Where(clause = "is_deleted = false")
 public class PaiementLocationBienService {
 
     @Id

@@ -3,6 +3,8 @@ package com.immobilier.gestionImmobiliere.donnees.paiements.model;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.Where;
 
 import java.io.Serializable;
 
@@ -10,6 +12,8 @@ import java.io.Serializable;
 @Table(name = "paiement_echeance")
 @Data @SuperBuilder
 @NoArgsConstructor @AllArgsConstructor
+@SQLDelete(sql = "UPDATE paiement_echeanceSET is_deleted = true WHERE id_echeance = ?")
+@Where(clause = "is_deleted = false")
 @IdClass(PaiementEcheance.PaiementEcheanceId.class)
 public class PaiementEcheance {
 

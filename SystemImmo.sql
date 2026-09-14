@@ -36,6 +36,7 @@ DROP TABLE IF EXISTS paiement CASCADE;
 DROP TABLE IF EXISTS pending_registration CASCADE;
 DROP TABLE IF EXISTS password_reset_token CASCADE;
 DROP TABLE IF EXISTS remboursement CASCADE;
+DROP TABLE IF EXISTS decompte_sortie CASCADE;
 
 DROP SEQUENCE IF EXISTS seq_annonce CASCADE;
 DROP SEQUENCE IF EXISTS seq_bien_service CASCADE;
@@ -62,6 +63,7 @@ DROP SEQUENCE IF EXISTS seq_pending_registration CASCADE;
 DROP SEQUENCE IF EXISTS seq_password_reset_token CASCADE;
 DROP SEQUENCE IF EXISTS seq_paiement_echeance CASCADE;
 DROP SEQUENCE IF EXISTS seq_remboursement CASCADE;
+DROP SEQUENCE IF EXISTS seq_decompte_sortie CASCADE;
 
 -- ==============================================================
 -- Séquences
@@ -91,6 +93,7 @@ CREATE SEQUENCE seq_pending_registration START 1;
 CREATE SEQUENCE seq_password_reset_token START 1;
 CREATE SEQUENCE seq_paiement_echeance START 1;
 CREATE SEQUENCE seq_remboursement START 1;
+CREATE SEQUENCE seq_decompte_sortie START 1;
 
 -- ==============================================================
 -- Types ENUM
@@ -593,6 +596,29 @@ CREATE TABLE remboursement (
         (entite_type = 'CONTRA_LOCATION' AND entite_id IS NOT NULL) OR
         (entite_type = 'ECHEANCE_LOYER' AND entite_id IS NOT NULL)
     )
+);
+
+CREATE TABLE decompte_sortie (
+    id_decompte INTEGER PRIMARY KEY DEFAULT nextval('seq_decompte_sortie'),
+    id_contrat_location INTEGER NOT NULL,
+    date_sortie TIMESTAMP(6) NOT NULL,
+    montant_avance_reference NUMERIC NOT NULL,
+    montant_caution_reference NUMERIC NOT NULL,
+    montant_arrieres NUMERIC NOT NULL DEFAULT 0,
+    montant_deduit_avance NUMERIC NOT NULL DEFAULT 0,
+    cout_reparation NUMERIC NOT NULL DEFAULT 0,
+    montant_deduit_caution NUMERIC NOT NULL DEFAULT 0,
+    montant_manquant NUMERIC NOT NULL DEFAULT 0,
+    montant_a_rembourser NUMERIC NOT NULL DEFAULT 0,
+    statut VARCHAR(50) NOT NULL DEFAULT 'EN_ATTENTE',
+    id_paiement INTEGER,
+    user_create INTEGER,
+    user_update INTEGER,
+    created_at TIMESTAMP(6) DEFAULT NOW(),
+    updated_at TIMESTAMP(6) DEFAULT NOW(),
+    is_deleted BOOLEAN DEFAULT FALSE,
+    CONSTRAINT fk_decompte_contrat FOREIGN KEY (id_contrat_location) REFERENCES contra_location(id_contra_location),
+    CONSTRAINT fk_decompte_paiement FOREIGN KEY (id_paiement) REFERENCES paiement(id_paiement)
 );
 
 -- ==============================================================
