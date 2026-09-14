@@ -12,7 +12,7 @@ import java.io.Serializable;
 @Table(name = "paiement_echeance")
 @Data @SuperBuilder
 @NoArgsConstructor @AllArgsConstructor
-@SQLDelete(sql = "UPDATE paiement_echeanceSET is_deleted = true WHERE id_echeance = ?")
+@SQLDelete(sql = "UPDATE paiement_echeance SET is_deleted = true WHERE id_echeance = ?")
 @Where(clause = "is_deleted = false")
 @IdClass(PaiementEcheance.PaiementEcheanceId.class)
 public class PaiementEcheance {
