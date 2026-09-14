@@ -5,12 +5,16 @@ import com.immobilier.gestionImmobiliere.donnees.biens.model.LocationBienService
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.Where;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "remboursement")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @SuperBuilder
+@SQLDelete(sql = "UPDATE remboursement SET is_deleted = true WHERE id_remboursement = ?")
+@Where(clause = "is_deleted = false")
 public class Remboursement extends Model {
 
     @Id
