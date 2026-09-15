@@ -2,6 +2,8 @@ package com.immobilier.gestionImmobiliere.modules.medias.services;
 
 import com.immobilier.gestionImmobiliere.donnees.medias.model.TypeEntiteMedia;
 import com.immobilier.gestionImmobiliere.donnees.medias.repository.MediaRepository;
+import com.immobilier.gestionImmobiliere.donnees.parametres.model.CleParametre;
+import com.immobilier.gestionImmobiliere.modules.parametres.services.ParametreService;
 import io.minio.ListObjectsArgs;
 import io.minio.MinioClient;
 import io.minio.RemoveObjectArgs;
@@ -27,6 +29,7 @@ public class MediaReconciliationService {
     private final MinioClient minioClient;
     private final MediaRepository mediaRepository;
     private final FileStorageService fileStorageService;
+    private final ParametreService parametreService;
 
     @Value("${app.minio.bucket-medias-public}")
     private String bucketPublic;
@@ -34,15 +37,14 @@ public class MediaReconciliationService {
     @Value("${app.minio.bucket-medias-prive}")
     private String bucketPrive;
 
-    @Value("${app.medias.retention-jours:30}")
-    private int retentionJours;
 
     public MediaReconciliationService(@Qualifier("minioClient") MinioClient minioClient,
                                       MediaRepository mediaRepository,
-                                      FileStorageService fileStorageService) {
+                                      FileStorageService fileStorageService, ParametreService parametreService) {
         this.minioClient = minioClient;
         this.mediaRepository = mediaRepository;
         this.fileStorageService = fileStorageService;
+        this.parametreService = parametreService;
     }
 
     /**
@@ -91,7 +93,8 @@ public class MediaReconciliationService {
      */
     @Transactional
     public void purgerMediasSupprimes() {
-        LocalDateTime seuil = LocalDateTime.now().minusDays(retentionJours);
+        int tolerance = parametreService.getEntier(CleParametre.TOLERANCE_LOCATION_JOURS, 30);
+        LocalDateTime seuil = LocalDateTime.now().minusDays(tolerance);
         List<Object[]> candidats = mediaRepository.findCandidatsPurge(seuil);
 
         int purges = 0;
@@ -112,6 +115,6 @@ public class MediaReconciliationService {
             }
         }
 
-        log.info("Purge médias : {} média(s) définitivement supprimé(s) (rétention {} jours)", purges, retentionJours);
+        log.info("Purge médias : {} média(s) définitivement supprimé(s) (rétention {} jours)", purges, tolerance);
     }
 }

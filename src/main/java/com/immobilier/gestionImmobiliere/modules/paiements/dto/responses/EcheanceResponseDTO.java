@@ -17,5 +17,6 @@ public class EcheanceResponseDTO {
     private String moisLibelle;
     private BigDecimal montantDu;
     private BigDecimal montantPaye;
+    private BigDecimal penalite;
     private StatutEcheance statut;
 }

@@ -58,7 +58,7 @@ public interface EcheanceLoyerRepository extends JpaRepository<EcheanceLoyer, In
 
     @Query(value = "SELECT u.id_user AS idLocataire, u.nom || ' ' || u.prenom AS nomComplet, " +
             "COUNT(e.id_echeance) FILTER (WHERE e.statut = 'EN_RETARD') AS nbEnRetard, " +
-            "SUM(e.montant_du - e.montant_paye) AS montantDu " +
+            "SUM((e.montant_du + e.penalite) - e.montant_paye) AS montantDu " +
             "FROM echeance_loyer e " +
             "JOIN contra_location cl ON cl.id_contra_location = e.entite_echeance_id AND e.entite_echeance_type = 'LOCATION' " +
             "JOIN users u ON u.id_user = cl.id_user " +
@@ -66,7 +66,7 @@ public interface EcheanceLoyerRepository extends JpaRepository<EcheanceLoyer, In
             "AND e.statut NOT IN ('PAYE', 'ANNULE') " +
             "AND e.is_deleted = false " +
             "GROUP BY u.id_user, u.nom, u.prenom " +
-            "HAVING SUM(e.montant_du - e.montant_paye) > 0 " +
+            "HAVING SUM((e.montant_du + e.penalite) - e.montant_paye) > 0 " +
             "ORDER BY montantDu DESC", nativeQuery = true)
     List<Object[]> locatairesEnCreance();
 

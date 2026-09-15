@@ -9,10 +9,12 @@ import com.immobilier.gestionImmobiliere.donnees.paiements.model.SensPaiement;
 import com.immobilier.gestionImmobiliere.donnees.paiements.model.StatutEcheance;
 import com.immobilier.gestionImmobiliere.donnees.paiements.model.TypeEcheance;
 import com.immobilier.gestionImmobiliere.donnees.paiements.repository.EcheanceLoyerRepository;
+import com.immobilier.gestionImmobiliere.donnees.parametres.model.CleParametre;
 import com.immobilier.gestionImmobiliere.exceptions.ResourceNotFoundException;
 import com.immobilier.gestionImmobiliere.modules.paiements.dto.requests.ConfirmerVirementDTO;
 import com.immobilier.gestionImmobiliere.modules.paiements.dto.responses.EcheanceMandatResponseDTO;
 import com.immobilier.gestionImmobiliere.modules.paiements.dto.responses.EcheanceResponseDTO;
+import com.immobilier.gestionImmobiliere.modules.parametres.services.ParametreService;
 import com.immobilier.gestionImmobiliere.utils.DateUtils;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Value;
@@ -35,22 +37,18 @@ import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.build
 @Service
 public class EcheanceService {
 
-    @Value("${app.tolerance-location-jours}")
-    private int TOLERANCE_LOCATION_JOURS;
-
-    @Value("${app.tolerance-mandat-jours}")
-    private int TOLERANCE_MANDAT_JOURS;
-
     private final EcheanceLoyerRepository echeanceRepository;
     private final ContratLocationRepository contratLocationRepository;
     private final ContratMandatRepository contratMandatRepository;
     private final PaiementService paiementService;
+    private final ParametreService parametreService;
 
-    public EcheanceService(EcheanceLoyerRepository echeanceRepository, ContratLocationRepository contratLocationRepository, ContratMandatRepository contratMandatRepository, PaiementService paiementService) {
+    public EcheanceService(EcheanceLoyerRepository echeanceRepository, ContratLocationRepository contratLocationRepository, ContratMandatRepository contratMandatRepository, PaiementService paiementService, ParametreService parametreService) {
         this.echeanceRepository = echeanceRepository;
         this.contratLocationRepository = contratLocationRepository;
         this.contratMandatRepository = contratMandatRepository;
         this.paiementService = paiementService;
+        this.parametreService = parametreService;
     }
 
     // Remplace getAll() par une version filtrée par rôle
@@ -143,16 +141,22 @@ public class EcheanceService {
      */
     @Transactional
     public void marquerEcheanceLocationEnRetard() {
-        LocalDate seuil = LocalDate.now().minusDays(TOLERANCE_LOCATION_JOURS);
+        int tolerance = parametreService.getEntier(CleParametre.TOLERANCE_LOCATION_JOURS, 4);
+        LocalDate seuil = LocalDate.now().minusDays(tolerance);
         List<EcheanceLoyer> expirees = echeanceRepository.findByEntiteEcheanceTypeAndStatutAndDateEcheanceBefore(TypeEcheance.LOCATION,StatutEcheance.EN_ATTENTE, seuil);
-        expirees.forEach(e -> e.setStatut(StatutEcheance.EN_RETARD));
+        //expirees.forEach(e -> e.setStatut(StatutEcheance.EN_RETARD));
+        BigDecimal montantPenalite = parametreService.getDecimal(CleParametre.PENALITE_RETARD_MONTANT, BigDecimal.ZERO);
+        for (EcheanceLoyer e : expirees) {
+            e.setStatut(StatutEcheance.EN_RETARD);
+            e.setPenalite(montantPenalite);
+        }
         echeanceRepository.saveAll(expirees);
-        //return expirees.size();
     }
 
     @Transactional
     public void marquerEcheanceMandatEnRetard() {
-        LocalDate seuil = LocalDate.now().minusDays(TOLERANCE_MANDAT_JOURS);
+        int tolerance = parametreService.getEntier(CleParametre.TOLERANCE_MANDAT_JOURS, 10);
+        LocalDate seuil = LocalDate.now().minusDays(tolerance);
         List<EcheanceLoyer> expirees =
                 echeanceRepository.
                         findByEntiteEcheanceTypeAndStatutAndDateEcheanceBefore(TypeEcheance.MANDAT,StatutEcheance.EN_ATTENTE, seuil);
@@ -276,6 +280,7 @@ public class EcheanceService {
                 .moisLibelle(moisLibelle)
                 .montantDu(e.getMontantDu())
                 .montantPaye(e.getMontantPaye())
+                .penalite(e.getPenalite())
                 .statut(e.getStatut())
                 .build();
     }

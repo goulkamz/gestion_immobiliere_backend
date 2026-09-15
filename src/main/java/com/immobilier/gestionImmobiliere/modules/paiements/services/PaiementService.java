@@ -101,7 +101,8 @@ public class PaiementService {
                 throw new EcheanceDejaPayeeException(e.getIdEcheance());
             }
             BigDecimal dejaPaye = e.getMontantPaye() != null ? e.getMontantPaye() : BigDecimal.ZERO;
-            totalResteDu = totalResteDu.add(e.getMontantDu().subtract(dejaPaye));
+            BigDecimal penalite = e.getPenalite() != null ? e.getPenalite() : BigDecimal.ZERO;
+            totalResteDu = totalResteDu.add(e.getMontantDu().add(penalite).subtract(dejaPaye));
         }
 
         BigDecimal tolerance = new BigDecimal("0.01");
@@ -125,8 +126,9 @@ public class PaiementService {
             if (montantRestant.signum() <= 0) break;
 
             BigDecimal dejaPaye = e.getMontantPaye() != null ? e.getMontantPaye() : BigDecimal.ZERO;
-            BigDecimal resteDu = e.getMontantDu().subtract(dejaPaye);
-            if (resteDu.signum() <= 0) continue;
+            BigDecimal penalite = e.getPenalite() != null ? e.getPenalite() : BigDecimal.ZERO;
+            BigDecimal resteDu = e.getMontantDu().add(penalite).subtract(dejaPaye);
+            if (resteDu.compareTo(BigDecimal.ZERO) <= 0) continue;
 
             BigDecimal montantApplique = montantRestant.min(resteDu);
             e.setMontantPaye(dejaPaye.add(montantApplique));

@@ -37,6 +37,7 @@ DROP TABLE IF EXISTS pending_registration CASCADE;
 DROP TABLE IF EXISTS password_reset_token CASCADE;
 DROP TABLE IF EXISTS remboursement CASCADE;
 DROP TABLE IF EXISTS decompte_sortie CASCADE;
+DROP TABLE IF EXISTS parametre_systeme CASCADE;
 
 DROP SEQUENCE IF EXISTS seq_annonce CASCADE;
 DROP SEQUENCE IF EXISTS seq_bien_service CASCADE;
@@ -64,6 +65,7 @@ DROP SEQUENCE IF EXISTS seq_password_reset_token CASCADE;
 DROP SEQUENCE IF EXISTS seq_paiement_echeance CASCADE;
 DROP SEQUENCE IF EXISTS seq_remboursement CASCADE;
 DROP SEQUENCE IF EXISTS seq_decompte_sortie CASCADE;
+DROP SEQUENCE IF EXISTS seq_parametre CASCADE;
 
 -- ==============================================================
 -- Séquences
@@ -94,6 +96,7 @@ CREATE SEQUENCE seq_password_reset_token START 1;
 CREATE SEQUENCE seq_paiement_echeance START 1;
 CREATE SEQUENCE seq_remboursement START 1;
 CREATE SEQUENCE seq_decompte_sortie START 1;
+CREATE SEQUENCE seq_parametre START 1;
 
 -- ==============================================================
 -- Types ENUM
@@ -452,6 +455,7 @@ CREATE TABLE echeance_loyer (
     montant_du DECIMAL(15,2),
     montant_paye DECIMAL(15,2),
     commission_deduite DECIMAL(15,2),
+    penalite NUMERIC NOT NULL DEFAULT 0,
     statut VARCHAR(254),
     user_create INTEGER,
     user_update INTEGER,
@@ -621,6 +625,19 @@ CREATE TABLE decompte_sortie (
     CONSTRAINT fk_decompte_paiement FOREIGN KEY (id_paiement) REFERENCES paiement(id_paiement)
 );
 
+CREATE TABLE parametre_systeme (
+    id_parametre INTEGER PRIMARY KEY DEFAULT nextval('seq_parametre'),
+    cle VARCHAR(100) NOT NULL UNIQUE,
+    valeur VARCHAR(254) NOT NULL,
+    type_valeur VARCHAR(20) NOT NULL DEFAULT 'TEXTE',
+    description VARCHAR(500),
+    user_update INTEGER,
+    created_at TIMESTAMP(6) DEFAULT NOW(),
+    updated_at TIMESTAMP(6) DEFAULT NOW(),
+    is_deleted BOOLEAN DEFAULT FALSE,
+    CONSTRAINT chk_type_valeur_parametre CHECK (type_valeur IN ('ENTIER', 'DECIMAL', 'BOOLEEN', 'TEXTE'))
+);
+
 -- ==============================================================
 -- Index
 -- ==============================================================
@@ -662,6 +679,7 @@ CREATE INDEX idx_journal_user ON journal_operation(id_user);
 CREATE INDEX idx_plbs_location ON paiement_location_bien_service(id_location_bien_service);
 CREATE INDEX idx_plbs_paiement ON paiement_location_bien_service(id_paiement);
 CREATE INDEX idx_remboursement_entite ON remboursement(entite_type, entite_id);
+CREATE INDEX idx_parametre_cle ON parametre_systeme(cle);
 
 -- ==============================================================
 -- Données initiales (rôles)

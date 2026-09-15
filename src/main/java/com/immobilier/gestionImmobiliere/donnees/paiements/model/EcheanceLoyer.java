@@ -45,6 +45,10 @@ public class EcheanceLoyer extends Model {
     @Column(name = "commission_deduite")
     private BigDecimal commissionDeduite;
 
+    @Column(name = "penalite", nullable = false)
+    @Builder.Default
+    private BigDecimal penalite = BigDecimal.ZERO;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "statut")
     private StatutEcheance statut;
