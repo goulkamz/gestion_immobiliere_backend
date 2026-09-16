@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.paiements.services;
 
+import com.immobilier.gestionImmobiliere.donnees.biens.repository.LocationBienServiceRepository;
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.ContratLocation;
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.ContratMandat;
 import com.immobilier.gestionImmobiliere.donnees.contrats.repository.ContratLocationRepository;
@@ -8,6 +9,7 @@ import com.immobilier.gestionImmobiliere.donnees.paiements.model.EcheanceLoyer;
 import com.immobilier.gestionImmobiliere.donnees.paiements.model.TypeEcheance;
 import com.immobilier.gestionImmobiliere.donnees.paiements.repository.EcheanceLoyerRepository;
 import com.immobilier.gestionImmobiliere.donnees.paiements.repository.PaiementEcheanceRepository;
+import com.immobilier.gestionImmobiliere.donnees.paiements.repository.PaiementLocationBienServiceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -21,6 +23,8 @@ public class PaiementOwnershipResolver {
     private final EcheanceLoyerRepository echeanceRepository;
     private final ContratMandatRepository contratMandatRepository;
     private final ContratLocationRepository contratLocationRepository;
+    private final PaiementLocationBienServiceRepository paiementLocationBienServiceRepository;
+    private final LocationBienServiceRepository locationBienServiceRepository;
 
     // isBailleur=true -> vérifie côté bailleur (mandat ou location sur ses biens)
     // isBailleur=false -> vérifie côté client (locataire de la location)
@@ -49,5 +53,17 @@ public class PaiementOwnershipResolver {
             }
         }
         return false;
+    }
+
+    /**
+     * Vérifie l'accès côté biens/services : le client est celui qui a
+     * initié la location associée à ce paiement (INITIAL ou PROLONGATION).
+     */
+    public boolean isPaiementAccessibleBienService(Integer idPaiement, Integer currentUserId) {
+        return paiementLocationBienServiceRepository.findByIdPaiement(idPaiement).stream()
+                .anyMatch(pl -> {
+                    var location = locationBienServiceRepository.findById(pl.getIdLocationBienService()).orElse(null);
+                    return location != null && location.getClient().getIdUser().equals(currentUserId);
+                });
     }
 }

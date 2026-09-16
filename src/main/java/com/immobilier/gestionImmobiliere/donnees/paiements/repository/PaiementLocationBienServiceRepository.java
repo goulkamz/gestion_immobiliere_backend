@@ -18,6 +18,8 @@ public interface PaiementLocationBienServiceRepository extends JpaRepository<Pai
             "JOIN pl.paiement p WHERE pl.idLocationBienService = :idLocation")
     BigDecimal sumMontantByLocation(@Param("idLocation") Integer idLocation);
 
+    List<PaiementLocationBienService> findByIdPaiement(Integer idPaiement);
+
     //Statistiques PaiementLocationBienServiceRepository
 
     @Query("SELECT COALESCE(SUM(p.montantPaiement),0) AS total FROM PaiementLocationBienService pl JOIN pl.paiement p")

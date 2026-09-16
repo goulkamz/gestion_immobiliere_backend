@@ -38,6 +38,7 @@ DROP TABLE IF EXISTS password_reset_token CASCADE;
 DROP TABLE IF EXISTS remboursement CASCADE;
 DROP TABLE IF EXISTS decompte_sortie CASCADE;
 DROP TABLE IF EXISTS parametre_systeme CASCADE;
+DROP TABLE IF EXISTS document CASCADE;
 
 DROP SEQUENCE IF EXISTS seq_annonce CASCADE;
 DROP SEQUENCE IF EXISTS seq_bien_service CASCADE;
@@ -66,6 +67,7 @@ DROP SEQUENCE IF EXISTS seq_paiement_echeance CASCADE;
 DROP SEQUENCE IF EXISTS seq_remboursement CASCADE;
 DROP SEQUENCE IF EXISTS seq_decompte_sortie CASCADE;
 DROP SEQUENCE IF EXISTS seq_parametre CASCADE;
+DROP SEQUENCE IF EXISTS seq_document CASCADE;
 
 -- ==============================================================
 -- Séquences
@@ -97,6 +99,7 @@ CREATE SEQUENCE seq_paiement_echeance START 1;
 CREATE SEQUENCE seq_remboursement START 1;
 CREATE SEQUENCE seq_decompte_sortie START 1;
 CREATE SEQUENCE seq_parametre START 1;
+CREATE SEQUENCE seq_document START 1;
 
 -- ==============================================================
 -- Types ENUM
@@ -602,6 +605,9 @@ CREATE TABLE remboursement (
     )
 );
 
+-- ==============================================================
+-- Table: decompte_sortie
+-- ==============================================================
 CREATE TABLE decompte_sortie (
     id_decompte INTEGER PRIMARY KEY DEFAULT nextval('seq_decompte_sortie'),
     id_contrat_location INTEGER NOT NULL,
@@ -625,6 +631,9 @@ CREATE TABLE decompte_sortie (
     CONSTRAINT fk_decompte_paiement FOREIGN KEY (id_paiement) REFERENCES paiement(id_paiement)
 );
 
+-- ==============================================================
+-- Table: parametre_systeme
+-- ==============================================================
 CREATE TABLE parametre_systeme (
     id_parametre INTEGER PRIMARY KEY DEFAULT nextval('seq_parametre'),
     cle VARCHAR(100) NOT NULL UNIQUE,
@@ -636,6 +645,22 @@ CREATE TABLE parametre_systeme (
     updated_at TIMESTAMP(6) DEFAULT NOW(),
     is_deleted BOOLEAN DEFAULT FALSE,
     CONSTRAINT chk_type_valeur_parametre CHECK (type_valeur IN ('ENTIER', 'DECIMAL', 'BOOLEEN', 'TEXTE'))
+);
+
+-- ==============================================================
+-- Table: document
+-- ==============================================================
+CREATE TABLE document (
+    id_document INTEGER PRIMARY KEY DEFAULT nextval('seq_document'),
+    type_document VARCHAR(50) NOT NULL,
+    entite_type VARCHAR(50),
+    entite_id INTEGER,
+    periode_mois DATE,
+    chemin_fichier VARCHAR(254) NOT NULL,
+    user_create INTEGER,
+    created_at TIMESTAMP(6) DEFAULT NOW(),
+    updated_at TIMESTAMP(6) DEFAULT NOW(),
+    is_deleted BOOLEAN DEFAULT FALSE
 );
 
 -- ==============================================================
@@ -680,6 +705,8 @@ CREATE INDEX idx_plbs_location ON paiement_location_bien_service(id_location_bie
 CREATE INDEX idx_plbs_paiement ON paiement_location_bien_service(id_paiement);
 CREATE INDEX idx_remboursement_entite ON remboursement(entite_type, entite_id);
 CREATE INDEX idx_parametre_cle ON parametre_systeme(cle);
+CREATE INDEX idx_document_entite ON document(entite_type, entite_id);
+CREATE INDEX idx_document_type ON document(type_document);
 
 -- ==============================================================
 -- Données initiales (rôles)
