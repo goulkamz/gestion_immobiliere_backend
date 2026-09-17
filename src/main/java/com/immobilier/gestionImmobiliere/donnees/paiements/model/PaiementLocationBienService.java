@@ -1,6 +1,6 @@
 package com.immobilier.gestionImmobiliere.donnees.paiements.model;
 
-import com.immobilier.gestionImmobiliere.donnees.Model;
+import com.immobilier.gestionImmobiliere.donnees.Model_1;
 import com.immobilier.gestionImmobiliere.donnees.biens.model.LocationBienService;
 import jakarta.persistence.*;
 import lombok.*;
@@ -15,9 +15,9 @@ import java.io.Serializable;
 @Table(name = "paiement_location_bien_service")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @SuperBuilder
 @IdClass(PaiementLocationBienService.PaiementLocationId.class)
-@SQLDelete(sql = "UPDATE paiement_location_bien_service SET is_deleted = true WHERE id_location_bien_service = ?")
+@SQLDelete(sql = "UPDATE paiement_location_bien_service SET is_deleted = true WHERE id_location_bien_service = ? AND id_paiment = ?")
 @Where(clause = "is_deleted = false")
-public class PaiementLocationBienService {
+public class PaiementLocationBienService extends Model_1 {
 
     @Id
     @Column(name = "id_location_bien_service")
@@ -38,7 +38,7 @@ public class PaiementLocationBienService {
     @Enumerated(EnumType.STRING)
     @Column(name = "type_paiement", nullable = false)
     @Builder.Default
-    private TypePaiementLocationBienService typePaiement = TypePaiementLocationBienService.INITIAL;
+    private TypePaiementLocationBienService typePaiement = TypePaiementLocationBienService.NORMAL;
 
     // Classe imbriquée manquante : représente la clé primaire composite
     @Data

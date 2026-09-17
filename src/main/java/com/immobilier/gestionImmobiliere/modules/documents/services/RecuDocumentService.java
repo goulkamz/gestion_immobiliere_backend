@@ -130,7 +130,7 @@ public class RecuDocumentService {
                 ajouterLigne(table, "Période",
                         location.getDateDebut().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + " au " +
                                 location.getDateFin().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
-                ajouterLigne(table, "Nature du versement", lien.getTypePaiement().name()); // INITIAL ou PROLONGATION
+                ajouterLigne(table, "Nature du versement", lien.getTypePaiement().name()); // NORMAL ou PROLONGATION
             }
         }
 

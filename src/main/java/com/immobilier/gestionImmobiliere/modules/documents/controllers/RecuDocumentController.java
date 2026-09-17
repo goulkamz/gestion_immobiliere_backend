@@ -16,7 +16,7 @@ public class RecuDocumentController implements RecuDocumentAPI {
         this.recuDocumentService = recuDocumentService;
     }
 
-    @PreAuthorize("hasAnyRole('AGENT','ADMIN','CLIENT')" +
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')" +
             "or @paiementOwnershipResolver.isPaiementAccessible(#idPaiement, authentication.principal.idUser, false) " +
             "or @paiementOwnershipResolver.isPaiementAccessible(#idPaiement, authentication.principal.idUser, true)" +
             "or @paiementOwnershipResolver.isPaiementAccessibleBienService(#idPaiement, authentication.principal.idUser)")

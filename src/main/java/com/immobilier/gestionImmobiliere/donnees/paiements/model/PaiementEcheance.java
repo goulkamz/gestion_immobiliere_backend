@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.donnees.paiements.model;
 
+import com.immobilier.gestionImmobiliere.donnees.Model_1;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -12,10 +13,10 @@ import java.io.Serializable;
 @Table(name = "paiement_echeance")
 @Data @SuperBuilder
 @NoArgsConstructor @AllArgsConstructor
-@SQLDelete(sql = "UPDATE paiement_echeance SET is_deleted = true WHERE id_echeance = ?")
+@SQLDelete(sql = "UPDATE paiement_echeance SET is_deleted = true WHERE id_echeance = ? AND id_paiement = ?")
 @Where(clause = "is_deleted = false")
 @IdClass(PaiementEcheance.PaiementEcheanceId.class)
-public class PaiementEcheance {
+public class PaiementEcheance extends Model_1 {
 
     @Id
     @Column(name = "id_echeance")

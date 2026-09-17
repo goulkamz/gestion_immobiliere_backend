@@ -28,7 +28,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -166,7 +165,7 @@ public class LocationBienServiceService {
                 .idLocationBienService(location.getIdLocationBienService())
                 .idPaiement(paiement.getIdPaiement())
                 .paiement(paiement)
-                .typePaiement(TypePaiementLocationBienService.INITIAL)
+                .typePaiement(TypePaiementLocationBienService.NORMAL)
                 .build());
 
         // Ajustement des dates si l'agent les a modifiées au comptoir

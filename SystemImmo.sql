@@ -566,6 +566,9 @@ CREATE TABLE reservation_maison (
 CREATE TABLE paiement_echeance (
     id_echeance INTEGER NOT NULL,
     id_paiement INTEGER NOT NULL,
+    created_at TIMESTAMP(6) DEFAULT NOW(),
+    updated_at TIMESTAMP(6) DEFAULT NOW(),
+    is_deleted BOOLEAN DEFAULT FALSE,
     PRIMARY KEY (id_echeance, id_paiement),
     CONSTRAINT fk_paiement_echeance_echeance FOREIGN KEY (id_echeance) REFERENCES echeance_loyer(id_echeance),
     CONSTRAINT fk_paiement_echeance_paiement FOREIGN KEY (id_paiement) REFERENCES paiement(id_paiement)
@@ -578,6 +581,9 @@ CREATE TABLE paiement_location_bien_service (
     id_location_bien_service INTEGER NOT NULL,
     id_paiement INTEGER NOT NULL,
     type_paiement VARCHAR(254) NOT NULL DEFAULT 'INITIAL', -- INITIAL, PROLONGATION
+    created_at TIMESTAMP(6) DEFAULT NOW(),
+    updated_at TIMESTAMP(6) DEFAULT NOW(),
+    is_deleted BOOLEAN DEFAULT FALSE,
     PRIMARY KEY (id_location_bien_service, id_paiement),
     CONSTRAINT fk_plbs_location FOREIGN KEY (id_location_bien_service) REFERENCES location_bien_service(id_location_bien_service),
     CONSTRAINT fk_plbs_paiement FOREIGN KEY (id_paiement) REFERENCES paiement(id_paiement)
