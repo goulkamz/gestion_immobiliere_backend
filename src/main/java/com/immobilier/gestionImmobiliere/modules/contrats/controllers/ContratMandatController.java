@@ -30,7 +30,7 @@ public class ContratMandatController implements ContratMandatAPI {
     }
 
     @Override
-    @PreAuthorize("hasAnyRole('ADMIN','AGENT') or @mandatSecurity.isProprietaireCour(#id, authentication.principal.idUser)")
+    @PreAuthorize("hasAnyRole('ADMIN','AGENT') or @contratMandatSecurity.isProprietaireCour(#id, authentication.principal.idUser)")
     public ResponseEntity<?> getById(Integer id, @AuthenticationPrincipal UserDetailsImpl currentUser) {
         return mandatService.getByIdForCurrentUser(id, currentUser.getIdUser(),
                 currentUser.hasAnyRole("ADMIN", "AGENT"));

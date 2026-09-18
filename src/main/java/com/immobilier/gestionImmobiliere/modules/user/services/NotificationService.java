@@ -16,9 +16,12 @@ public class NotificationService {
     @Value("${app.base-url}")
     private String baseUrl;
 
+    @Value("${spring.mail.from}")
+    private String mailFrom;
+
     private void sendEmail(String to, String subject, String body) {
         SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom("goulkamz@gmail.com");
+        message.setFrom(mailFrom);
         message.setTo(to);
         message.setSubject(subject);
         message.setText(body);

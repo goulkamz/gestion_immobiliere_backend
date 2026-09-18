@@ -88,15 +88,15 @@ services:
       timeout: 5s
       retries: 5
 
-  mailhog:
-    image: mailhog/mailhog:latest
-    container_name: gestion-immo-mailhog
-    ports:
-      - "1025:1025"
-      - "8025:8025"
-    networks:
-      - immobiliere-network
-    restart: unless-stopped
+#  mail:
+#    image: mailhog/mailhog:latest
+#    container_name: gestion-immo-mailhog
+#    ports:
+#      - "1025:1025"
+#      - "8025:8025"
+#    networks:
+#      - immobiliere-network
+#    restart: unless-stopped
 
   backend:
     build:
@@ -143,6 +143,7 @@ services:
       - SPRING_MAIL_PORT=${MAIL_PORT}
       - SPRING_MAIL_USERNAME=${MAIL_USERNAME}
       - SPRING_MAIL_PASSWORD=${MAIL_PASSWORD}
+      - SPRING_MAIL_FROM=${MAIL_FROM}
       - SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH=${MAIL_PROPERTIES_MAIL_SMTP_AUTH}
       - SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE=${MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE}
 
@@ -180,8 +181,6 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
-      mailhog:
-        condition: service_started
     restart: unless-stopped
     networks:
       - immobiliere-network
