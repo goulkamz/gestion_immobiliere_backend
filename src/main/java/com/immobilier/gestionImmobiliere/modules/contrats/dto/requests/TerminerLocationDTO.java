@@ -13,8 +13,7 @@ public class TerminerLocationDTO {
     @NotBlank(message = "L'etat des lieux est obligatoire")
     private String etatDesLieuxSortie;
     private LocalDateTime dateSortie;
-    @NotBlank(message = "Les frais sont obligatoires")
-    @NotNull
+    @NotNull(message = "Les frais sont obligatoires")
     @PositiveOrZero
     private BigDecimal fraisReparation;
 }
