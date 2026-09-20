@@ -47,6 +47,16 @@ public interface EcheanceLoyerRepository extends JpaRepository<EcheanceLoyer, In
             "AND statut NOT IN ('PAYE', 'ANNULE') AND is_deleted = false", nativeQuery = true)
     BigDecimal sumArrieresParContrat(@Param("idContrat") Integer idContrat);
 
+    @Query(value = "SELECT COALESCE(SUM(montant_paye), 0) FROM echeance_loyer " +
+            "WHERE entite_echeance_type = 'LOCATION' AND is_deleted = false " +
+            "AND DATE_TRUNC('month', date_echeance) = DATE_TRUNC('month', CAST(:periode AS date))", nativeQuery = true)
+    BigDecimal sumLoyersEncaissesDuMois(@Param("periode") LocalDate periode);
+
+    @Query(value = "SELECT COALESCE(SUM(penalite), 0) FROM echeance_loyer " +
+            "WHERE entite_echeance_type = 'LOCATION' AND statut = 'PAYE' AND is_deleted = false " +
+            "AND DATE_TRUNC('month', date_echeance) = DATE_TRUNC('month', CAST(:periode AS date))", nativeQuery = true)
+    BigDecimal sumPenalitesEncaisseesDuMois(@Param("periode") LocalDate periode);
+
     // Statistiques echeanceLoyerRepository
 
     @Query("SELECT COALESCE(SUM(e.montantDu),0) AS montantDu, COALESCE(SUM(e.montantPaye),0) AS montantPaye FROM EcheanceLoyer e WHERE e.isDeleted = false")
@@ -73,12 +83,12 @@ public interface EcheanceLoyerRepository extends JpaRepository<EcheanceLoyer, In
     @Query(value = "SELECT COALESCE(SUM(montant_du), 0) FROM echeance_loyer " +
             "WHERE entite_echeance_type = 'MANDAT' AND is_deleted = false " +
             "AND DATE_TRUNC('month', date_echeance) = DATE_TRUNC('month', CAST(:periode AS date))", nativeQuery = true)
-    Double sumMontantDuAuxBailleursDuMois(@Param("periode") LocalDate periode);
+    BigDecimal sumMontantDuAuxBailleursDuMois(@Param("periode") LocalDate periode);
 
     @Query(value = "SELECT COALESCE(SUM(commission_deduite), 0) FROM echeance_loyer " +
             "WHERE entite_echeance_type = 'MANDAT' AND is_deleted = false " +
             "AND DATE_TRUNC('month', date_echeance) = DATE_TRUNC('month', CAST(:periode AS date))", nativeQuery = true)
-    Double sumCommissionAgenceDuMois(@Param("periode") LocalDate periode);
+    BigDecimal sumCommissionAgenceDuMois(@Param("periode") LocalDate periode);
 
     @Query(value = "SELECT u.id_user AS idBailleur, u.nom || ' ' || u.prenom AS nomComplet, " +
             "e.date_echeance AS periode, e.montant_du AS montantDu " +
@@ -90,7 +100,7 @@ public interface EcheanceLoyerRepository extends JpaRepository<EcheanceLoyer, In
             "ORDER BY e.date_echeance ASC", nativeQuery = true)
     List<Object[]> bailleursCreanciers();
 
-    // EcheanceLoyerRepository — retard, tous types confondus, pour un agent
+    // Retard, tous types confondus, pour un agent
     @Query(value = "SELECT e.id_echeance, e.entite_echeance_type, " +
             "CASE WHEN e.entite_echeance_type = 'LOCATION' " +
             "     THEN m.nom_commun_maison || ' - ' || u.nom || ' ' || u.prenom " +

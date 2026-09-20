@@ -1,6 +1,7 @@
 package com.immobilier.gestionImmobiliere.configurations;
 
 import com.immobilier.gestionImmobiliere.modules.annonces.services.AnnonceService;
+import com.immobilier.gestionImmobiliere.modules.documents.services.RapportMensuelDocumentService;
 import com.immobilier.gestionImmobiliere.modules.medias.services.MediaReconciliationService;
 import com.immobilier.gestionImmobiliere.modules.paiements.services.EcheanceGenerationService;
 import com.immobilier.gestionImmobiliere.modules.paiements.services.EcheanceService;
@@ -11,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+
+import java.time.LocalDate;
 
 @Component
 @EnableScheduling
@@ -24,6 +27,7 @@ public class Scheduler {
     private final AnnonceService annonceService;
     private final EcheanceService echeanceService;
     private final EcheanceGenerationService echeanceGenerationService;
+    private final RapportMensuelDocumentService rapportMensuelDocumentService;
 
     // Nettoyage tous les jours a 2h du matin
     @Scheduled(cron = "0 0 2 * * *")
@@ -79,5 +83,16 @@ public class Scheduler {
     @Scheduled(cron = "0 10 0 1 1 *")
     public void regenererEcheancesFinAnnee() {
         echeanceGenerationService.regenererEcheancesAnnuellesLocations();
+    }
+
+    /**
+     * Le 15 du mois à 6h — on suppose que tous les paiements/virements du
+     * mois sont déjà effectués à cette heure. userCreate=null indique une
+     * génération système, pas une action manuelle d'un admin.
+     */
+    @Scheduled(cron = "0 0 6 15 * *")
+    public void genererRapportDuMois() {
+        LocalDate moisEnCours = LocalDate.now().withDayOfMonth(1);
+        rapportMensuelDocumentService.genererOuRecuperer(moisEnCours, null);
     }
 }

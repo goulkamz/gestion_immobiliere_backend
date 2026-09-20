@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 public interface RemboursementRepository extends JpaRepository<Remboursement, Integer> {
@@ -29,4 +30,10 @@ public interface RemboursementRepository extends JpaRepository<Remboursement, In
             "WHERE r.entiteType = com.immobilier.gestionImmobiliere.donnees.paiements.model.TypeEntiteRemboursement.LOCATION_BIEN_SERVICE " +
             "AND l.client.idUser = :idClient AND r.isDeleted = false ORDER BY r.paiement.datePaiement DESC")
     List<Remboursement> findRemboursementsPourClient(@Param("idClient") Integer idClient);
+
+    @Query(value = "SELECT COALESCE(SUM(p.montant_paiement), 0) FROM remboursement r " +
+            "JOIN paiement p ON p.id_paiement = r.id_paiement " +
+            "WHERE r.is_deleted = false " +
+            "AND DATE_TRUNC('month', p.date_paiement) = DATE_TRUNC('month', CAST(:periode AS date))", nativeQuery = true)
+    BigDecimal sumRembourseDuMois(@Param("periode") LocalDate periode);
 }

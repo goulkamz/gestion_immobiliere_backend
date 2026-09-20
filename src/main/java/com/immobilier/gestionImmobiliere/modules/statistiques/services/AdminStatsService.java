@@ -170,8 +170,8 @@ public class AdminStatsService {
 
     public ResponseEntity<?> getGainAgenceDuMois(LocalDate periode) {
         LocalDate debutMois = (periode != null ? periode : LocalDate.now()).withDayOfMonth(1);
-        Double commissions = echeanceLoyerRepository.sumCommissionAgenceDuMois(debutMois);
-        Double montantDuBailleurs = echeanceLoyerRepository.sumMontantDuAuxBailleursDuMois(debutMois);
+        BigDecimal commissions = echeanceLoyerRepository.sumCommissionAgenceDuMois(debutMois);
+        BigDecimal montantDuBailleurs = echeanceLoyerRepository.sumMontantDuAuxBailleursDuMois(debutMois);
 
         GainAgenceDTO result = GainAgenceDTO.builder()
                 .periodeMois(DateUtils.nomMoisFrancais(debutMois) + " " + debutMois.getYear())
