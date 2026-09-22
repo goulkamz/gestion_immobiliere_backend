@@ -1,6 +1,7 @@
 package com.immobilier.gestionImmobiliere.modules.documents.services;
 
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.ContratLocation;
+import com.immobilier.gestionImmobiliere.donnees.contrats.model.StatutLocation;
 import com.immobilier.gestionImmobiliere.donnees.contrats.repository.ContratLocationRepository;
 import com.immobilier.gestionImmobiliere.donnees.paiements.repository.EcheanceLoyerRepository;
 import com.immobilier.gestionImmobiliere.exceptions.ResourceNotFoundException;
@@ -161,7 +162,7 @@ public class AttestationLoyerDocumentService {
         PdfPTable tableau = utils.creerTableauInfos();
         tableau.setSpacingAfter(20f);
 
-        String periode = contrat.getStatut().name().equals("ACTIF")
+        String periode = contrat.getStatut() == StatutLocation.ACTIF
                 ? "depuis le " + contrat.getDateEntree().format(FMT_DATE)
                 : "du " + contrat.getDateEntree().format(FMT_DATE)
                 + " au " + (contrat.getDateSortie() != null
@@ -204,11 +205,6 @@ public class AttestationLoyerDocumentService {
     private String construirePayloadQr(ContratLocation contrat, String numero, BigDecimal arrieres) throws Exception {
         String donnees = numero + "|" + contrat.getMaison().getNomCommunMaison() + "|" + contrat.getLocataire().getPrenom()+" "+contrat.getLocataire().getNom()
                 + "|" + LocalDate.now() + "|" +"arrieres : "+ arrieres.setScale(0, RoundingMode.HALF_UP);
-
-        //Mac mac = Mac.getInstance("HmacSHA256");
-        //mac.init(new SecretKeySpec(secretAttestation.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
-        //byte[] sig = mac.doFinal(donnees.getBytes(StandardCharsets.UTF_8));
-        //Base64.getUrlEncoder().withoutPadding().encodeToString(sig).substring(0, 12);
         String signature = utils.signer(donnees);
 
         return donnees + "|" + signature;
