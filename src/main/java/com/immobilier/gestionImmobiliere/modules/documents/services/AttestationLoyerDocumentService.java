@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import java.awt.*;
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
@@ -35,7 +36,7 @@ public class AttestationLoyerDocumentService {
     private final Utils utils;
 
     // ── Constantes SPÉCIFIQUES à ce document (le reste vient de Utils) ──────
-    private static final String URL_VERIFICATION_BASE = "https://gi.bf/verifier-attestation";
+    private static final String URL_VERIFICATION_BASE = "";
     private static final String TYPE_ATTESTATION      = "ATTESTATION_LOYER";
     private static final String PREFIXE_NUMERO        = "GI.BF-ATT";
     private static final String LOGO_PATH      = "/image/axios-logo.png";
@@ -83,7 +84,7 @@ public class AttestationLoyerDocumentService {
         Document document = new Document(PageSize.A4, 50, 50, 60, 60);
 
         String numero = genererNumero(contrat);
-        String hash   = utils.calculerHashLoyer(numero, contrat, arrieres);
+        String hash   = "";
 
         try {
             PdfWriter writer = PdfWriter.getInstance(document, out);
@@ -97,27 +98,28 @@ public class AttestationLoyerDocumentService {
 
             document.open();
 
-            // 1) Bandeau national (rouge/vert + étoile)
+            // Bandeau national (rouge/vert + étoile)
             utils.ajouterBandeauNational(document, writer);
 
-            // 2) En-tête institutionnel GI.BF
+            // En-tête institutionnel GI.BF
             utils.ajouterEntete(document);
 
-            // 3) Titre + sous-titre + séparateur
+            // Titre + sous-titre + séparateur
             utils.ajouterTitre(document,
                     "ATTESTATION DE LOYER",
                     "Agence Générale Immobilière GI.BF");
 
-            // 4) Corps
+            // Corps
             ajouterCorps(document, contrat, arrieres);
 
-            // 5) Signature
+            // Signature
             utils.ajouterSignature(document, "Ouagadougou",
                     "Le responsable de l'agence GI.BF");
 
-            // 6) Pied avec QR + numéro + hash
-            utils.ajouterPied(document, numero, hash,
-                    URL_VERIFICATION_BASE, TYPE_ATTESTATION);
+            // Pied avec QR + numéro + hash
+            String payload = construirePayloadQr(contrat, numero, arrieres);
+            utils.ajouterPied(document, "N° Attestation : "+numero, payload, URL_VERIFICATION_BASE, TYPE_ATTESTATION);
+
 
         } catch (Exception e) {
             log.error("Erreur génération PDF attestation de loyer", e);
@@ -199,6 +201,19 @@ public class AttestationLoyerDocumentService {
         document.add(conclusion);
     }
 
+    private String construirePayloadQr(ContratLocation contrat, String numero, BigDecimal arrieres) throws Exception {
+        String donnees = numero + "|" + contrat.getMaison().getNomCommunMaison() + "|" + contrat.getLocataire().getPrenom()+" "+contrat.getLocataire().getNom()
+                + "|" + LocalDate.now() + "|" +"arrieres : "+ arrieres.setScale(0, RoundingMode.HALF_UP);
+
+        //Mac mac = Mac.getInstance("HmacSHA256");
+        //mac.init(new SecretKeySpec(secretAttestation.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+        //byte[] sig = mac.doFinal(donnees.getBytes(StandardCharsets.UTF_8));
+        //Base64.getUrlEncoder().withoutPadding().encodeToString(sig).substring(0, 12);
+        String signature = utils.signer(donnees);
+
+        return donnees + "|" + signature;
+    }
+
     // ── Numérotation ──────────────────────────────────────────────────────────
 
     private String genererNumero(ContratLocation contrat) {
@@ -207,47 +222,4 @@ public class AttestationLoyerDocumentService {
                 LocalDate.now().getYear(),
                 UUID.randomUUID().toString().substring(0, 8).toUpperCase());
     }
-
-//    private byte[] genererPdf(ContratLocation contrat, BigDecimal arrieres) {
-//        PdfBuilder builder = new PdfBuilder("ATTESTATION DE LOYER");
-//
-//        var maison = contrat.getMaison();
-//        var cour = maison.getCour();
-//        var locataire = contrat.getLocataire();
-//        var bailleur = cour.getProprietaire();
-//        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-//
-//        builder.document.add(new Paragraph(
-//                "Je soussigné(e) " + bailleur.getNom() + " " + bailleur.getPrenom() +
-//                        ", bailleur, atteste que :")
-//                .setMarginTop(10));
-//
-//        builder.document.add(new Paragraph(
-//                locataire.getNom() + " " + locataire.getPrenom() +
-//                        (contrat.getStatut().name().equals("ACTIF")
-//                                ? " est locataire depuis le " + contrat.getDateEntree().format(fmt)
-//                                : " a été locataire du " + contrat.getDateEntree().format(fmt) +
-//                                " au " + (contrat.getDateSortie() != null ? contrat.getDateSortie().format(fmt) : "—")) +
-//                        " du logement suivant : " + maison.getNomCommunMaison() +
-//                        ", situé dans la cour " + cour.getReferenceCour() +
-//                        ", moyennant un loyer mensuel de " + contrat.getMontantLoyer() + " FCFA.")
-//                .setMarginTop(15));
-//
-//        String statutPaiement = arrieres.compareTo(BigDecimal.ZERO) > 0
-//                ? "présente à ce jour un solde impayé de " + arrieres + " FCFA."
-//                : "est à jour de ses paiements de loyer à la date de ce jour.";
-//
-//        builder.document.add(new Paragraph("À la date de ce document, le/la locataire " + statutPaiement)
-//                .setFontColor(arrieres.compareTo(BigDecimal.ZERO) > 0 ? ColorConstants.RED : ColorConstants.DARK_GRAY)
-//                .setMarginTop(15));
-//
-//        builder.document.add(new Paragraph(
-//                "Cette attestation est délivrée à la demande de l'intéressé(e) pour servir et valoir ce que de droit, " +
-//                        "à la date du " + LocalDate.now().format(fmt) + ".")
-//                .setFontSize(9).setMarginTop(25));
-//
-//        return builder.genererEtFermer();
-//    }
-
-
 }

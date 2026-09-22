@@ -1,6 +1,9 @@
 package com.immobilier.gestionImmobiliere.modules.documents.UtilsDocuments;
 
 
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.common.BitMatrix;
+import com.google.zxing.qrcode.QRCodeWriter;
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.ContratLocation;
 import org.openpdf.text.*;
 import org.openpdf.text.Font;
@@ -10,9 +13,11 @@ import org.openpdf.text.pdf.*;
 import java.awt.Color;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.io.ByteArrayOutputStream;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -20,9 +25,12 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Base64;
 
 @Component
 public class Utils {
+    @Value("${documents.secret}")
+    private String secretDocuments;
 
     private static final Logger log = LoggerFactory.getLogger(Utils.class);
     private static final DateTimeFormatter FMT_DATE = DateTimeFormatter.ofPattern("dd/MM/yyyy");
@@ -192,7 +200,7 @@ public class Utils {
             Font fontSousTitre = FontFactory.getFont(FontFactory.HELVETICA, 11, Font.ITALIC, COULEUR_ACCENT);
             Paragraph pSousTitre = new Paragraph(sousTitre, fontSousTitre);
             pSousTitre.setAlignment(Element.ALIGN_CENTER);
-            pSousTitre.setSpacingAfter(20f);
+            pSousTitre.setSpacingAfter(10f);
             document.add(pSousTitre);
         }
 
@@ -227,16 +235,27 @@ public class Utils {
     //  QR CODE
     // ═════════════════════════════════════════════════════════════════════════
 
+
     public Image genererQrCode(String url, float width, float height) throws Exception {
-        com.google.zxing.qrcode.QRCodeWriter writer =
-                new com.google.zxing.qrcode.QRCodeWriter();
-        var matrix = writer.encode(url,
-                com.google.zxing.BarcodeFormat.QR_CODE, 120, 120);
-        var bufferedImage = com.google.zxing.client.j2se.MatrixToImageWriter
-                .toBufferedImage(matrix);
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        javax.imageio.ImageIO.write(bufferedImage, "png", baos);
-        Image qr = Image.getInstance(baos.toByteArray());
+        QRCodeWriter writer = new QRCodeWriter();
+        BitMatrix matrix = writer.encode(url, BarcodeFormat.QR_CODE, 120, 120);
+        int w = matrix.getWidth();
+        int h = matrix.getHeight();
+
+        // Pixel manuel noir/blanc → pas de PixelGrabber (non fiable en headless),
+        // pas de PNG (bug de filtre scanline) : contrôle total du buffer
+        byte[] rgb = new byte[w * h * 3];
+        int idx = 0;
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                byte v = matrix.get(x, y) ? (byte) 0x00 : (byte) 0xFF;
+                rgb[idx++] = v;
+                rgb[idx++] = v;
+                rgb[idx++] = v;
+            }
+        }
+
+        Image qr = Image.getInstance(w, h, 3, 8, rgb);
         qr.scaleToFit(width, height);
         return qr;
     }
@@ -345,7 +364,7 @@ public class Utils {
     //  PIED DE PAGE
     // ═════════════════════════════════════════════════════════════════════════
 
-    public void ajouterPied(Document document, String numero, String hash,
+    public void ajouterPied(Document document, String numero, String donnees,
                             String urlVerificationBase, String typeAttestation)
             throws Exception {
 
@@ -354,10 +373,6 @@ public class Utils {
         Font fontPied   = FontFactory.getFont(FontFactory.HELVETICA, 8, Font.NORMAL, COULEUR_GRIS);
         Font fontNumero = FontFactory.getFont(FontFactory.HELVETICA, 8, Font.BOLD, COULEUR_ENTETE);
 
-        String url = urlVerificationBase
-                + "?type=" + typeAttestation
-                + "&numero=" + numero
-                + "&hash=" + hash;
 
         PdfPTable tablePied = new PdfPTable(2);
         tablePied.setWidthPercentage(100);
@@ -366,9 +381,7 @@ public class Utils {
         PdfPCell cellTexte = new PdfPCell();
         cellTexte.setPadding(8f);
         cellTexte.setBorder(Rectangle.NO_BORDER);
-        cellTexte.addElement(new Paragraph("N° Attestation : " + numero, fontNumero));
-        cellTexte.addElement(new Paragraph(
-                "Ce document peut être vérifié en scannant le QR code ci-contre", fontPied));
+        cellTexte.addElement(new Paragraph( numero, fontNumero));
         cellTexte.addElement(new Paragraph(
                 "Généré automatiquement par la plateforme de gestion immobilière GI.BF - Burkina Faso", fontPied));
         tablePied.addCell(cellTexte);
@@ -377,7 +390,7 @@ public class Utils {
         cellQr.setBorder(Rectangle.NO_BORDER);
         cellQr.setHorizontalAlignment(Element.ALIGN_CENTER);
         cellQr.setVerticalAlignment(Element.ALIGN_MIDDLE);
-        cellQr.addElement(genererQrCode(url, 70, 70));
+        cellQr.addElement(genererQrCode(donnees, 70, 70));
         tablePied.addCell(cellQr);
 
         document.add(tablePied);
@@ -397,25 +410,15 @@ public class Utils {
     //  HASH SHA-256
     // ═════════════════════════════════════════════════════════════════════════
 
-    public String calculerHashLoyer(String numero, ContratLocation contrat, BigDecimal arrieres) {
-        String donnees = numero + "|" +
-                contrat.getIdContratLocation() + "|" +
-                contrat.getMontantLoyer() + "|" +
-                (arrieres != null ? arrieres : BigDecimal.ZERO);
-        return sha256(donnees);
-    }
-
-    private String sha256(String donnees) {
+    public String signer(String donnees) {
         try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashBytes = digest.digest(donnees.getBytes(StandardCharsets.UTF_8));
-            StringBuilder hex = new StringBuilder();
-            for (byte b : hashBytes) {
-                hex.append(String.format("%02x", b));
-            }
-            return hex.toString();
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("Algorithme SHA-256 indisponible", e);
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(secretDocuments.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            byte[] sig = mac.doFinal(donnees.getBytes(StandardCharsets.UTF_8));
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(sig).substring(0, 12);
+        } catch (Exception e) {
+            throw new IllegalStateException("Erreur signature HMAC", e);
         }
     }
+
 }

@@ -135,6 +135,9 @@ services:
       - JWT_COOKIE_SAME_SITE=Strict
       - JWT_REDIS_ENABLED=true
 
+      # Documents (signature QR)
+      - DOCUMENTS_SECRET=${GI_BF_DOCUMENTS_SECRET}
+
       # App
       - APP_BASE_URL=${BASE_URL}
 
