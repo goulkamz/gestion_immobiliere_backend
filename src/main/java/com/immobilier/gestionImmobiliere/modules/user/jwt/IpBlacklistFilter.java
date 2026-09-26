@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.user.jwt;
 
+import com.immobilier.gestionImmobiliere.utils.ClientIpResolver;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -13,9 +14,11 @@ import java.io.IOException;
 public class IpBlacklistFilter extends OncePerRequestFilter {
 
     private final IpBlacklistService ipBlacklistService;
+    private final ClientIpResolver clientIpResolver;
 
-    public IpBlacklistFilter(IpBlacklistService ipBlacklistService) {
+    public IpBlacklistFilter(IpBlacklistService ipBlacklistService, ClientIpResolver clientIpResolver) {
         this.ipBlacklistService = ipBlacklistService;
+        this.clientIpResolver = clientIpResolver;
     }
 
     @Override
@@ -34,7 +37,6 @@ public class IpBlacklistFilter extends OncePerRequestFilter {
     }
 
     private String extraireIp(HttpServletRequest request) {
-        String forwarded = request.getHeader("X-Forwarded-For");
-        return (forwarded != null && !forwarded.isBlank()) ? forwarded.split(",")[0].trim() : request.getRemoteAddr();
+        return clientIpResolver.resolve(request);
     }
 }

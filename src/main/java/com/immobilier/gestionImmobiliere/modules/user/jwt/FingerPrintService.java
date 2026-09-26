@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.user.jwt;
 
+import com.immobilier.gestionImmobiliere.utils.ClientIpResolver;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -21,6 +22,12 @@ public class FingerPrintService {
 
     @Value("${finger.secret.key}")
     private String fingerSecret;
+
+    private final ClientIpResolver clientIpResolver;
+
+    public FingerPrintService(ClientIpResolver clientIpResolver) {
+        this.clientIpResolver = clientIpResolver;
+    }
 
     /**
      * Génère une empreinte unique pour la requête
@@ -69,18 +76,7 @@ public class FingerPrintService {
     }
 
     private String getRealIp(HttpServletRequest request) {
-        String[] headers = {"X-Forwarded-For", "X-Real-IP", "Proxy-Client-IP", "WL-Proxy-Client-IP"};
-
-        for (String header : headers) {
-            String ip = request.getHeader(header);
-            if (ip != null && !ip.isEmpty() && !"unknown".equalsIgnoreCase(ip)) {
-                if (header.equals("X-Forwarded-For")) {
-                    ip = ip.split(",")[0].trim();
-                }
-                return ip;
-            }
-        }
-        return request.getRemoteAddr();
+        return clientIpResolver.resolve(request);
     }
 
     /**

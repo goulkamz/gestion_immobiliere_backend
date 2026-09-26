@@ -20,6 +20,7 @@ import com.immobilier.gestionImmobiliere.modules.user.jwt.JwtUtils;
 import com.immobilier.gestionImmobiliere.modules.user.jwt.RateLimitService;
 import com.immobilier.gestionImmobiliere.modules.user.jwtService.UserDetailsImpl;
 import com.immobilier.gestionImmobiliere.exceptions.TooManyRequestsException;
+import com.immobilier.gestionImmobiliere.utils.ClientIpResolver;
 import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -56,9 +57,10 @@ public class UserService {
     private final PendingRegistrationRepository pendingRegistrationRepository;
     private final NotificationService notificationService;
     private final RateLimitService rateLimitService;
+    private final ClientIpResolver clientIpResolver;
 
 
-    public UserService(AuthenticationManager authenticationManager, JwtUtils jwtUtils, RoleRepository roleRepository, PasswordEncoder encoder, UserRepository userRepository, PendingRegistrationRepository pendingRegistrationRepository, NotificationService notificationService, RateLimitService rateLimitService) {
+    public UserService(AuthenticationManager authenticationManager, JwtUtils jwtUtils, RoleRepository roleRepository, PasswordEncoder encoder, UserRepository userRepository, PendingRegistrationRepository pendingRegistrationRepository, NotificationService notificationService, RateLimitService rateLimitService, ClientIpResolver clientIpResolver) {
         this.authenticationManager = authenticationManager;
         this.jwtUtils = jwtUtils;
         this.roleRepository = roleRepository;
@@ -67,6 +69,7 @@ public class UserService {
         this.pendingRegistrationRepository = pendingRegistrationRepository;
         this.notificationService = notificationService;
         this.rateLimitService = rateLimitService;
+        this.clientIpResolver = clientIpResolver;
     }
 
 
@@ -252,8 +255,7 @@ public class UserService {
     }
 
     private String extraireIp(HttpServletRequest request) {
-        String forwarded = request.getHeader("X-Forwarded-For");
-        return (forwarded != null && !forwarded.isBlank()) ? forwarded.split(",")[0].trim() : request.getRemoteAddr();
+        return clientIpResolver.resolve(request);
     }
 
     @Transactional

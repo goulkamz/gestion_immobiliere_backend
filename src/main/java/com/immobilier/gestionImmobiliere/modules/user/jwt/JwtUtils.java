@@ -1,6 +1,7 @@
 package com.immobilier.gestionImmobiliere.modules.user.jwt;
 
 import com.immobilier.gestionImmobiliere.exceptions.TooManyRequestsException;
+import com.immobilier.gestionImmobiliere.utils.ClientIpResolver;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
@@ -66,13 +67,15 @@ public class JwtUtils {
     private final PasswordEncoder encoder;
     private final RateLimitService rateLimitService;
     private final IpBlacklistService ipBlacklistService;
+    private final ClientIpResolver clientIpResolver;
 
-    public JwtUtils(RefreshTokenRedisService refreshTokenRedisService, FingerPrintService fingerprintService, PasswordEncoder encoder, RateLimitService rateLimitService, IpBlacklistService ipBlacklistService) {
+    public JwtUtils(RefreshTokenRedisService refreshTokenRedisService, FingerPrintService fingerprintService, PasswordEncoder encoder, RateLimitService rateLimitService, IpBlacklistService ipBlacklistService, ClientIpResolver clientIpResolver) {
         this.refreshTokenRedisService = refreshTokenRedisService;
         this.fingerprintService = fingerprintService;
         this.encoder = encoder;
         this.rateLimitService = rateLimitService;
         this.ipBlacklistService = ipBlacklistService;
+        this.clientIpResolver = clientIpResolver;
     }
 
     // Stockage temporaire des refresh tokens valides si Redis indisponible ponctuellement
@@ -442,8 +445,7 @@ public class JwtUtils {
     }
 
     private String extraireIp(HttpServletRequest request) {
-        String forwarded = request.getHeader("X-Forwarded-For");
-        return (forwarded != null && !forwarded.isBlank()) ? forwarded.split(",")[0].trim() : request.getRemoteAddr();
+        return clientIpResolver.resolve(request);
     }
 
     // ============================================================

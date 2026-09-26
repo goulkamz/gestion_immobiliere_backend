@@ -5,6 +5,7 @@ import com.immobilier.gestionImmobiliere.donnees.user.model.User;
 import com.immobilier.gestionImmobiliere.donnees.user.repository.PasswordResetTokenRepository;
 import com.immobilier.gestionImmobiliere.donnees.user.repository.UserRepository;
 import com.immobilier.gestionImmobiliere.modules.user.jwt.RateLimitService;
+import com.immobilier.gestionImmobiliere.utils.ClientIpResolver;
 import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
 
 import com.immobilier.gestionImmobiliere.exceptions.*;
@@ -30,6 +31,7 @@ public class PasswordResetService {
     private final PasswordEncoder passwordEncoder;
     private final NotificationService notificationService;
     private final RateLimitService rateLimitService;
+    private final ClientIpResolver clientIpResolver;
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
@@ -161,8 +163,7 @@ public class PasswordResetService {
     }
 
     private String extraireIp(HttpServletRequest request) {
-        String forwarded = request.getHeader("X-Forwarded-For");
-        return (forwarded != null && !forwarded.isBlank()) ? forwarded.split(",")[0].trim() : request.getRemoteAddr();
+        return clientIpResolver.resolve(request);
     }
 
     private boolean isValidPassword(String password) {
