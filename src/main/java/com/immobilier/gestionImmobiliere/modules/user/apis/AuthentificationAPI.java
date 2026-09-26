@@ -22,7 +22,7 @@ public interface AuthentificationAPI {
         ResponseEntity<?> createUser(@Valid CreateUserDTO createUserDTO) throws Exception;
 
         @PostMapping("/activation")
-        ResponseEntity<?> activateUser(@Valid ActivateUserDTO activateUserDTO);
+        ResponseEntity<?> activateUser(@Valid ActivateUserDTO activateUserDTO, HttpServletRequest request);
 
         @PostMapping("/resend-code")
         ResponseEntity<?> resendCode(@Valid ResendCodeEmailDTO email);
@@ -31,7 +31,7 @@ public interface AuthentificationAPI {
         ResponseEntity<?> forgotPassword(@Valid ForgotPasswordRequestDTO forgotPasswordRequestDTO);
 
         @PostMapping("/reset-password")
-        ResponseEntity<?> resetPassword(@Valid ResetPasswordRequestDTO resetPasswordRequestDTO);
+        ResponseEntity<?> resetPassword(@Valid ResetPasswordRequestDTO resetPasswordRequestDTO, HttpServletRequest request);
 
         @PostMapping("/forgot-password/resend")
         ResponseEntity<?> resendResetToken(@Valid ForgotPasswordRequestDTO forgotPasswordRequestDTO);

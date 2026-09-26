@@ -4,9 +4,11 @@ import com.immobilier.gestionImmobiliere.donnees.user.model.PasswordResetToken;
 import com.immobilier.gestionImmobiliere.donnees.user.model.User;
 import com.immobilier.gestionImmobiliere.donnees.user.repository.PasswordResetTokenRepository;
 import com.immobilier.gestionImmobiliere.donnees.user.repository.UserRepository;
+import com.immobilier.gestionImmobiliere.modules.user.jwt.RateLimitService;
 import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
 
 import com.immobilier.gestionImmobiliere.exceptions.*;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,8 +16,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.time.Instant;
-import java.util.Random;
 
 import static java.time.temporal.ChronoUnit.MINUTES;
 
@@ -27,6 +29,9 @@ public class PasswordResetService {
     private final PasswordResetTokenRepository tokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final NotificationService notificationService;
+    private final RateLimitService rateLimitService;
+
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private static final int TOKEN_EXPIRATION_MINUTES = 10;
     private static final int MAX_RESEND_ATTEMPTS = 3;
@@ -71,7 +76,14 @@ public class PasswordResetService {
     }
 
     @Transactional
-    public ResponseEntity<?> resetPassword(String token, String newPassword) {
+    public ResponseEntity<?> resetPassword(String token, String newPassword, HttpServletRequest request) {
+
+        // Un token se devine par force brute (1 million de combinaisons) : on ne peut pas
+        // compter les échecs sur un token précis (une tentative erronée ne correspond à
+        // aucune ligne existante), donc on limite le débit de l'endpoint par IP.
+        if (rateLimitService.estLimiteDepassee("reset-password:" + extraireIp(request))) {
+            throw new TooManyRequestsException("Trop de tentatives. Veuillez réessayer plus tard.");
+        }
 
         // Récupérer le token
         PasswordResetToken resetToken = tokenRepository.findByToken(token)
@@ -145,10 +157,12 @@ public class PasswordResetService {
     }
 
     private String generateResetToken() {
-        // Option 1: UUID
-        // return UUID.randomUUID().toString();
-         Random random = new Random();
-         return String.format("%06d", random.nextInt(999999));
+        return String.format("%06d", SECURE_RANDOM.nextInt(999999));
+    }
+
+    private String extraireIp(HttpServletRequest request) {
+        String forwarded = request.getHeader("X-Forwarded-For");
+        return (forwarded != null && !forwarded.isBlank()) ? forwarded.split(",")[0].trim() : request.getRemoteAddr();
     }
 
     private boolean isValidPassword(String password) {

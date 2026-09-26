@@ -17,7 +17,9 @@ import com.immobilier.gestionImmobiliere.modules.user.dto.requests.CreateUserDTO
 import com.immobilier.gestionImmobiliere.modules.user.dto.requests.ResendCodeEmailDTO;
 import com.immobilier.gestionImmobiliere.modules.user.dto.responses.UserInfoDTO;
 import com.immobilier.gestionImmobiliere.modules.user.jwt.JwtUtils;
+import com.immobilier.gestionImmobiliere.modules.user.jwt.RateLimitService;
 import com.immobilier.gestionImmobiliere.modules.user.jwtService.UserDetailsImpl;
+import com.immobilier.gestionImmobiliere.exceptions.TooManyRequestsException;
 import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -34,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import static java.time.temporal.ChronoUnit.MINUTES;
 
+import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -43,6 +46,7 @@ public class UserService {
 
     private static final int CODE_EXPIRATION_MINUTES = 10;
     private static final int MAX_RESEND_ATTEMPTS = 3;
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final AuthenticationManager authenticationManager;
     private final JwtUtils jwtUtils;
@@ -51,9 +55,10 @@ public class UserService {
     private final UserRepository userRepository;
     private final PendingRegistrationRepository pendingRegistrationRepository;
     private final NotificationService notificationService;
+    private final RateLimitService rateLimitService;
 
 
-    public UserService(AuthenticationManager authenticationManager, JwtUtils jwtUtils, RoleRepository roleRepository, PasswordEncoder encoder, UserRepository userRepository, PendingRegistrationRepository pendingRegistrationRepository, NotificationService notificationService) {
+    public UserService(AuthenticationManager authenticationManager, JwtUtils jwtUtils, RoleRepository roleRepository, PasswordEncoder encoder, UserRepository userRepository, PendingRegistrationRepository pendingRegistrationRepository, NotificationService notificationService, RateLimitService rateLimitService) {
         this.authenticationManager = authenticationManager;
         this.jwtUtils = jwtUtils;
         this.roleRepository = roleRepository;
@@ -61,6 +66,7 @@ public class UserService {
         this.userRepository = userRepository;
         this.pendingRegistrationRepository = pendingRegistrationRepository;
         this.notificationService = notificationService;
+        this.rateLimitService = rateLimitService;
     }
 
 
@@ -151,7 +157,14 @@ public class UserService {
         return buildSuccessResponse(HttpStatus.CREATED,"Utilisateur temporaire "+" créé avec succès. Un code d'activation vous a été envoyé sur "+createUserDTO.getEmail(), "TEMP_USER_CREATED",null);
     }
     @Transactional
-    public ResponseEntity<?> activation(ActivateUserDTO activationCode) {
+    public ResponseEntity<?> activation(ActivateUserDTO activationCode, HttpServletRequest request) {
+
+        // Même raisonnement que pour le reset password : un code erroné ne correspond à
+        // aucune ligne existante, donc on limite le débit de l'endpoint par IP plutôt
+        // que de compter les échecs sur un code précis.
+        if (rateLimitService.estLimiteDepassee("activation:" + extraireIp(request))) {
+            throw new TooManyRequestsException("Trop de tentatives. Veuillez réessayer plus tard.");
+        }
 
         PendingRegistration pending = pendingRegistrationRepository.findByCodeWithLock(activationCode.getCode())
                 .orElseThrow(() -> new RuntimeException("Code de validation invalide"));
@@ -235,9 +248,12 @@ public class UserService {
 
 
     private String generateCode() {
-        Random random = new Random();
-        int randomInteger = random.nextInt(999999);
-        return String.format("%06d",randomInteger);
+        return String.format("%06d", SECURE_RANDOM.nextInt(999999));
+    }
+
+    private String extraireIp(HttpServletRequest request) {
+        String forwarded = request.getHeader("X-Forwarded-For");
+        return (forwarded != null && !forwarded.isBlank()) ? forwarded.split(",")[0].trim() : request.getRemoteAddr();
     }
 
     @Transactional

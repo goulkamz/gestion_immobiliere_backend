@@ -33,8 +33,8 @@ public class UserController implements AuthentificationAPI {
     }
 
     @Override
-    public ResponseEntity<?> activateUser(@Valid @RequestBody ActivateUserDTO activationCode) {
-        return userService.activation(activationCode);
+    public ResponseEntity<?> activateUser(@Valid @RequestBody ActivateUserDTO activationCode, HttpServletRequest request) {
+        return userService.activation(activationCode, request);
     }
 
     @Override
@@ -48,8 +48,8 @@ public class UserController implements AuthentificationAPI {
     }
 
     @Override
-    public ResponseEntity<?> resetPassword(@Valid @RequestBody ResetPasswordRequestDTO resetPasswordRequestDTO) {
-        return passwordResetService.resetPassword(resetPasswordRequestDTO.getCode(), resetPasswordRequestDTO.getNewPassword());
+    public ResponseEntity<?> resetPassword(@Valid @RequestBody ResetPasswordRequestDTO resetPasswordRequestDTO, HttpServletRequest request) {
+        return passwordResetService.resetPassword(resetPasswordRequestDTO.getCode(), resetPasswordRequestDTO.getNewPassword(), request);
     }
 
     @Override
