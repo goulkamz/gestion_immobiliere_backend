@@ -234,6 +234,11 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.PAYLOAD_TOO_LARGE, ex.getMessage(), "TAILLE_MEDIA_EXCESSIVE", ex);
     }
 
+    @ExceptionHandler(ImageDimensionsExcessiveException.class)
+    public ResponseEntity<?> handleImageDimensionsExcessive(ImageDimensionsExcessiveException ex) {
+        return buildErrorResponse(HttpStatus.PAYLOAD_TOO_LARGE, ex.getMessage(), "IMAGE_DIMENSIONS_EXCESSIVE", ex);
+    }
+
     @ExceptionHandler(MediaStorageException.class)
     public ResponseEntity<?> handleStorageError(MediaStorageException ex) {
         return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Erreur lors du traitement du fichier", "MEDIA_STORAGE_ERROR", ex);

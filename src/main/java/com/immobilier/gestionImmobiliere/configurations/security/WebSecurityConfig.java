@@ -6,6 +6,7 @@ import com.immobilier.gestionImmobiliere.modules.user.jwt.AuthTokenFilter;
 import com.immobilier.gestionImmobiliere.modules.user.jwt.IpBlacklistFilter;
 import com.immobilier.gestionImmobiliere.modules.user.jwt.JwtUtils;
 import com.immobilier.gestionImmobiliere.modules.user.jwtService.UserDetailsServiceImpl;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
@@ -40,6 +41,8 @@ public class WebSecurityConfig {
     private final AuditRequestFilter auditRequestFilter;
     private final IpBlacklistFilter ipBlacklistFilter;
 
+    @Value("${app.cors.allowed-origins:http://localhost:3000,http://localhost:5173}")
+    private String allowedOrigins;
 
     public WebSecurityConfig(UserDetailsServiceImpl userDetailsService, AuthEntryPointJwt unauthorizedHandler, JwtUtils jwtUtils, PasswordEncoder passwordEncoder, AuditRequestFilter auditRequestFilter, IpBlacklistFilter ipBlacklistFilter) {
         this.userDetailsService = userDetailsService;
@@ -95,7 +98,10 @@ public class WebSecurityConfig {
 
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:3000","http://localhost:5173"));
+        configuration.setAllowedOrigins(Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList());
         configuration.setAllowedHeaders(Arrays.asList("x-xsrf-token", "Access-Control-Allow-Headers", "Origin", "Accept", "X-Requested-With",
                 "Content-Type", "Access-Control-Request-Method", "Access-Control-Request-Headers", "Authorization", "Token"));
         // configuration.addExposedHeader("Token");

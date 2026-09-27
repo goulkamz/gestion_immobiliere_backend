@@ -20,8 +20,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.stream.ImageInputStream;
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -34,6 +39,10 @@ public class MediaService {
 
     private static final Set<String> FORMATS_IMAGE = Set.of("image/jpeg", "image/png", "image/webp");
     private static final Set<String> FORMATS_VIDEO = Set.of("video/mp4", "video/quicktime", "video/webm");
+
+    // Dimensions max avant decodage complet en memoire (bombe de decompression) : au-dela,
+    // un fichier de quelques centaines de Ko peut se decoder en plusieurs Go de bitmap brut.
+    private static final int DIMENSION_MAX_PX = 8000;
 
     @Value("${app.medias.max-size-image-mo:5}")
     private int tailleMaxImageMo;
@@ -234,6 +243,7 @@ public class MediaService {
             if (tailleOctets > tailleMaxImageMo * 1024L * 1024L) {
                 throw new TailleMediaExcessiveException(tailleOctets);
             }
+            validerDimensionsImage(fichier);
             return false;
         }
 
@@ -245,6 +255,38 @@ public class MediaService {
         }
 
         throw new FormatMediaInvalideException(typeReel);
+    }
+
+    /**
+     * Rejette une image dont les dimensions permettraient une bombe de decompression
+     * (fichier compresse petit, bitmap decode enorme). Ne lit que l'en-tete via ImageIO
+     * (getWidth/getHeight), sans decoder les pixels.
+     *
+     * Si aucun ImageReader n'est disponible pour ce format (ex: WEBP, non supporte
+     * nativement par ImageIO dans ce projet), on ne bloque pas ici : le comportement
+     * reste celui d'avant ce controle pour ces formats.
+     */
+    private void validerDimensionsImage(MultipartFile fichier) {
+        try (ImageInputStream iis = ImageIO.createImageInputStream(fichier.getInputStream())) {
+            if (iis == null) return;
+
+            Iterator<ImageReader> readers = ImageIO.getImageReaders(iis);
+            if (!readers.hasNext()) return;
+
+            ImageReader reader = readers.next();
+            try {
+                reader.setInput(iis, true, true);
+                int largeur = reader.getWidth(0);
+                int hauteur = reader.getHeight(0);
+                if (largeur > DIMENSION_MAX_PX || hauteur > DIMENSION_MAX_PX) {
+                    throw new ImageDimensionsExcessiveException(largeur, hauteur, DIMENSION_MAX_PX);
+                }
+            } finally {
+                reader.dispose();
+            }
+        } catch (IOException e) {
+            throw new MediaStorageException("Impossible de lire les dimensions de l'image", e);
+        }
     }
 
     private Media findOrThrow(Integer id) {
