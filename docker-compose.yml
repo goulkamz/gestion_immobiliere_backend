@@ -141,6 +141,7 @@ services:
       # App
       - APP_BASE_URL=${BASE_URL}
       - APP_CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
+      - APP_SECURITY_TRUSTED_PROXIES=${SECURITY_TRUSTED_PROXIES:-}
 
       # Mail
       - SPRING_MAIL_HOST=${MAIL_HOST}
