@@ -288,7 +288,7 @@ public class Utils {
                 canvas.addImage(logoWatermark, logoWatermark.getScaledWidth(), 0, 0,
                         logoWatermark.getScaledHeight(), x, y);
             } catch (DocumentException e) {
-                throw new RuntimeException(e);
+                throw new RuntimeException("Erreur lors de l'ajout du filigrane au document", e);
             }
             canvas.restoreState();
         }
@@ -338,7 +338,7 @@ public class Utils {
         try {
             tableau.setWidths(new float[]{35f, 65f});
         } catch (DocumentException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Erreur lors de la construction du tableau du document", e);
         }
         return tableau;
     }

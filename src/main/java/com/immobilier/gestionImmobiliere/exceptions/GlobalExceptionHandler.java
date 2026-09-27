@@ -103,9 +103,20 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), "INVALID_ARGUMENT",ex);
     }
 
+    /**
+     * Attrape-tout pour RuntimeException sans handler dedie. Le message n'est renvoye
+     * au client que si l'exception est un bare "new RuntimeException(message)" ecrit a
+     * la main dans notre code (mecanisme d'erreur metier ad hoc utilise par endroits) :
+     * on le distingue par egalite stricte de classe, jamais instanceof. Toute sous-classe
+     * (NullPointerException, DataIntegrityViolationException, etc.) est par definition une
+     * erreur non anticipee dont le message technique ne doit jamais atteindre le client.
+     */
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<?> handleRuntime(RuntimeException ex) {
-        return buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), "RUNTIME_ERROR",ex);
+        String message = ex.getClass() == RuntimeException.class
+                ? ex.getMessage()
+                : "Une erreur est survenue lors du traitement de la requête.";
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, message, "RUNTIME_ERROR", ex);
     }
 
     @ExceptionHandler(Exception.class)
@@ -237,10 +248,16 @@ public class GlobalExceptionHandler {
     /**
      * Transition d'état invalide (ex: annuler une location déjà ACTIF,
      * confirmer une location déjà confirmée, etc.) → 409 Conflict
+     *
+     * Même principe que handleRuntime : message renvoyé seulement pour un bare
+     * IllegalStateException écrit à la main, jamais pour une sous-classe.
      */
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<?> handleIllegalState(IllegalStateException ex) {
-        return buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage(), "INVALID_STATE_TRANSITION",ex);
+        String message = ex.getClass() == IllegalStateException.class
+                ? ex.getMessage()
+                : "Une erreur est survenue lors du traitement de la requête.";
+        return buildErrorResponse(HttpStatus.CONFLICT, message, "INVALID_STATE_TRANSITION", ex);
     }
 
 
