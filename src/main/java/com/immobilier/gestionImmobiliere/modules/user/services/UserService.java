@@ -76,6 +76,15 @@ public class UserService {
     @Transactional
     public ResponseEntity<?> authenticateUser(AuthenticateDTO authenticateDTO,HttpServletRequest request, HttpServletResponse response) {
 
+            // Deux cles distinctes : par IP (frein a un attaquant sur une seule machine)
+            // et par compte cible (frein a un attaquant qui tournerait sur plusieurs IP
+            // pour viser un compte precis).
+            String ip = clientIpResolver.resolve(request);
+            if (rateLimitService.estLimiteDepassee("login-ip:" + ip)
+                    || rateLimitService.estLimiteDepassee("login-user:" + authenticateDTO.getUsername())) {
+                throw new TooManyRequestsException("Trop de tentatives de connexion. Veuillez réessayer plus tard.");
+            }
+
             Authentication authentication = authenticationManager
                     .authenticate(new UsernamePasswordAuthenticationToken(authenticateDTO.getUsername(), authenticateDTO.getPassword()));
 
