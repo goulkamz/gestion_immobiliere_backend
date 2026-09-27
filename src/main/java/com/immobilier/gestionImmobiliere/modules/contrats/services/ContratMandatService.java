@@ -79,6 +79,9 @@ public class ContratMandatService {
     }
     @Transactional
     public ResponseEntity<?> create(CreateContratMandatDTO dto,Integer currentUserId) {
+        if (dto.getDateFin() != null && !dto.getDateFin().isAfter(dto.getDateDebut())) {
+            throw new IllegalArgumentException("La date de fin doit être postérieure à la date de début");
+        }
         Cour cour = courRepository.findById(dto.getIdCour())
                 .orElseThrow(() -> new ResourceNotFoundException("cour", dto.getIdCour()));
         User agent = userRepository.findById(currentUserId)

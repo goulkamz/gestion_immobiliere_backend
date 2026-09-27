@@ -167,6 +167,58 @@ class EcritureMetierIntegrationTest extends AbstractIntegrationTest {
                 .as("echeance 5 liee aux deux paiements").isEqualTo(2);
     }
 
+    @Test
+    void paiement_parUnClient_refuse() throws Exception {
+        appel(client, post("/api/paiements"), """
+                {"montantPaiement":100000,"modePaiement":"ESPECES","idEcheances":[5]}""", status().isForbidden());
+    }
+
+    @Test
+    void paiementPartiel_surEcheanceEnRetard_laLaisseEnRetardJusquAuSoldePenaliteComprise() throws Exception {
+        int id = jdbc.queryForObject("""
+                INSERT INTO echeance_loyer (entite_echeance_type, entite_echeance_id, date_echeance,
+                    montant_du, montant_paye, penalite, statut, created_at)
+                VALUES ('LOCATION', 1, CURRENT_DATE - 60, 100000, 0, 5000, 'EN_RETARD', NOW())
+                RETURNING id_echeance""", Integer.class);
+
+        payer(id, "60000", status().isCreated());
+        assertThat(statutEcheance(id)).isEqualTo("EN_RETARD");
+
+        payer(id, "40000", status().isCreated());
+        assertThat(statutEcheance(id)).as("loyer regle mais penalite due").isEqualTo("EN_RETARD");
+
+        payer(id, "5000", status().isCreated());
+        assertThat(statutEcheance(id)).isEqualTo("PAYE");
+    }
+
+    // ---------- Dates (RG2) ----------
+
+    @Test
+    void mandat_finAvantDebut_refuse() throws Exception {
+        int avant = jdbc.queryForObject("SELECT COUNT(*) FROM contrat_mandat", Integer.class);
+        appel(agent, post("/api/contrats-mandat"), """
+                {"idCour":1,"idAgent":2,"dateDebut":"2027-01-01T00:00:00","dateFin":"2026-01-01T00:00:00",
+                 "typeMandat":"GESTION","commission":10}""", status().isBadRequest());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM contrat_mandat", Integer.class)).isEqualTo(avant);
+    }
+
+    @Test
+    void contratLocation_sortieAvantEntree_refuse() throws Exception {
+        appel(agent, post("/api/contrats-location"), """
+                {"idLocataire":6,"idMaison":2,"dateEntree":"2027-01-01T00:00:00",
+                 "dateSortie":"2026-01-01T00:00:00","montantLoyer":60000}""", status().isBadRequest());
+    }
+
+    @Test
+    void resiliation_sortieAvantEntree_refusee() throws Exception {
+        appel(agent, patch("/api/contrats-location/1/resilier"), """
+                {"etatDesLieuxSortie":"RAS","coutReparation":0,"dateSortie":"2020-01-01T00:00:00"}""",
+                status().isBadRequest());
+        assertThat(jdbc.queryForObject("SELECT statut FROM contra_location WHERE id_contra_location = 1",
+                String.class)).isEqualTo("ACTIF");
+        assertThat(statutMaison(1)).isEqualTo("LOUEE");
+    }
+
     // ---------- Mandats ----------
 
     @Test

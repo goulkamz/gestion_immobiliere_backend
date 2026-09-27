@@ -132,7 +132,12 @@ public class PaiementService {
 
             BigDecimal montantApplique = montantRestant.min(resteDu);
             e.setMontantPaye(dejaPaye.add(montantApplique));
-            e.setStatut(e.getMontantPaye().compareTo(e.getMontantDu()) >= 0 ? StatutEcheance.PAYE : StatutEcheance.EN_ATTENTE);
+            boolean solde = e.getMontantPaye().compareTo(e.getMontantDu().add(penalite)) >= 0;
+            if (solde) {
+                e.setStatut(StatutEcheance.PAYE);
+            } else if (e.getStatut() != StatutEcheance.EN_RETARD) {
+                e.setStatut(StatutEcheance.EN_ATTENTE);
+            }
             echeanceRepository.save(e);
 
             paiementEcheanceRepository.save(PaiementEcheance.builder()

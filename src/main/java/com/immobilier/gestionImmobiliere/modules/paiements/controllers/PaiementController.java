@@ -23,8 +23,10 @@ public class PaiementController implements PaiementAPI {
         this.paiementService = paiementService;
     }
 
+    // Pas de passerelle de paiement en ligne : un paiement n'est enregistre qu'une fois
+    // l'argent recu par l'agence, jamais sur simple declaration du client.
     @Override
-    @PreAuthorize("hasAnyRole('ADMIN','AGENT','CLIENT')")
+    @PreAuthorize("hasAnyRole('ADMIN','AGENT')")
     public ResponseEntity<?> create(CreatePaiementDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser) {
         return paiementService.create(dto, currentUser.getIdUser());
     }

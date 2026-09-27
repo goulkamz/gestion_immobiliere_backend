@@ -122,6 +122,9 @@ public class ContratLocationService {
      */
 
     private ContratLocation creerContrat(CreateContratLocationDTO dto, Integer currentUserId, boolean exigerDisponible) {
+        if (dto.getDateSortie() != null && !dto.getDateSortie().isAfter(dto.getDateEntree())) {
+            throw new IllegalArgumentException("La date de sortie doit être postérieure à la date d'entrée");
+        }
         Maison maison = maisonRepository.findById(dto.getIdMaison())
                 .orElseThrow(() -> new ResourceNotFoundException("maison", dto.getIdMaison()));
         User locataire = userRepository.findById(dto.getIdLocataire())
@@ -182,6 +185,9 @@ public class ContratLocationService {
 
         if (location.getStatut() != StatutLocation.ACTIF) {
             throw new InvalidStatutTransitionException(location.getStatut().name(), nouveauStatut.name());
+        }
+        if (dateSortie != null && !dateSortie.isAfter(location.getDateEntree())) {
+            throw new IllegalArgumentException("La date de sortie doit être postérieure à la date d'entrée");
         }
 
         LocalDateTime dateSortieEffective = dateSortie != null ? dateSortie : LocalDateTime.now();
