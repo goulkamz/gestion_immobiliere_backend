@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 @Table(name = "journal_operation")
 @Data @SuperBuilder
 @AllArgsConstructor
+@NoArgsConstructor
 @SQLDelete(sql = "UPDATE journal_operation SET is_deleted = true WHERE id_journal = ?")
 @Where(clause = "is_deleted = false")
 public class JournalOperation extends Model_1 {
