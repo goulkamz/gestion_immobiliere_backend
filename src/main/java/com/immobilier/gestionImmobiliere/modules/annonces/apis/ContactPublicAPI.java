@@ -1,6 +1,7 @@
 package com.immobilier.gestionImmobiliere.modules.annonces.apis;
 
 import com.immobilier.gestionImmobiliere.modules.annonces.dto.requests.CreateContactDTO;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -10,5 +11,5 @@ import org.springframework.web.bind.annotation.*;
 public interface ContactPublicAPI {
 
     @PostMapping
-    ResponseEntity<?> create(@Valid @RequestBody CreateContactDTO dto);
+    ResponseEntity<?> create(@Valid @RequestBody CreateContactDTO dto, HttpServletRequest request);
 }

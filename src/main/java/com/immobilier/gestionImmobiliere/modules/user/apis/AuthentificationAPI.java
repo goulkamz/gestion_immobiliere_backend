@@ -19,13 +19,13 @@ public interface AuthentificationAPI {
         ResponseEntity<?> authenticateUser(@Valid AuthenticateDTO authenticateDTO, HttpServletRequest request, HttpServletResponse response);
 
         @PostMapping("/signup")
-        ResponseEntity<?> createUser(@Valid CreateUserDTO createUserDTO) throws Exception;
+        ResponseEntity<?> createUser(@Valid CreateUserDTO createUserDTO, HttpServletRequest request) throws Exception;
 
         @PostMapping("/activation")
         ResponseEntity<?> activateUser(@Valid ActivateUserDTO activateUserDTO, HttpServletRequest request);
 
         @PostMapping("/resend-code")
-        ResponseEntity<?> resendCode(@Valid ResendCodeEmailDTO email);
+        ResponseEntity<?> resendCode(@Valid ResendCodeEmailDTO email, HttpServletRequest request);
 
         @PostMapping("/forgot-password")
         ResponseEntity<?> forgotPassword(@Valid ForgotPasswordRequestDTO forgotPasswordRequestDTO);
@@ -34,7 +34,7 @@ public interface AuthentificationAPI {
         ResponseEntity<?> resetPassword(@Valid ResetPasswordRequestDTO resetPasswordRequestDTO, HttpServletRequest request);
 
         @PostMapping("/forgot-password/resend")
-        ResponseEntity<?> resendResetToken(@Valid ForgotPasswordRequestDTO forgotPasswordRequestDTO);
+        ResponseEntity<?> resendResetToken(@Valid ForgotPasswordRequestDTO forgotPasswordRequestDTO, HttpServletRequest request);
 
         // Rafraîchit l'access token à partir du refresh token présent en cookie
         @PostMapping("/refresh-token")

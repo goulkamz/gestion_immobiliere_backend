@@ -28,8 +28,8 @@ public class UserController implements AuthentificationAPI {
     }
 
     @Override
-    public ResponseEntity<?> createUser(@Valid @RequestBody CreateUserDTO createUserDTO) throws Exception {
-           return userService.createUser(createUserDTO);
+    public ResponseEntity<?> createUser(@Valid @RequestBody CreateUserDTO createUserDTO, HttpServletRequest request) throws Exception {
+           return userService.createUser(createUserDTO, request);
     }
 
     @Override
@@ -38,8 +38,8 @@ public class UserController implements AuthentificationAPI {
     }
 
     @Override
-    public ResponseEntity<?> resendCode(@Valid @RequestBody ResendCodeEmailDTO email) {
-       return userService.resendCode(email);
+    public ResponseEntity<?> resendCode(@Valid @RequestBody ResendCodeEmailDTO email, HttpServletRequest request) {
+       return userService.resendCode(email, request);
     }
 
     @Override
@@ -53,8 +53,8 @@ public class UserController implements AuthentificationAPI {
     }
 
     @Override
-    public ResponseEntity<?> resendResetToken(@Valid @RequestBody ForgotPasswordRequestDTO forgotPasswordRequestDTO) {
-        return passwordResetService.resendResetToken(forgotPasswordRequestDTO.getEmail());
+    public ResponseEntity<?> resendResetToken(@Valid @RequestBody ForgotPasswordRequestDTO forgotPasswordRequestDTO, HttpServletRequest request) {
+        return passwordResetService.resendResetToken(forgotPasswordRequestDTO.getEmail(), request);
     }
 
     @Override

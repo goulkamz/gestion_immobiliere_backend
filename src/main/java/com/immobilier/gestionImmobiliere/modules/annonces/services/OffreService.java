@@ -4,9 +4,13 @@ import com.immobilier.gestionImmobiliere.donnees.annonces.model.Offre;
 import com.immobilier.gestionImmobiliere.donnees.annonces.model.StatutOffre;
 import com.immobilier.gestionImmobiliere.donnees.annonces.repository.OffreRepository;
 import com.immobilier.gestionImmobiliere.exceptions.ResourceNotFoundException;
+import com.immobilier.gestionImmobiliere.exceptions.TooManyRequestsException;
 import com.immobilier.gestionImmobiliere.modules.annonces.dto.requests.CreateOffreDTO;
 import com.immobilier.gestionImmobiliere.modules.annonces.dto.requests.UpdateStatutOffreDTO;
 import com.immobilier.gestionImmobiliere.modules.annonces.dto.responses.OffreResponseDTO;
+import com.immobilier.gestionImmobiliere.modules.user.jwt.RateLimitService;
+import com.immobilier.gestionImmobiliere.utils.ClientIpResolver;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -22,9 +26,13 @@ import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.build
 public class OffreService {
 
     private final OffreRepository offreRepository;
+    private final RateLimitService rateLimitService;
+    private final ClientIpResolver clientIpResolver;
 
-    public OffreService(OffreRepository offreRepository) {
+    public OffreService(OffreRepository offreRepository, RateLimitService rateLimitService, ClientIpResolver clientIpResolver) {
         this.offreRepository = offreRepository;
+        this.rateLimitService = rateLimitService;
+        this.clientIpResolver = clientIpResolver;
     }
 
     public ResponseEntity<?> getAll(StatutOffre statut, Pageable pageable) {
@@ -37,7 +45,11 @@ public class OffreService {
     }
 
     @Transactional
-    public ResponseEntity<?> create(CreateOffreDTO dto) {
+    public ResponseEntity<?> create(CreateOffreDTO dto, HttpServletRequest request) {
+        if (rateLimitService.estLimiteDepassee("offre:" + clientIpResolver.resolve(request))) {
+            throw new TooManyRequestsException("Trop d'offres envoyées. Veuillez réessayer plus tard.");
+        }
+
         Offre offre = Offre.builder()
                 .nomComplet(dto.getNomComplet())
                 .email(dto.getEmail())

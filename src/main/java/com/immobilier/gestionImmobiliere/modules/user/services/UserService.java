@@ -111,7 +111,11 @@ public class UserService {
     }
 
     @Transactional
-    public ResponseEntity<?> createUser(CreateUserDTO createUserDTO) throws Exception {
+    public ResponseEntity<?> createUser(CreateUserDTO createUserDTO, HttpServletRequest request) throws Exception {
+        if (rateLimitService.estLimiteDepassee("signup:" + extraireIp(request))) {
+            throw new TooManyRequestsException("Trop d'inscriptions. Veuillez réessayer plus tard.");
+        }
+
         if(!createUserDTO.getEmail().contains(".") || !createUserDTO.getEmail().contains("@")){
             throw new InvalidEmailException(createUserDTO.getEmail());
         }
@@ -268,7 +272,10 @@ public class UserService {
     }
 
     @Transactional
-    public ResponseEntity<?> resendCode(ResendCodeEmailDTO resendCodeEmailDTO) {
+    public ResponseEntity<?> resendCode(ResendCodeEmailDTO resendCodeEmailDTO, HttpServletRequest request) {
+        if (rateLimitService.estLimiteDepassee("resend-code:" + extraireIp(request))) {
+            throw new TooManyRequestsException("Trop de tentatives. Veuillez réessayer plus tard.");
+        }
 
         PendingRegistration pending = pendingRegistrationRepository.findByEmailWithLock(resendCodeEmailDTO.getEmail())
                 .orElseThrow(() -> new RuntimeException("Aucune demande d'inscription en cours"));

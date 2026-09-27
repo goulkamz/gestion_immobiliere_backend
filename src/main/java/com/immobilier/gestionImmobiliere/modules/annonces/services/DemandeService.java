@@ -4,9 +4,13 @@ import com.immobilier.gestionImmobiliere.donnees.annonces.model.Demande;
 import com.immobilier.gestionImmobiliere.donnees.annonces.model.StatutDemande;
 import com.immobilier.gestionImmobiliere.donnees.annonces.repository.DemandeRepository;
 import com.immobilier.gestionImmobiliere.exceptions.ResourceNotFoundException;
+import com.immobilier.gestionImmobiliere.exceptions.TooManyRequestsException;
 import com.immobilier.gestionImmobiliere.modules.annonces.dto.requests.CreateDemandeDTO;
 import com.immobilier.gestionImmobiliere.modules.annonces.dto.requests.UpdateStatutDemandeDTO;
 import com.immobilier.gestionImmobiliere.modules.annonces.dto.responses.DemandeResponseDTO;
+import com.immobilier.gestionImmobiliere.modules.user.jwt.RateLimitService;
+import com.immobilier.gestionImmobiliere.utils.ClientIpResolver;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -22,9 +26,13 @@ import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.build
 public class DemandeService {
 
     private final DemandeRepository demandeRepository;
+    private final RateLimitService rateLimitService;
+    private final ClientIpResolver clientIpResolver;
 
-    public DemandeService(DemandeRepository demandeRepository) {
+    public DemandeService(DemandeRepository demandeRepository, RateLimitService rateLimitService, ClientIpResolver clientIpResolver) {
         this.demandeRepository = demandeRepository;
+        this.rateLimitService = rateLimitService;
+        this.clientIpResolver = clientIpResolver;
     }
 
     public ResponseEntity<?> getAll(StatutDemande statut, Pageable pageable) {
@@ -37,7 +45,11 @@ public class DemandeService {
     }
 
     @Transactional
-    public ResponseEntity<?> create(CreateDemandeDTO dto) {
+    public ResponseEntity<?> create(CreateDemandeDTO dto, HttpServletRequest request) {
+        if (rateLimitService.estLimiteDepassee("demande:" + clientIpResolver.resolve(request))) {
+            throw new TooManyRequestsException("Trop de demandes envoyées. Veuillez réessayer plus tard.");
+        }
+
         Demande demande = Demande.builder()
                 .nomComplet(dto.getNomComplet())
                 .email(dto.getEmail())

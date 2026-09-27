@@ -128,7 +128,10 @@ public class PasswordResetService {
 
 
     @Transactional
-    public ResponseEntity<?> resendResetToken(String email) {
+    public ResponseEntity<?> resendResetToken(String email, HttpServletRequest request) {
+        if (rateLimitService.estLimiteDepassee("resend-reset:" + extraireIp(request))) {
+            throw new TooManyRequestsException("Trop de tentatives. Veuillez réessayer plus tard.");
+        }
 
         PasswordResetToken existingToken = tokenRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Aucune demande de réinitialisation en cours"));

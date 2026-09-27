@@ -4,9 +4,13 @@ import com.immobilier.gestionImmobiliere.donnees.annonces.model.Contact;
 import com.immobilier.gestionImmobiliere.donnees.annonces.model.StatutContact;
 import com.immobilier.gestionImmobiliere.donnees.annonces.repository.ContactRepository;
 import com.immobilier.gestionImmobiliere.exceptions.ResourceNotFoundException;
+import com.immobilier.gestionImmobiliere.exceptions.TooManyRequestsException;
 import com.immobilier.gestionImmobiliere.modules.annonces.dto.requests.CreateContactDTO;
 import com.immobilier.gestionImmobiliere.modules.annonces.dto.requests.UpdateStatutContactDTO;
 import com.immobilier.gestionImmobiliere.modules.annonces.dto.responses.ContactResponseDTO;
+import com.immobilier.gestionImmobiliere.modules.user.jwt.RateLimitService;
+import com.immobilier.gestionImmobiliere.utils.ClientIpResolver;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -22,9 +26,13 @@ import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.build
 public class ContactService {
 
     private final ContactRepository contactRepository;
+    private final RateLimitService rateLimitService;
+    private final ClientIpResolver clientIpResolver;
 
-    public ContactService(ContactRepository contactRepository) {
+    public ContactService(ContactRepository contactRepository, RateLimitService rateLimitService, ClientIpResolver clientIpResolver) {
         this.contactRepository = contactRepository;
+        this.rateLimitService = rateLimitService;
+        this.clientIpResolver = clientIpResolver;
     }
 
     public ResponseEntity<?> getAll(StatutContact statut, Pageable pageable) {
@@ -33,7 +41,11 @@ public class ContactService {
     }
 
     @Transactional
-    public ResponseEntity<?> create(CreateContactDTO dto) {
+    public ResponseEntity<?> create(CreateContactDTO dto, HttpServletRequest request) {
+        if (rateLimitService.estLimiteDepassee("contact:" + clientIpResolver.resolve(request))) {
+            throw new TooManyRequestsException("Trop de messages envoyés. Veuillez réessayer plus tard.");
+        }
+
         Contact contact = Contact.builder()
                 .nomComplet(dto.getNomComplet())
                 .email(dto.getEmail())
