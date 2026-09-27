@@ -1,7 +1,9 @@
 package com.immobilier.gestionImmobiliere.modules.user.jwt;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.Builder;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -32,8 +34,11 @@ public class RefreshTokenRedisService {
         this.stringRedisTemplate = stringRedisTemplate;
     }
 
+    // NoArgs requis par Jackson pour relire le token depuis Redis
     @Data
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class RefreshTokenData {
         private String username;
         private String fingerprint;
