@@ -103,7 +103,12 @@ public class FileStorageService {
         }
     }
 
-    public String store(MultipartFile file, String bucket, String sousDossier) {
+    /**
+     * @param typeReel type MIME reellement detecte (Tika), jamais celui declare par le
+     *                 client (falsifiable) — determinant sur le bucket public en lecture
+     *                 anonyme, ou un Content-Type mensonger servirait un fichier comme HTML.
+     */
+    public String store(MultipartFile file, String bucket, String sousDossier, String typeReel) {
         try {
             byte[] contenu = file.getBytes();
             String cle = construireCle(sousDossier, file.getOriginalFilename());
@@ -112,7 +117,7 @@ public class FileStorageService {
                     .bucket(bucket)
                     .object(cle)
                     .stream(new ByteArrayInputStream(contenu), contenu.length, -1)
-                    .contentType(file.getContentType())
+                    .contentType(typeReel)
                     .build());
 
             return cle;
@@ -121,7 +126,7 @@ public class FileStorageService {
         }
     }
 
-    public String storeThumbnail(MultipartFile file, String bucket, String sousDossier, int largeurMax) {
+    public String storeThumbnail(MultipartFile file, String bucket, String sousDossier, int largeurMax, String typeReel) {
         try {
             byte[] contenu = file.getBytes();
             ByteArrayOutputStream buffer = new ByteArrayOutputStream();
@@ -137,7 +142,7 @@ public class FileStorageService {
                     .bucket(bucket)
                     .object(cle)
                     .stream(new ByteArrayInputStream(miniature), miniature.length, -1)
-                    .contentType(file.getContentType())
+                    .contentType(typeReel)
                     .build());
 
             return cle;

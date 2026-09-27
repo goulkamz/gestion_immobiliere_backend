@@ -123,7 +123,7 @@ public class MediaService {
         String typeDossier = estVideo ? "videos" : "images";
         String sousDossier = entiteType.name().toLowerCase() + "/" + typeDossier;
 
-        String chemin = fileStorageService.store(fichier, bucket, sousDossier);
+        String chemin = fileStorageService.store(fichier, bucket, sousDossier, typeReel);
 
         String cheminThumbnail = null;
         StatutThumbnail statutThumbnail = StatutThumbnail.PRET;
@@ -133,7 +133,7 @@ public class MediaService {
             statutThumbnail = StatutThumbnail.EN_COURS;
             extension = fileStorageService.extraireExtension(fichier.getOriginalFilename());
         } else {
-            cheminThumbnail = fileStorageService.storeThumbnail(fichier, bucket, sousDossier, 400);
+            cheminThumbnail = fileStorageService.storeThumbnail(fichier, bucket, sousDossier, 400, typeReel);
         }
 
         boolean vouluPrincipal = Boolean.TRUE.equals(isPrincipal);
