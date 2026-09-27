@@ -14,7 +14,12 @@ import java.util.Optional;
 public interface MediaRepository extends JpaRepository<Media, Integer> {
     List<Media> findByEntiteTypeAndEntiteIdOrderByOrdreAsc(TypeEntiteMedia entiteType, Integer entiteId);
     Optional<Media> findByEntiteTypeAndEntiteIdAndIsPrincipalTrue(TypeEntiteMedia entiteType, Integer entiteId);
-    long countByEntiteTypeAndEntiteId(TypeEntiteMedia entiteType, Integer entiteId);
+    @Query("SELECT COALESCE(MAX(m.ordre), -1) + 1 FROM Media m WHERE m.entiteType = :entiteType AND m.entiteId = :entiteId")
+    int prochainOrdre(@Param("entiteType") TypeEntiteMedia entiteType, @Param("entiteId") Integer entiteId);
+
+    @Modifying
+    @Query(value = "SET CONSTRAINTS uk_media_entite_ordre DEFERRED", nativeQuery = true)
+    void differerContrainteOrdre();
 
     // MediaRepository — ajouter entite_type pour déterminer le bon bucket par ligne
     @Query(value = "SELECT id_media, media_path, media_path_thumbnail, entite_type FROM medias " +

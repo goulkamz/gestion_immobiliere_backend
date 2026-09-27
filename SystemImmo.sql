@@ -538,7 +538,11 @@ CREATE TABLE medias (
         (entite_type = 'ANNONCE' AND entite_id IS NOT NULL) OR
         (entite_type = 'MAISON' AND entite_id IS NOT NULL)
     ),
-    CONSTRAINT uk_media_entite_ordre UNIQUE (entite_type, entite_id, ordre)
+    -- Unicite de l'ordre limitee aux medias actifs (un media en soft delete garde son
+    -- ordre) ; DEFERRABLE pour permettre la permutation d'ordres lors d'un reorder.
+    CONSTRAINT uk_media_entite_ordre EXCLUDE USING btree (
+        entite_type WITH =, entite_id WITH =, ordre WITH =
+    ) WHERE (is_deleted = FALSE) DEFERRABLE INITIALLY IMMEDIATE
 );
 
 -- ==============================================================

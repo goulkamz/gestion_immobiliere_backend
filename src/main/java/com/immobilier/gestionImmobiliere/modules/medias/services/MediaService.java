@@ -146,7 +146,7 @@ public class MediaService {
         }
 
         boolean vouluPrincipal = Boolean.TRUE.equals(isPrincipal);
-        long ordreSuivant = mediaRepository.countByEntiteTypeAndEntiteId(entiteType, entiteId);
+        int ordreSuivant = mediaRepository.prochainOrdre(entiteType, entiteId);
         boolean estPremiere = ordreSuivant == 0;
 
         Media media = Media.builder()
@@ -222,6 +222,8 @@ public class MediaService {
             throw new IllegalArgumentException("Tous les médias à réordonner doivent appartenir à la même entité");
         }
 
+        // Les permutations d'ordre creent des doublons transitoires entre deux UPDATE
+        mediaRepository.differerContrainteOrdre();
         Map<Integer, Media> mediaParId = medias.stream().collect(Collectors.toMap(Media::getIdMedia, m -> m));
         for (short i = 0; i < ids.size(); i++) {
             Media media = mediaParId.get(ids.get(i));

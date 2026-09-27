@@ -5,8 +5,9 @@ import com.immobilier.gestionImmobiliere.donnees.medias.repository.MediaReposito
 import com.immobilier.gestionImmobiliere.exceptions.MediaStorageException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 public class MediaPersistenceService {
@@ -14,26 +15,28 @@ public class MediaPersistenceService {
     private static final int MAX_TENTATIVES = 5;
 
     private final MediaRepository mediaRepository;
+    private final TransactionTemplate nouvelleTransaction;
 
-    public MediaPersistenceService(MediaRepository mediaRepository) {
+    public MediaPersistenceService(MediaRepository mediaRepository, PlatformTransactionManager transactionManager) {
         this.mediaRepository = mediaRepository;
+        this.nouvelleTransaction = new TransactionTemplate(transactionManager);
+        this.nouvelleTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
     /**
-     * Persiste le média avec retry sur collision d'ordre (contrainte unique
-     * uk_media_entite_ordre). Chaque tentative ouvre sa propre transaction
-     * (REQUIRES_NEW) pour qu'un échec n'invalide pas la transaction appelante.
+     * Persiste le média (fichier deja envoye sur MinIO) avec retry si un upload
+     * concurrent a pris le meme ordre (contrainte uk_media_entite_ordre).
+     * Chaque tentative a sa propre transaction : apres une violation, la session
+     * Hibernate de la tentative echouee est inutilisable.
      */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Media enregistrerAvecRetry(Media media, boolean vouluPrincipal) {
         for (int tentative = 0; tentative < MAX_TENTATIVES; tentative++) {
             try {
-                return enregistrer(media, vouluPrincipal);
+                return nouvelleTransaction.execute(status -> enregistrer(media, vouluPrincipal));
             } catch (DataIntegrityViolationException e) {
                 if (!estCollisionOrdre(e)) throw e;
-                long ordre = mediaRepository.countByEntiteTypeAndEntiteId(
-                        media.getEntiteType(), media.getEntiteId());
-                media.setOrdre((short) ordre);
+                media.setIdMedia(null);
+                media.setOrdre((short) mediaRepository.prochainOrdre(media.getEntiteType(), media.getEntiteId()));
             }
         }
         throw new MediaStorageException("Impossible d'attribuer un ordre après "
@@ -44,13 +47,7 @@ public class MediaPersistenceService {
         return e.getMessage() != null && e.getMessage().contains("uk_media_entite_ordre");
     }
 
-    /**
-     * Persiste le média après que le fichier ait déjà été envoyé sur MinIO.
-     * Isolé du réseau MinIO pour ne pas garder une connexion DB ouverte
-     * pendant les appels I/O externes.
-     */
-    @Transactional
-    public Media enregistrer(Media media, boolean vouluPrincipal) {
+    private Media enregistrer(Media media, boolean vouluPrincipal) {
         if (vouluPrincipal) {
             mediaRepository.findByEntiteTypeAndEntiteIdAndIsPrincipalTrue(media.getEntiteType(), media.getEntiteId())
                     .ifPresent(ancien -> {
@@ -58,7 +55,6 @@ public class MediaPersistenceService {
                         mediaRepository.save(ancien);
                     });
         }
-        mediaRepository.save(media);
-        return media;
+        return mediaRepository.save(media);
     }
 }
