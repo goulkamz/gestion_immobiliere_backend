@@ -12,11 +12,17 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 @Component
 public class ImmoAuditEventListener implements PostInsertEventListener, PostUpdateEventListener, PostDeleteEventListener {
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ImmoAuditEventListener.class);
+
+    // Champs jamais ecrits dans le journal, meme normalises : un hash de mot de
+    // passe n'a rien a faire dans une table d'audit immuable et jamais purgee.
+    private static final Set<String> CHAMPS_SENSIBLES = Set.of("password");
+    private static final String VALEUR_REDIGEE = "[REDACTED]";
 
     private final ApplicationEventPublisher publisher;
     private final AuditValueNormalizer normalizer;
@@ -48,6 +54,12 @@ public class ImmoAuditEventListener implements PostInsertEventListener, PostUpda
 
         // On ne conserve que les propriétés effectivement modifiées
         for (int i = 0; i < noms.length; i++) {
+
+            if (CHAMPS_SENSIBLES.contains(noms[i])) {
+                ancienne.put(noms[i], VALEUR_REDIGEE);
+                nouvelle.put(noms[i], VALEUR_REDIGEE);
+                continue;
+            }
 
             Object avant = etatAvant != null ? etatAvant[i] : null;
             Object apres = etatApres != null ? etatApres[i] : null;
@@ -106,7 +118,7 @@ public class ImmoAuditEventListener implements PostInsertEventListener, PostUpda
         Map<String, Object> map = new HashMap<>();
         if (etats == null) return map;
         for (int i = 0; i < noms.length; i++) {
-            map.put(noms[i], normalizer.normalize(etats[i]));
+            map.put(noms[i], CHAMPS_SENSIBLES.contains(noms[i]) ? VALEUR_REDIGEE : normalizer.normalize(etats[i]));
         }
         return map;
     }
