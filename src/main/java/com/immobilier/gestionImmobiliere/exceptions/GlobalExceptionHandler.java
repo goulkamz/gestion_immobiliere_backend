@@ -231,12 +231,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(TailleMediaExcessiveException.class)
     public ResponseEntity<?> handleTailleExcessive(TailleMediaExcessiveException ex) {
-        return buildErrorResponse(HttpStatus.PAYLOAD_TOO_LARGE, ex.getMessage(), "TAILLE_MEDIA_EXCESSIVE", ex);
+        return buildErrorResponse(HttpStatus.CONTENT_TOO_LARGE, ex.getMessage(), "TAILLE_MEDIA_EXCESSIVE", ex);
     }
 
     @ExceptionHandler(ImageDimensionsExcessiveException.class)
     public ResponseEntity<?> handleImageDimensionsExcessive(ImageDimensionsExcessiveException ex) {
-        return buildErrorResponse(HttpStatus.PAYLOAD_TOO_LARGE, ex.getMessage(), "IMAGE_DIMENSIONS_EXCESSIVE", ex);
+        return buildErrorResponse(HttpStatus.CONTENT_TOO_LARGE, ex.getMessage(), "IMAGE_DIMENSIONS_EXCESSIVE", ex);
     }
 
     @ExceptionHandler(MediaStorageException.class)

@@ -1,19 +1,25 @@
 package com.immobilier.gestionImmobiliere.modules.user.jwt;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
-import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializer;
+import org.springframework.data.redis.serializer.JacksonJsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
+import tools.jackson.databind.cfg.DateTimeFeature;
+import tools.jackson.databind.json.JsonMapper;
 
 @Configuration
 public class RedisConfig {
+
+    // Dates en ISO-8601 (et non en timestamps) : format deja utilise pour les tokens stockes
+    private static JsonMapper jsonMapper() {
+        return JsonMapper.builder()
+                .disable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS)
+                .build();
+    }
 
     /**
      * Template générique — pour tout usage futur nécessitant du polymorphisme
@@ -25,11 +31,7 @@ public class RedisConfig {
         template.setConnectionFactory(connectionFactory);
 
         StringRedisSerializer stringSerializer = new StringRedisSerializer();
-        ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.registerModule(new JavaTimeModule());
-        objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-
-        GenericJackson2JsonRedisSerializer jsonSerializer = new GenericJackson2JsonRedisSerializer(objectMapper);
+        GenericJacksonJsonRedisSerializer jsonSerializer = new GenericJacksonJsonRedisSerializer(jsonMapper());
 
         template.setKeySerializer(stringSerializer);
         template.setHashKeySerializer(stringSerializer);
@@ -50,12 +52,8 @@ public class RedisConfig {
         RedisTemplate<String, RefreshTokenRedisService.RefreshTokenData> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
 
-        ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.registerModule(new JavaTimeModule());
-        objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-
-        Jackson2JsonRedisSerializer<RefreshTokenRedisService.RefreshTokenData> typedSerializer =
-                new Jackson2JsonRedisSerializer<>(objectMapper, RefreshTokenRedisService.RefreshTokenData.class);
+        JacksonJsonRedisSerializer<RefreshTokenRedisService.RefreshTokenData> typedSerializer =
+                new JacksonJsonRedisSerializer<>(jsonMapper(), RefreshTokenRedisService.RefreshTokenData.class);
 
         template.setKeySerializer(new StringRedisSerializer());
         template.setValueSerializer(typedSerializer);

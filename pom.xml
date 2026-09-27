@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>3.5.16</version>
+		<version>4.1.1</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.immobilier</groupId>
@@ -28,11 +28,6 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
-
-		<!-- Overrides conserves car plus recents que ceux du BOM 3.5.16
-		     (tomcat 10.1.55, postgresql 42.7.11) : a retirer des que le BOM les rattrape. -->
-		<tomcat.version>10.1.60</tomcat.version>
-		<postgresql.version>42.7.13</postgresql.version>
 	</properties>
 	<dependencies>
 		<!-- Spring Boot Starters -->
@@ -50,7 +45,7 @@
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-web</artifactId>
+			<artifactId>spring-boot-starter-webmvc</artifactId>
 		</dependency>
 
 		<dependency>
@@ -87,13 +82,18 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
-			<groupId>org.springframework.security</groupId>
-			<artifactId>spring-security-test</artifactId>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-webmvc-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security-test</artifactId>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.testcontainers</groupId>
-			<artifactId>postgresql</artifactId>
+			<artifactId>testcontainers-postgresql</artifactId>
 			<scope>test</scope>
 		</dependency>
 
@@ -141,15 +141,8 @@
 			<version>0.4.20</version>
 		</dependency>
 
-		<!-- Overrides explicites : commons-lang3 (BOM : 3.17.0) et commons-io
-		     (transitif de tika, 2.15.1) sont trop anciens pour le commons-compress
-		     requis par Testcontainers 1.21.x -->
-
-		<dependency>
-			<groupId>org.apache.commons</groupId>
-			<artifactId>commons-lang3</artifactId>
-			<version>3.18.0</version>
-		</dependency>
+		<!-- Override explicite : commons-io 2.15.1 (transitif de tika) est trop ancien
+		     pour le commons-compress requis par Testcontainers -->
 		<dependency>
 			<groupId>commons-io</groupId>
 			<artifactId>commons-io</artifactId>

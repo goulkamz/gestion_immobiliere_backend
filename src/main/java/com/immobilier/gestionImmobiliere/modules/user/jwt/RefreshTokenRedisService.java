@@ -61,11 +61,11 @@ public class RefreshTokenRedisService {
             return;
         }
 
-        refreshTokenRedisTemplate.opsForValue().set(key, data, ttl, TimeUnit.MILLISECONDS);
+        refreshTokenRedisTemplate.opsForValue().set(key, data, Duration.ofMillis(ttl));
 
         String userKey = USER_TOKENS_KEY_PREFIX + data.getUsername();
         stringRedisTemplate.opsForSet().add(userKey, tokenId);
-        stringRedisTemplate.expire(userKey, ttl, TimeUnit.MILLISECONDS);
+        stringRedisTemplate.expire(userKey, Duration.ofMillis(ttl));
 
         log.debug("Refresh token sauvegardé: {} pour user: {} (TTL: {} ms)", tokenId, data.getUsername(), ttl);
     }
@@ -99,7 +99,7 @@ public class RefreshTokenRedisService {
         Long ttl = refreshTokenRedisTemplate.getExpire(key, TimeUnit.MILLISECONDS);
 
         if (ttl != null && ttl > 0) {
-            refreshTokenRedisTemplate.opsForValue().set(key, data, ttl, TimeUnit.MILLISECONDS);
+            refreshTokenRedisTemplate.opsForValue().set(key, data, Duration.ofMillis(ttl));
             return true;
         }
 
