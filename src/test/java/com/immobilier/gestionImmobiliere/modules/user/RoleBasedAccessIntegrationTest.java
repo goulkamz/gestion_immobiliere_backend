@@ -41,6 +41,17 @@ class RoleBasedAccessIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk());
     }
 
+    @org.junit.jupiter.api.Test
+    void statsPubliques_sansAuthentification_retourne200() throws Exception {
+        mockMvc.perform(get("/api/stats/public")).andExpect(status().isOk());
+        mockMvc.perform(get("/api/stats/public/annonces")).andExpect(status().isOk());
+    }
+
+    @org.junit.jupiter.api.Test
+    void statsNonPubliques_sansAuthentification_retourne401() throws Exception {
+        mockMvc.perform(get("/api/stats/admin")).andExpect(status().isUnauthorized());
+    }
+
     private Cookie seConnecterEtRecupererCookieAcces(String email) throws Exception {
         MvcResult login = mockMvc.perform(post("/api/auth/signin")
                         .contentType(MediaType.APPLICATION_JSON)
