@@ -28,6 +28,12 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
+
+		<!-- Overrides cibles de securite : la branche 3.2.x de Spring Boot est en
+		     fin de support et ne recevra plus ces correctifs via son propre BOM. -->
+		<tomcat.version>10.1.60</tomcat.version>          <!-- CVE-2025-24813 (RCE partial PUT), corrige en 10.1.35 -->
+		<postgresql.version>42.7.13</postgresql.version>  <!-- GHSA-98qh-xjc8-98pq (DoS SCRAM), corrige en 42.7.11 -->
+		<spring-security.version>6.2.8</spring-security.version> <!-- GHSA-mf92-479x-3373 (en-tetes non ecrits), corrige en 6.2.7 -->
 	</properties>
 	<dependencies>
 		<!-- Spring Boot Starters -->
@@ -134,7 +140,15 @@
 		<dependency>
 			<groupId>io.minio</groupId>
 			<artifactId>minio</artifactId>
-			<version>8.5.7</version>
+			<version>8.6.0</version> <!-- GHSA-h7rh-xfpj-hpcm (substitution XML) -->
+		</dependency>
+
+		<!-- Override explicite : bcprov n'est qu'une dependance transitive de minio,
+		     jamais geree par le BOM Spring Boot -->
+		<dependency>
+			<groupId>org.bouncycastle</groupId>
+			<artifactId>bcprov-jdk18on</artifactId>
+			<version>1.86</version> <!-- GHSA-9pwp-9qqc-pr26, GHSA-574f-3g2m-x479 -->
 		</dependency>
 
 		<dependency>
