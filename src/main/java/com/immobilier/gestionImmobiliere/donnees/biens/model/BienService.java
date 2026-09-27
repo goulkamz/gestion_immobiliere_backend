@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.Where;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -23,7 +23,7 @@ import java.util.List;
 @AllArgsConstructor
 @SuperBuilder
 @SQLDelete(sql = "UPDATE bien_service SET is_deleted = true WHERE id_bien_service = ?")
-@Where(clause = "is_deleted = false")
+@SQLRestriction("is_deleted = false")
 public class BienService extends Model {
 
     @Id

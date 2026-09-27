@@ -178,8 +178,7 @@ public class RefreshTokenRedisService {
                 .count(100)
                 .build();
 
-        try (Cursor<byte[]> cursor = refreshTokenRedisTemplate.getConnectionFactory()
-                .getConnection().scan(options)) {
+        try (Cursor<String> cursor = refreshTokenRedisTemplate.scan(options)) {
             while (cursor.hasNext()) {
                 cursor.next();
                 count++;

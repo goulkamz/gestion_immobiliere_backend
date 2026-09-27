@@ -1,10 +1,9 @@
 package com.immobilier.gestionImmobiliere;
 
+import com.immobilier.gestionImmobiliere.support.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
-class GestionImmobiliereApplicationTests {
+class GestionImmobiliereApplicationTests extends AbstractIntegrationTest {
 
 	@Test
 	void contextLoads() {

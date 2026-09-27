@@ -5,7 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.Where;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.io.Serializable;
 
@@ -14,7 +14,7 @@ import java.io.Serializable;
 @Data @SuperBuilder
 @NoArgsConstructor @AllArgsConstructor
 @SQLDelete(sql = "UPDATE paiement_echeance SET is_deleted = true WHERE id_echeance = ? AND id_paiement = ?")
-@Where(clause = "is_deleted = false")
+@SQLRestriction("is_deleted = false")
 @IdClass(PaiementEcheance.PaiementEcheanceId.class)
 public class PaiementEcheance extends Model_1 {
 

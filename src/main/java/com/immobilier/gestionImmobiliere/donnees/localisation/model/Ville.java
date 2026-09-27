@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.Where;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.time.Instant;
 
@@ -12,7 +12,7 @@ import java.time.Instant;
 @Table(name = "ville")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @SuperBuilder
 @SQLDelete(sql = "UPDATE ville SET is_deleted = true WHERE id_ville = ?")
-@Where(clause = "is_deleted = false")
+@SQLRestriction("is_deleted = false")
 public class Ville {
 
     @Id
