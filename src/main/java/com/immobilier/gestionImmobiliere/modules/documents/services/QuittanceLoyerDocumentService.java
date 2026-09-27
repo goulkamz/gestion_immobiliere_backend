@@ -18,8 +18,6 @@ import org.openpdf.text.*;
 import org.openpdf.text.pdf.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,8 +28,6 @@ import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.time.LocalDateTime;
 import java.util.UUID;
-
-import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
 
 @Service
 public class QuittanceLoyerDocumentService {
@@ -71,7 +67,7 @@ public class QuittanceLoyerDocumentService {
                     "or @quittanceLoyerSecurity.isAccessible(#idEcheance, authentication.principal.idUser)"
     )
     @Transactional
-    public ResponseEntity<?> genererOuRecuperer(Integer idEcheance, Integer currentUserId) {
+    public byte[] genererOuRecuperer(Integer idEcheance, Integer currentUserId) {
         EcheanceLoyer echeance = echeanceLoyerRepository.findById(idEcheance)
                 .orElseThrow(() -> new ResourceNotFoundException("échéance", idEcheance));
 
@@ -85,29 +81,27 @@ public class QuittanceLoyerDocumentService {
         var existant = documentRepository.findByEntiteTypeAndEntiteIdOrderByCreatedAtDesc(
                 TypeEntiteDocument.ECHEANCE_LOYER, idEcheance);
 
-        Document document;
         if (!existant.isEmpty()) {
-            document = existant.getFirst();
-        } else {
-            ContratLocation contrat = contratLocationRepository.findById(echeance.getEntiteEcheanceId())
-                    .orElseThrow(() -> new ResourceNotFoundException("contrat de location", echeance.getEntiteEcheanceId()));
-
-            byte[] pdf = genererPdf(echeance, contrat);
-            String cle = documentStorageService.store(pdf, "quittances");
-
-            document = Document.builder()
-                    .typeDocument(TypeDocument.QUITTANCE_LOYER)
-                    .entiteType(TypeEntiteDocument.ECHEANCE_LOYER)
-                    .entiteId(idEcheance)
-                    .cheminFichier(cle)
-                    .createdAt(LocalDateTime.now())
-                    .userCreate(currentUserId)
-                    .build();
-            documentRepository.save(document);
+            return documentStorageService.telecharger(existant.getFirst().getCheminFichier());
         }
 
-        String url = documentStorageService.genererUrlPresignee(document.getCheminFichier());
-        return buildSuccessResponse(HttpStatus.OK, "Quittance de loyer disponible", "QUITTANCE_GENERATED", url);
+        ContratLocation contrat = contratLocationRepository.findById(echeance.getEntiteEcheanceId())
+                .orElseThrow(() -> new ResourceNotFoundException("contrat de location", echeance.getEntiteEcheanceId()));
+
+        byte[] pdf = genererPdf(echeance, contrat);
+        String cle = documentStorageService.store(pdf, "quittances");
+
+        Document document = Document.builder()
+                .typeDocument(TypeDocument.QUITTANCE_LOYER)
+                .entiteType(TypeEntiteDocument.ECHEANCE_LOYER)
+                .entiteId(idEcheance)
+                .cheminFichier(cle)
+                .createdAt(LocalDateTime.now())
+                .userCreate(currentUserId)
+                .build();
+        documentRepository.save(document);
+
+        return pdf;
     }
 
     // ── Génération PDF (OpenPDF) ─────────────────────────────────────────────

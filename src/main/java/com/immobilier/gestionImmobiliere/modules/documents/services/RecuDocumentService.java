@@ -21,9 +21,6 @@ import org.openpdf.text.*;
 import org.openpdf.text.pdf.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,8 +32,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.UUID;
-
-import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
 
     @Service
     public class RecuDocumentService {
@@ -78,39 +73,36 @@ import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.build
         /**
          * Génère le reçu une seule fois (immuable) — si un document existe déjà
          * pour ce paiement, le renvoie sans régénérer.
+         *
+         * Autorisation vérifiée par RecuDocumentController (@PreAuthorize via
+         * paiementOwnershipResolver), pas ici.
          */
-        @PreAuthorize(
-                "hasAnyRole('ADMIN','AGENT') " +
-                        "or @paiementSecurity.isAccessible(#idPaiement, authentication.principal.idUser)"
-        )
         @Transactional
-        public ResponseEntity<?> genererOuRecuperer(Integer idPaiement, Integer currentUserId) {
+        public byte[] genererOuRecuperer(Integer idPaiement, Integer currentUserId) {
             var existant = documentRepository.findByEntiteTypeAndEntiteIdOrderByCreatedAtDesc(
                     TypeEntiteDocument.PAIEMENT, idPaiement);
 
-            Document document;
             if (!existant.isEmpty()) {
-                document = existant.getFirst();
-            } else {
-                Paiement paiement = paiementRepository.findById(idPaiement)
-                        .orElseThrow(() -> new ResourceNotFoundException("paiement", idPaiement));
-
-                byte[] pdf = genererPdf(paiement);
-                String cle = documentStorageService.store(pdf, "recus");
-
-                document = Document.builder()
-                        .typeDocument(TypeDocument.RECU)
-                        .entiteType(TypeEntiteDocument.PAIEMENT)
-                        .entiteId(idPaiement)
-                        .cheminFichier(cle)
-                        .createdAt(LocalDateTime.now())
-                        .userCreate(currentUserId)
-                        .build();
-                documentRepository.save(document);
+                return documentStorageService.telecharger(existant.getFirst().getCheminFichier());
             }
 
-            String url = documentStorageService.genererUrlPresignee(document.getCheminFichier());
-            return buildSuccessResponse(HttpStatus.OK, "Reçu disponible", "RECU_GENERATED", url);
+            Paiement paiement = paiementRepository.findById(idPaiement)
+                    .orElseThrow(() -> new ResourceNotFoundException("paiement", idPaiement));
+
+            byte[] pdf = genererPdf(paiement);
+            String cle = documentStorageService.store(pdf, "recus");
+
+            Document document = Document.builder()
+                    .typeDocument(TypeDocument.RECU)
+                    .entiteType(TypeEntiteDocument.PAIEMENT)
+                    .entiteId(idPaiement)
+                    .cheminFichier(cle)
+                    .createdAt(LocalDateTime.now())
+                    .userCreate(currentUserId)
+                    .build();
+            documentRepository.save(document);
+
+            return pdf;
         }
 
         // ── Génération PDF (OpenPDF) ─────────────────────────────────────────────

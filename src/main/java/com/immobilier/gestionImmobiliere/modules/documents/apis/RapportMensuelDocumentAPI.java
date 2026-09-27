@@ -1,6 +1,7 @@
 package com.immobilier.gestionImmobiliere.modules.documents.apis;
 
 import com.immobilier.gestionImmobiliere.modules.user.jwtService.UserDetailsImpl;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -14,6 +15,6 @@ import java.time.LocalDate;
 public interface RapportMensuelDocumentAPI {
 
     @PreAuthorize("hasRole('ADMIN')")
-    @GetMapping
-    ResponseEntity<?> genererOuRecuperer(@RequestParam LocalDate periode, @AuthenticationPrincipal UserDetailsImpl currentUser);
+    @GetMapping(produces = MediaType.APPLICATION_PDF_VALUE)
+    ResponseEntity<byte[]> genererOuRecuperer(@RequestParam LocalDate periode, @AuthenticationPrincipal UserDetailsImpl currentUser);
 }

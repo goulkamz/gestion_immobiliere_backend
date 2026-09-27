@@ -13,8 +13,6 @@ import org.openpdf.text.*;
 import org.openpdf.text.pdf.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,8 +23,6 @@ import java.text.DecimalFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
-
-import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
 
 @Service
 public class ContratMandatDocumentService {
@@ -59,33 +55,31 @@ public class ContratMandatDocumentService {
                     "or @contratMandatSecurity.isAccessible(#idMandat, authentication.principal.idUser)"
     )
     @Transactional
-    public ResponseEntity<?> genererOuRecuperer(Integer idMandat, Integer currentUserId) {
+    public byte[] genererOuRecuperer(Integer idMandat, Integer currentUserId) {
         var existant = documentRepository.findByEntiteTypeAndEntiteIdOrderByCreatedAtDesc(
                 TypeEntiteDocument.CONTRAT_MANDAT, idMandat);
 
-        Document document;
         if (!existant.isEmpty()) {
-            document = existant.getFirst();
-        } else {
-            ContratMandat mandat = contratMandatRepository.findById(idMandat)
-                    .orElseThrow(() -> new ResourceNotFoundException("contrat de mandat", idMandat));
-
-            byte[] pdf = genererPdf(mandat);
-            String cle = documentStorageService.store(pdf, "contrats-mandat");
-
-            document = Document.builder()
-                    .typeDocument(TypeDocument.CONTRAT_MANDAT)
-                    .entiteType(TypeEntiteDocument.CONTRAT_MANDAT)
-                    .entiteId(idMandat)
-                    .cheminFichier(cle)
-                    .createdAt(LocalDateTime.now())
-                    .userCreate(currentUserId)
-                    .build();
-            documentRepository.save(document);
+            return documentStorageService.telecharger(existant.getFirst().getCheminFichier());
         }
 
-        String url = documentStorageService.genererUrlPresignee(document.getCheminFichier());
-        return buildSuccessResponse(HttpStatus.OK, "Contrat de mandat disponible", "CONTRAT_MANDAT_GENERATED", url);
+        ContratMandat mandat = contratMandatRepository.findById(idMandat)
+                .orElseThrow(() -> new ResourceNotFoundException("contrat de mandat", idMandat));
+
+        byte[] pdf = genererPdf(mandat);
+        String cle = documentStorageService.store(pdf, "contrats-mandat");
+
+        Document document = Document.builder()
+                .typeDocument(TypeDocument.CONTRAT_MANDAT)
+                .entiteType(TypeEntiteDocument.CONTRAT_MANDAT)
+                .entiteId(idMandat)
+                .cheminFichier(cle)
+                .createdAt(LocalDateTime.now())
+                .userCreate(currentUserId)
+                .build();
+        documentRepository.save(document);
+
+        return pdf;
     }
 
     // ── Génération PDF (OpenPDF) ─────────────────────────────────────────────

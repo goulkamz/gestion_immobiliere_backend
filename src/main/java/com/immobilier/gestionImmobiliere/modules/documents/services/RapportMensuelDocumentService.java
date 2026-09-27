@@ -14,8 +14,6 @@ import org.openpdf.text.*;
 import org.openpdf.text.pdf.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,9 +23,6 @@ import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-
-
-import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
 
 @Service
 public class RapportMensuelDocumentService {
@@ -69,27 +64,27 @@ public class RapportMensuelDocumentService {
      * s'assure qu'il existe automatiquement chaque 15 du mois.
      */
     @Transactional
-    public ResponseEntity<?> genererOuRecuperer(LocalDate periode, Integer currentUserId) {
+    public byte[] genererOuRecuperer(LocalDate periode, Integer currentUserId) {
         LocalDate debutMois = periode.withDayOfMonth(1);
 
         var existant = documentRepository.findByTypeDocumentAndPeriodeMois(TypeDocument.RAPPORT_MENSUEL, debutMois);
+        if (existant.isPresent()) {
+            return documentStorageService.telecharger(existant.get().getCheminFichier());
+        }
 
-        Document document = existant.orElseGet(() -> {
-            byte[] pdf = genererPdf(debutMois);
-            String cle = documentStorageService.store(pdf, "rapports-mensuels");
+        byte[] pdf = genererPdf(debutMois);
+        String cle = documentStorageService.store(pdf, "rapports-mensuels");
 
-            Document nouveau = Document.builder()
-                    .typeDocument(TypeDocument.RAPPORT_MENSUEL)
-                    .periodeMois(debutMois)
-                    .cheminFichier(cle)
-                    .createdAt(LocalDateTime.now())
-                    .userCreate(currentUserId)
-                    .build();
-            return documentRepository.save(nouveau);
-        });
+        Document nouveau = Document.builder()
+                .typeDocument(TypeDocument.RAPPORT_MENSUEL)
+                .periodeMois(debutMois)
+                .cheminFichier(cle)
+                .createdAt(LocalDateTime.now())
+                .userCreate(currentUserId)
+                .build();
+        documentRepository.save(nouveau);
 
-        String url = documentStorageService.genererUrlPresignee(document.getCheminFichier());
-        return buildSuccessResponse(HttpStatus.OK, "Rapport mensuel disponible", "RAPPORT_MENSUEL_GENERATED", url);
+        return pdf;
     }
 
     // ── Génération PDF (OpenPDF) ─────────────────────────────────────────────

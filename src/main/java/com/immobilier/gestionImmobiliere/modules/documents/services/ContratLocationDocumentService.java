@@ -13,8 +13,6 @@ import org.openpdf.text.*;
 import org.openpdf.text.pdf.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,8 +23,6 @@ import java.text.DecimalFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
-
-import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
 
 @Service
 public class ContratLocationDocumentService {
@@ -63,33 +59,31 @@ public class ContratLocationDocumentService {
                     "or @contratLocationSecurity.isAccessible(#idContrat, authentication.principal.idUser)"
     )
     @Transactional
-    public ResponseEntity<?> genererOuRecuperer(Integer idContrat, Integer currentUserId) {
+    public byte[] genererOuRecuperer(Integer idContrat, Integer currentUserId) {
         var existant = documentRepository.findByEntiteTypeAndEntiteIdOrderByCreatedAtDesc(
                 TypeEntiteDocument.CONTRAT_LOCATION, idContrat);
 
-        Document document;
         if (!existant.isEmpty()) {
-            document = existant.getFirst();
-        } else {
-            ContratLocation contrat = contratLocationRepository.findById(idContrat)
-                    .orElseThrow(() -> new ResourceNotFoundException("contrat de location", idContrat));
-
-            byte[] pdf = genererPdf(contrat);
-            String cle = documentStorageService.store(pdf, "contrats-location");
-
-            document = Document.builder()
-                    .typeDocument(TypeDocument.CONTRAT_LOCATION)
-                    .entiteType(TypeEntiteDocument.CONTRAT_LOCATION)
-                    .entiteId(idContrat)
-                    .cheminFichier(cle)
-                    .createdAt(LocalDateTime.now())
-                    .userCreate(currentUserId)
-                    .build();
-            documentRepository.save(document);
+            return documentStorageService.telecharger(existant.getFirst().getCheminFichier());
         }
 
-        String url = documentStorageService.genererUrlPresignee(document.getCheminFichier());
-        return buildSuccessResponse(HttpStatus.OK, "Contrat de location disponible", "CONTRAT_LOCATION_GENERATED", url);
+        ContratLocation contrat = contratLocationRepository.findById(idContrat)
+                .orElseThrow(() -> new ResourceNotFoundException("contrat de location", idContrat));
+
+        byte[] pdf = genererPdf(contrat);
+        String cle = documentStorageService.store(pdf, "contrats-location");
+
+        Document document = Document.builder()
+                .typeDocument(TypeDocument.CONTRAT_LOCATION)
+                .entiteType(TypeEntiteDocument.CONTRAT_LOCATION)
+                .entiteId(idContrat)
+                .cheminFichier(cle)
+                .createdAt(LocalDateTime.now())
+                .userCreate(currentUserId)
+                .build();
+        documentRepository.save(document);
+
+        return pdf;
     }
 
     // ── Génération PDF (OpenPDF) ─────────────────────────────────────────────

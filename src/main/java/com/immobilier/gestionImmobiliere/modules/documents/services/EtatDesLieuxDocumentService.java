@@ -15,8 +15,6 @@ import org.openpdf.text.*;
 import org.openpdf.text.pdf.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,8 +24,6 @@ import java.io.ByteArrayOutputStream;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
-
-import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
 
 @Service
 public class EtatDesLieuxDocumentService {
@@ -59,7 +55,7 @@ public class EtatDesLieuxDocumentService {
                     "or @contratLocationSecurity.isAccessible(#idContrat, authentication.principal.idUser)"
     )
     @Transactional
-    public ResponseEntity<?> genererEntree(Integer idContrat, Integer currentUserId) {
+    public byte[] genererEntree(Integer idContrat, Integer currentUserId) {
         ContratLocation contrat = contratLocationRepository.findById(idContrat)
                 .orElseThrow(() -> new ResourceNotFoundException("contrat de location", idContrat));
 
@@ -76,7 +72,7 @@ public class EtatDesLieuxDocumentService {
                     "or @contratLocationSecurity.isAccessible(#idContrat, authentication.principal.idUser)"
     )
     @Transactional
-    public ResponseEntity<?> genererSortie(Integer idContrat, Integer currentUserId) {
+    public byte[] genererSortie(Integer idContrat, Integer currentUserId) {
         ContratLocation contrat = contratLocationRepository.findById(idContrat)
                 .orElseThrow(() -> new ResourceNotFoundException("contrat de location", idContrat));
 
@@ -91,34 +87,32 @@ public class EtatDesLieuxDocumentService {
                 "Sortie", currentUserId);
     }
 
-    private ResponseEntity<?> genererOuRecuperer(TypeDocument type, ContratLocation contrat, String descriptionEtat,
-                                                 String libelle, Integer currentUserId) {
+    private byte[] genererOuRecuperer(TypeDocument type, ContratLocation contrat, String descriptionEtat,
+                                      String libelle, Integer currentUserId) {
         var existant = documentRepository.findByEntiteTypeAndEntiteIdOrderByCreatedAtDesc(
                 TypeEntiteDocument.CONTRAT_LOCATION, contrat.getIdContratLocation());
 
         // Filtre sur le bon type précisément (entrée/sortie), le repository renvoie les deux confondus
         var existantPourType = existant.stream().filter(d -> d.getTypeDocument() == type).findFirst();
 
-        Document document;
         if (existantPourType.isPresent()) {
-            document = existantPourType.get();
-        } else {
-            byte[] pdf = genererPdf(contrat, descriptionEtat, libelle);
-            String cle = documentStorageService.store(pdf, "etats-des-lieux");
-
-            document = Document.builder()
-                    .typeDocument(type)
-                    .entiteType(TypeEntiteDocument.CONTRAT_LOCATION)
-                    .entiteId(contrat.getIdContratLocation())
-                    .cheminFichier(cle)
-                    .createdAt(LocalDateTime.now())
-                    .userCreate(currentUserId)
-                    .build();
-            documentRepository.save(document);
+            return documentStorageService.telecharger(existantPourType.get().getCheminFichier());
         }
 
-        String url = documentStorageService.genererUrlPresignee(document.getCheminFichier());
-        return buildSuccessResponse(HttpStatus.OK, "État des lieux (" + libelle + ") disponible", "ETAT_DES_LIEUX_GENERATED", url);
+        byte[] pdf = genererPdf(contrat, descriptionEtat, libelle);
+        String cle = documentStorageService.store(pdf, "etats-des-lieux");
+
+        Document document = Document.builder()
+                .typeDocument(type)
+                .entiteType(TypeEntiteDocument.CONTRAT_LOCATION)
+                .entiteId(contrat.getIdContratLocation())
+                .cheminFichier(cle)
+                .createdAt(LocalDateTime.now())
+                .userCreate(currentUserId)
+                .build();
+        documentRepository.save(document);
+
+        return pdf;
     }
 
     // ── Génération PDF (OpenPDF) ─────────────────────────────────────────────

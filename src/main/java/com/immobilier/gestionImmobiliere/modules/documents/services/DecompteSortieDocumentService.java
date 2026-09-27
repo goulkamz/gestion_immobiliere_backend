@@ -15,8 +15,6 @@ import org.openpdf.text.*;
 import org.openpdf.text.pdf.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,8 +26,6 @@ import java.text.DecimalFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
-
-import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
 
 @Service
 public class DecompteSortieDocumentService {
@@ -70,7 +66,7 @@ public class DecompteSortieDocumentService {
                     "or @decompteSortieSecurity.isAccessible(#idDecompte, authentication.principal.idUser)"
     )
     @Transactional
-    public ResponseEntity<?> genererOuRecuperer(Integer idDecompte, Integer currentUserId) {
+    public byte[] genererOuRecuperer(Integer idDecompte, Integer currentUserId) {
         DecompteSortie decompte = decompteSortieRepository.findById(idDecompte)
                 .orElseThrow(() -> new ResourceNotFoundException("décompte de sortie", idDecompte));
 
@@ -81,26 +77,24 @@ public class DecompteSortieDocumentService {
         var existant = documentRepository.findByEntiteTypeAndEntiteIdOrderByCreatedAtDesc(
                 TypeEntiteDocument.DECOMPTE_SORTIE, idDecompte);
 
-        Document document;
         if (!existant.isEmpty()) {
-            document = existant.getFirst();
-        } else {
-            byte[] pdf = genererPdf(decompte);
-            String cle = documentStorageService.store(pdf, "decomptes-sortie");
-
-            document = Document.builder()
-                    .typeDocument(TypeDocument.DECOMPTE_SORTIE)
-                    .entiteType(TypeEntiteDocument.DECOMPTE_SORTIE)
-                    .entiteId(idDecompte)
-                    .cheminFichier(cle)
-                    .createdAt(LocalDateTime.now())
-                    .userCreate(currentUserId)
-                    .build();
-            documentRepository.save(document);
+            return documentStorageService.telecharger(existant.getFirst().getCheminFichier());
         }
 
-        String url = documentStorageService.genererUrlPresignee(document.getCheminFichier());
-        return buildSuccessResponse(HttpStatus.OK, "Décompte de sortie disponible", "DECOMPTE_SORTIE_DOCUMENT_GENERATED", url);
+        byte[] pdf = genererPdf(decompte);
+        String cle = documentStorageService.store(pdf, "decomptes-sortie");
+
+        Document document = Document.builder()
+                .typeDocument(TypeDocument.DECOMPTE_SORTIE)
+                .entiteType(TypeEntiteDocument.DECOMPTE_SORTIE)
+                .entiteId(idDecompte)
+                .cheminFichier(cle)
+                .createdAt(LocalDateTime.now())
+                .userCreate(currentUserId)
+                .build();
+        documentRepository.save(document);
+
+        return pdf;
     }
 
     // ── Génération PDF (OpenPDF) ─────────────────────────────────────────────
