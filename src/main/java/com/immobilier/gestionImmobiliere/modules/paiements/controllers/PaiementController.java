@@ -32,6 +32,10 @@ public class PaiementController implements PaiementAPI {
     }
 
     @Override
+    @PreAuthorize("hasAnyRole('ADMIN','AGENT')" +
+            "or @paiementOwnershipResolver.isPaiementAccessible(#id, authentication.principal.idUser, false) " +
+            "or @paiementOwnershipResolver.isPaiementAccessible(#id, authentication.principal.idUser, true)" +
+            "or @paiementOwnershipResolver.isPaiementAccessibleBienService(#id, authentication.principal.idUser)")
     public ResponseEntity<?> getById(Integer id) {
         PaiementResponseDTO dto = paiementService.getPaiementById(id);
         return buildSuccessResponse(HttpStatus.OK, "Paiement trouvé", "PAIEMENT_FOUND", dto);
