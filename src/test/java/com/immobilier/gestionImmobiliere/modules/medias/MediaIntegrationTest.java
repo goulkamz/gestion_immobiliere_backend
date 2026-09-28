@@ -16,6 +16,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -64,6 +69,35 @@ class MediaIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].idMedia").value(b))
                 .andExpect(jsonPath("$.data[1].idMedia").value(a));
+    }
+
+    @Test
+    void photo_servieParLeBackend_avecCache_puisIntrouvableApresSuppression() throws Exception {
+        int id = uploader(5);
+        byte[] original = new ClassPathResource("image/etoile.png").getContentAsByteArray();
+
+        mockMvc.perform(get("/api/public/medias").param("entiteType", "MAISON").param("entiteId", "5"))
+                .andExpect(jsonPath("$.data[?(@.idMedia == %d)].url".formatted(id))
+                        .value("https://api.test/api/public/medias/%d/fichier".formatted(id)))
+                .andExpect(jsonPath("$.data[?(@.idMedia == %d)].urlThumbnail".formatted(id))
+                        .value("https://api.test/api/public/medias/%d/miniature".formatted(id)));
+
+        byte[] servi = mockMvc.perform(get("/api/public/medias/" + id + "/fichier"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("image/png"))
+                .andExpect(header().string("Cache-Control", containsString("max-age=604800")))
+                .andExpect(header().string("Cache-Control", containsString("public")))
+                .andExpect(header().string("Cache-Control", not(containsString("no-store"))))
+                .andReturn().getResponse().getContentAsByteArray();
+        assertThat(servi).isEqualTo(original);
+
+        mockMvc.perform(get("/api/public/medias/" + id + "/miniature"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("image/png"));
+
+        mockMvc.perform(delete("/api/medias/" + id).cookie(agent)).andExpect(status().isOk());
+        mockMvc.perform(get("/api/public/medias/" + id + "/fichier")).andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/public/medias/999999/fichier")).andExpect(status().isNotFound());
     }
 
     private int uploader(int idMaison) throws Exception {

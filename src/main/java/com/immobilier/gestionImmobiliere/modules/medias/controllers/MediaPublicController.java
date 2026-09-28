@@ -21,4 +21,14 @@ public class MediaPublicController implements MediaPublicAPI {
         return mediaService.getByEntite(entiteType, entiteId);
     }
 
+    @Override
+    public ResponseEntity<?> fichier(Integer id) {
+        return mediaService.lireFichier(id, false);
+    }
+
+    @Override
+    public ResponseEntity<?> miniature(Integer id) {
+        return mediaService.lireFichier(id, true);
+    }
+
 }

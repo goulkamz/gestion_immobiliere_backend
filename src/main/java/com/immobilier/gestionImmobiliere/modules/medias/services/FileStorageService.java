@@ -3,7 +3,6 @@ package com.immobilier.gestionImmobiliere.modules.medias.services;
 import com.immobilier.gestionImmobiliere.donnees.medias.model.TypeEntiteMedia;
 import com.immobilier.gestionImmobiliere.exceptions.MediaStorageException;
 import io.minio.*;
-import io.minio.http.Method;
 import jakarta.annotation.PostConstruct;
 import net.coobird.thumbnailator.Thumbnails;
 import org.apache.tika.Tika;
@@ -15,12 +14,12 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 @Service
 public class FileStorageService {
@@ -38,17 +37,11 @@ public class FileStorageService {
     @Value("${app.minio.bucket-documents}")
     private String bucketDocuments;
 
-    @Value("${app.minio.public-endpoint}")
-    private String publicBaseUrl;
-
     private final MinioClient minioClient;
-    private final MinioClient minioClientPresign;
     private final Tika tika = new Tika();
 
-    public FileStorageService(@Qualifier("minioClient") MinioClient minioClient,
-                              @Qualifier("minioClientPresign") MinioClient minioClientPresign) {
+    public FileStorageService(@Qualifier("minioClient") MinioClient minioClient) {
         this.minioClient = minioClient;
-        this.minioClientPresign = minioClientPresign;
     }
 
     @PostConstruct
@@ -188,22 +181,18 @@ public class FileStorageService {
         }
     }
 
-    public String genererUrlPublique(String bucket, String cle) {
-        if (cle == null) return null;
-        return publicBaseUrl + "/" + bucket + "/" + cle;
-    }
+    public record FichierStocke(InputStream contenu, String contentType, long taille) {}
 
-    public String genererUrlPresignee(String bucket, String cle) {
-        if (cle == null) return null;
+    /** Flux a fermer par l'appelant (Spring le ferme apres ecriture de la reponse). */
+    public FichierStocke lire(String bucket, String cle) {
         try {
-            return minioClientPresign.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
-                    .method(Method.GET)
-                    .bucket(bucket)
-                    .object(cle)
-                    .expiry(1, TimeUnit.HOURS)
-                    .build());
+            StatObjectResponse infos = minioClient.statObject(StatObjectArgs.builder()
+                    .bucket(bucket).object(cle).build());
+            InputStream contenu = minioClient.getObject(GetObjectArgs.builder()
+                    .bucket(bucket).object(cle).build());
+            return new FichierStocke(contenu, infos.contentType(), infos.size());
         } catch (Exception e) {
-            throw new MediaStorageException("Impossible de générer l'URL présignée", e);
+            throw new MediaStorageException("Impossible de lire le fichier depuis MinIO", e);
         }
     }
 

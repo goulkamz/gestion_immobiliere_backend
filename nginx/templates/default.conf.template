@@ -1,5 +1,9 @@
-# Genere au demarrage par l'image nginx (envsubst) : seules les variables
-# d'environnement API_DOMAIN et MEDIAS_DOMAIN sont remplacees, pas $host & co.
+# Genere au demarrage par l'image nginx (envsubst) : seule la variable
+# d'environnement API_DOMAIN est remplacee, pas $host & co.
+#
+# Seuls points d'entree publics : l'API (web et mobile) et, plus tard, le frontend.
+# Postgres, Redis et MinIO ne sont joignables que sur le reseau Docker interne ;
+# les photos sont servies par le backend (et mises en cache ici).
 
 server_tokens off;
 ssl_protocols TLSv1.2 TLSv1.3;
@@ -8,12 +12,17 @@ ssl_session_cache shared:SSL:10m;
 ssl_session_timeout 1d;
 ssl_session_tickets off;
 
+# Cache des photos servies par le backend : chaque fichier n'est lu dans MinIO
+# qu'une fois tant qu'il est demande (un media ne change jamais de contenu).
+proxy_cache_path /var/cache/nginx/medias levels=1:2 keys_zone=medias:10m
+                 max_size=2g inactive=30d use_temp_path=off;
+
 # ---------------------------------------------------------------------------
 # HTTP : validation Let's Encrypt, sinon redirection vers HTTPS
 # ---------------------------------------------------------------------------
 server {
     listen 80;
-    server_name ${API_DOMAIN} ${MEDIAS_DOMAIN};
+    server_name ${API_DOMAIN};
 
     location /.well-known/acme-challenge/ {
         root /var/www/acme;
@@ -24,11 +33,18 @@ server {
     }
 }
 
-# Tout autre nom d'hote (scan, IP directe) : connexion fermee sans reponse
+# Tout autre nom d'hote (scan, IP directe) : connexion fermee sans reponse,
+# y compris en HTTPS (poignee de main TLS refusee, aucun certificat revele)
 server {
     listen 80 default_server;
     server_name _;
     return 444;
+}
+
+server {
+    listen 443 ssl default_server;
+    server_name _;
+    ssl_reject_handshake on;
 }
 
 # ---------------------------------------------------------------------------
@@ -47,45 +63,32 @@ server {
     # Aligne sur SERVLET_MULTIPART_MAX_REQUEST_SIZE (uploads multiples de medias)
     client_max_body_size 200m;
 
+    # Ecrase (et ne complete pas) X-Forwarded-For : ClientIpResolver lit la premiere
+    # adresse, un client ne doit pas pouvoir y placer une fausse IP.
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+
+    location ~ ^/api/public/medias/\d+/(fichier|miniature)$ {
+        proxy_pass http://backend:8080;
+        proxy_cache medias;
+        proxy_cache_key $uri;
+        proxy_cache_valid 200 7d;
+        proxy_cache_lock on;
+        # Requetes partielles (Range) servies depuis le cache : necessaire pour
+        # naviguer dans une video sans la retelecharger en entier
+        proxy_force_ranges on;
+        proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
+        # Contenu public : identique pour tous, cookies de session ignores
+        proxy_hide_header Set-Cookie;
+        # add_header dans un location annule ceux du server : HSTS repete ici
+        add_header Strict-Transport-Security "max-age=31536000" always;
+        add_header X-Cache-Status $upstream_cache_status always;
+    }
+
     location / {
         proxy_pass http://backend:8080;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        # Ecrase (et ne complete pas) l'en-tete du client : ClientIpResolver lit la
-        # premiere adresse, un client ne doit pas pouvoir y placer une fausse IP.
-        proxy_set_header X-Forwarded-For $remote_addr;
-        proxy_set_header X-Forwarded-Proto $scheme;
         proxy_read_timeout 120s;
-    }
-}
-
-# ---------------------------------------------------------------------------
-# Medias -> MinIO (lecture seule : photos publiques et URLs presignees)
-# ---------------------------------------------------------------------------
-server {
-    listen 443 ssl;
-    http2 on;
-    server_name ${MEDIAS_DOMAIN};
-
-    ssl_certificate     /etc/letsencrypt/live/${MEDIAS_DOMAIN}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/${MEDIAS_DOMAIN}/privkey.pem;
-
-    add_header Strict-Transport-Security "max-age=31536000" always;
-
-    proxy_buffering off;
-
-    location / {
-        # Le backend ecrit dans MinIO par le reseau interne : rien a ecrire d'ici
-        limit_except GET HEAD {
-            deny all;
-        }
-        proxy_pass http://minio:9000;
-        # Host intact : la signature des URLs presignees en depend
-        proxy_set_header Host $http_host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $remote_addr;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_http_version 1.1;
-        proxy_set_header Connection "";
     }
 }

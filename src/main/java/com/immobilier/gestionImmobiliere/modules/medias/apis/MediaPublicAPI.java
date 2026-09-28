@@ -11,4 +11,10 @@ public interface MediaPublicAPI {
     // L'implémentation doit rejeter/filtrer toute entiteType hors {ANNONCE, MAISON}
     @GetMapping
     ResponseEntity<?> getByEntite(@RequestParam TypeEntiteMedia entiteType, @RequestParam Integer entiteId);
+
+    @GetMapping("/{id}/fichier")
+    ResponseEntity<?> fichier(@PathVariable Integer id);
+
+    @GetMapping("/{id}/miniature")
+    ResponseEntity<?> miniature(@PathVariable Integer id);
 }

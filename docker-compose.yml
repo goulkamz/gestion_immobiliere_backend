@@ -70,7 +70,7 @@ services:
   minio:
     image: minio/minio:latest
     container_name: gestion-immo-minio
-    # API S3 exposee au public par nginx (medias.<domaine>), en lecture seule
+    # Interne uniquement (le backend sert les fichiers au public) ; 127.0.0.1 pour le dev
     ports:
       - "127.0.0.1:9000:9000"
       - "127.0.0.1:9001:9001"
@@ -176,7 +176,7 @@ services:
 
       # MinIO
       - APP_MINIO_ENDPOINT=${MINIO_ENDPOINT}
-      - APP_MINIO_PUBLIC_ENDPOINT=https://${MEDIAS_DOMAIN:-medias.gestimmo.localhost}
+      - APP_API_PUBLIC_URL=https://${API_DOMAIN:-api.gestimmo.localhost}
       - APP_MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
       - APP_MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
       - APP_MINIO_BUCKET_MEDIAS_PUBLIC=medias-publics
@@ -202,7 +202,6 @@ services:
       - "443:443"
     environment:
       - API_DOMAIN=${API_DOMAIN:-api.gestimmo.localhost}
-      - MEDIAS_DOMAIN=${MEDIAS_DOMAIN:-medias.gestimmo.localhost}
     volumes:
       - ./nginx/templates:/etc/nginx/templates:ro
       - ./nginx/letsencrypt:/etc/letsencrypt:ro

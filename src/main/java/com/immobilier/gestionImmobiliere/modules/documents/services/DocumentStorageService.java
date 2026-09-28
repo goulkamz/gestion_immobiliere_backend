@@ -2,7 +2,6 @@ package com.immobilier.gestionImmobiliere.modules.documents.services;
 
 import com.immobilier.gestionImmobiliere.exceptions.MediaStorageException;
 import io.minio.*;
-import io.minio.http.Method;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -10,7 +9,6 @@ import org.springframework.stereotype.Service;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 @Service
 public class DocumentStorageService {
@@ -19,12 +17,9 @@ public class DocumentStorageService {
     private String bucket;
 
     private final MinioClient minioClient;
-    private final MinioClient minioClientPresign;
 
-    public DocumentStorageService(@Qualifier("minioClient") MinioClient minioClient,
-                                  @Qualifier("minioClientPresign") MinioClient minioClientPresign) {
+    public DocumentStorageService(@Qualifier("minioClient") MinioClient minioClient) {
         this.minioClient = minioClient;
-        this.minioClientPresign = minioClientPresign;
     }
 
     public String store(byte[] pdfBytes, String sousDossier) {
@@ -39,29 +34,6 @@ public class DocumentStorageService {
             return cle;
         } catch (Exception e) {
             throw new MediaStorageException("Impossible d'enregistrer le document sur MinIO", e);
-        }
-    }
-
-    /**
-     * Toujours présignée — un document est par nature privé, jamais public
-     * (contrairement aux médias catalogue/annonces).
-     *
-     * @deprecated les endpoints de documents streament désormais les octets
-     * directement via {@link #telecharger(String)} (autorisation revérifiée
-     * à chaque requête, pas de fenêtre d'accès valable 1h sans contrôle).
-     * Conservé si un usage futur en a besoin (ex: lien à partager par email).
-     */
-    @Deprecated
-    public String genererUrlPresignee(String cle) {
-        try {
-            return minioClientPresign.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
-                    .method(Method.GET)
-                    .bucket(bucket)
-                    .object(cle)
-                    .expiry(1, TimeUnit.HOURS)
-                    .build());
-        } catch (Exception e) {
-            throw new MediaStorageException("Impossible de générer l'URL présignée du document", e);
         }
     }
 

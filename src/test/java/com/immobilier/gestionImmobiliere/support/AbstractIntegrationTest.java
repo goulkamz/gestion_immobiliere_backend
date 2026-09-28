@@ -72,6 +72,5 @@ public abstract class AbstractIntegrationTest {
 
         String minioEndpoint = "http://" + MINIO.getHost() + ":" + MINIO.getMappedPort(9000);
         registry.add("app.minio.endpoint", () -> minioEndpoint);
-        registry.add("app.minio.public-endpoint", () -> minioEndpoint);
     }
 }

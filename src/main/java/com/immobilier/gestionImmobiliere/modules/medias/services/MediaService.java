@@ -14,7 +14,10 @@ import com.immobilier.gestionImmobiliere.modules.medias.dto.responses.UploadMult
 import com.immobilier.gestionImmobiliere.modules.medias.events.VideoThumbnailRequestedEvent;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +27,7 @@ import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
 import java.io.IOException;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -46,6 +50,10 @@ public class MediaService {
 
     @Value("${app.medias.max-size-image-mo:5}")
     private int tailleMaxImageMo;
+
+    // URL publique de l'API (https://api.<domaine>) : base des liens vers les fichiers
+    @Value("${app.api-public-url}")
+    private String apiPublicUrl;
 
     @Value("${app.medias.max-size-video-mo:50}")
     private int tailleMaxVideoMo;
@@ -291,20 +299,33 @@ public class MediaService {
         }
     }
 
+    /**
+     * Sert le fichier (ou sa miniature) d'un media public. MinIO n'etant jamais expose,
+     * c'est le seul chemin d'acces aux photos ; nginx met la reponse en cache.
+     */
+    public ResponseEntity<?> lireFichier(Integer id, boolean miniature) {
+        Media media = findOrThrow(id);
+        String cle = miniature ? media.getMediaPathThumbnail() : media.getMediaPath();
+        if (!fileStorageService.estPublic(media.getEntiteType()) || cle == null) {
+            throw new ResourceNotFoundException("média", id);
+        }
+        FileStorageService.FichierStocke fichier = fileStorageService.lire(
+                fileStorageService.bucketPour(media.getEntiteType()), cle);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(fichier.contentType()))
+                .contentLength(fichier.taille())
+                .cacheControl(CacheControl.maxAge(Duration.ofDays(7)).cachePublic())
+                .body(new InputStreamResource(fichier.contenu()));
+    }
+
     private Media findOrThrow(Integer id) {
         return mediaRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("média", id));
     }
 
     private MediaResponseDTO toDto(Media m) {
-        String bucket = fileStorageService.bucketPour(m.getEntiteType());
-        boolean estPublic = fileStorageService.estPublic(m.getEntiteType());
-
-        String url = estPublic
-                ? fileStorageService.genererUrlPublique(bucket, m.getMediaPath())
-                : fileStorageService.genererUrlPresignee(bucket, m.getMediaPath());
-        String urlThumbnail = estPublic
-                ? fileStorageService.genererUrlPublique(bucket, m.getMediaPathThumbnail())
-                : fileStorageService.genererUrlPresignee(bucket, m.getMediaPathThumbnail());
+        String base = apiPublicUrl + "/api/public/medias/" + m.getIdMedia();
+        String url = base + "/fichier";
+        String urlThumbnail = m.getMediaPathThumbnail() != null ? base + "/miniature" : null;
 
         return MediaResponseDTO.builder()
                 .idMedia(m.getIdMedia())
