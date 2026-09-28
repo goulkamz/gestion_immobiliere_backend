@@ -134,7 +134,10 @@ public class LocationBienServiceService {
     public ResponseEntity<?> confirmer(Integer id, ConfirmerLocationDTO dto, Integer currentAgentId) {
         LocationBienService location = findOrThrow(id);
         BigDecimal coutJournalier = location.getBienService().getPrixJournalier();
-        long njrs = ChronoUnit.DAYS.between(dto.getDateDebut().toLocalDate(), dto.getDateFin().toLocalDate());
+        // Dates optionnelles : a defaut d'ajustement, on garde celles de la demande
+        LocalDateTime dateDebut = dto.getDateDebut() != null ? dto.getDateDebut() : location.getDateDebut();
+        LocalDateTime dateFin = dto.getDateFin() != null ? dto.getDateFin() : location.getDateFin();
+        long njrs = ChronoUnit.DAYS.between(dateDebut.toLocalDate(), dateFin.toLocalDate());
         if (njrs <= 0) {
             throw new IllegalArgumentException("La date de fin doit être postérieure à la date de début");
         }
@@ -169,8 +172,6 @@ public class LocationBienServiceService {
                 .build());
 
         // Ajustement des dates si l'agent les a modifiées au comptoir
-        LocalDateTime dateDebut = dto.getDateDebut() != null ? dto.getDateDebut() : location.getDateDebut();
-        LocalDateTime dateFin = dto.getDateFin() != null ? dto.getDateFin() : location.getDateFin();
         long dureeFinale =  ChronoUnit.DAYS.between(dateDebut.toLocalDate(), dateFin.toLocalDate());
 
 

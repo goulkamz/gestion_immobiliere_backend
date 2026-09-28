@@ -43,12 +43,10 @@ public class PasswordResetService {
     @Transactional
     public ResponseEntity<?> forgotPassword(String email) {
 
-        // Vérifier si l'utilisateur existe
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Aucun compte associé à cet email"));
-
-        if (!user.isActive()) {
-            throw new RuntimeException("Compte désactivé. Veuillez contacter l'administrateur.");
+        // Meme reponse que le compte existe ou non : ne pas permettre de tester des emails
+        User user = userRepository.findByEmail(email).filter(User::isActive).orElse(null);
+        if (user == null) {
+            return reponseNeutre();
         }
 
         // Supprimer les anciens tokens
@@ -74,6 +72,10 @@ public class PasswordResetService {
         tokenRepository.save(token);
 
         notificationService.envoyerCodeReinitialisation(email, user.getNom(), resetToken);
+        return reponseNeutre();
+    }
+
+    private static ResponseEntity<?> reponseNeutre() {
         return buildSuccessResponse(HttpStatus.ACCEPTED, "Si un compte existe avec cet email, vous recevrez un lien de réinitialisation.", "RESET_EMAIL_SENT", null);
     }
 
@@ -133,8 +135,10 @@ public class PasswordResetService {
             throw new TooManyRequestsException("Trop de tentatives. Veuillez réessayer plus tard.");
         }
 
-        PasswordResetToken existingToken = tokenRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Aucune demande de réinitialisation en cours"));
+        PasswordResetToken existingToken = tokenRepository.findByEmail(email).orElse(null);
+        if (existingToken == null) {
+            return reponseNeutre();
+        }
 
         if (existingToken.getAttemptCount() >= MAX_RESEND_ATTEMPTS) {
             tokenRepository.delete(existingToken);
@@ -158,7 +162,7 @@ public class PasswordResetService {
 
         userRepository.findByEmail(email).ifPresent(user -> notificationService.envoyerCodeReinitialisation(email, user.getNom(), newToken));
 
-        return buildSuccessResponse(HttpStatus.OK,"Un nouveau lien de réinitialisation a été envoyé.","RESET_TOKEN_RESENT",null);
+        return reponseNeutre();
     }
 
     private String generateResetToken() {
