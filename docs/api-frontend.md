@@ -35,7 +35,7 @@ Routes publiques (`permitAll`, définies dans `WebSecurityConfig`) : tout `/api/
 ```typescript
 type Role = 'ROLE_CLIENT' | 'ROLE_BAILLEUR' | 'ROLE_SECRETAIRE' | 'ROLE_AGENT' | 'ROLE_SG' | 'ROLE_DIRECTEUR' | 'ROLE_DG' | 'ROLE_PDG' | 'ROLE_ADMIN';
 ```
-`ERole` définit 9 valeurs en base, mais la logique métier documentée dans le cahier des charges et dans le code (`@PreAuthorize`) n'utilise concrètement que 4 : `ROLE_CLIENT` (locataire, rôle par défaut à l'inscription), `ROLE_BAILLEUR` (propriétaire), `ROLE_AGENT` (agent/secrétaire), `ROLE_ADMIN`. Les rôles `ROLE_SECRETAIRE`, `ROLE_SG`, `ROLE_DIRECTEUR`, `ROLE_DG`, `ROLE_PDG` existent dans l'enum mais n'apparaissent dans aucun `@PreAuthorize` observé — traitez-les comme réservés/non utilisés côté frontend pour l'instant.
+`ERole` définit 9 valeurs en base, mais la logique métier documentée dans le cahier des charges et dans le code (`@PreAuthorize`) n'utilise concrètement que 4 : `ROLE_CLIENT` (locataire, rôle par défaut à l'inscription), `ROLE_BAILLEUR` (propriétaire), `ROLE_AGENT` (agent/secrétaire), `ROLE_ADMIN`. Les rôles `ROLE_SECRETAIRE`, `ROLE_SG`, `ROLE_DIRECTEUR`, `ROLE_DG`, `ROLE_PDG` ont été ajoutés intentionnellement en anticipation d'une évolution future de la hiérarchie interne de l'agence (confirmé par le développeur, pas un oubli) — ils existent dans l'enum mais n'apparaissent dans aucun `@PreAuthorize` actuel. Traitez-les comme réservés/non utilisés côté frontend pour l'instant (pas de vue à construire pour eux tant qu'aucune règle d'autorisation ne les cible).
 
 ### Enveloppe de réponse succès
 
