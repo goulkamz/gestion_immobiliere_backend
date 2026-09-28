@@ -34,6 +34,9 @@ Routes publiques (`permitAll`, définies dans `WebSecurityConfig`) : tout `/api/
 
 ```typescript
 type Role = 'ROLE_CLIENT' | 'ROLE_BAILLEUR' | 'ROLE_SECRETAIRE' | 'ROLE_AGENT' | 'ROLE_SG' | 'ROLE_DIRECTEUR' | 'ROLE_DG' | 'ROLE_PDG' | 'ROLE_ADMIN';
+
+// Champ `sexe` : typé Character (1 caractère) côté Java partout dans les DTOs utilisateur.
+type Sexe = 'M' | 'F';
 ```
 `ERole` définit 9 valeurs en base, mais la logique métier documentée dans le cahier des charges et dans le code (`@PreAuthorize`) n'utilise concrètement que 4 : `ROLE_CLIENT` (locataire, rôle par défaut à l'inscription), `ROLE_BAILLEUR` (propriétaire), `ROLE_AGENT` (agent/secrétaire), `ROLE_ADMIN`. Les rôles `ROLE_SECRETAIRE`, `ROLE_SG`, `ROLE_DIRECTEUR`, `ROLE_DG`, `ROLE_PDG` ont été ajoutés intentionnellement en anticipation d'une évolution future de la hiérarchie interne de l'agence (confirmé par le développeur, pas un oubli) — ils existent dans l'enum mais n'apparaissent dans aucun `@PreAuthorize` actuel. Traitez-les comme réservés/non utilisés côté frontend pour l'instant (pas de vue à construire pour eux tant qu'aucune règle d'autorisation ne les cible).
 
@@ -141,7 +144,7 @@ Body :
 interface CreateUserRequest {
   nom: string;               // requis, max 254
   prenom: string;            // requis, max 254
-  sexe?: string;              // 1 caractère M/F
+  sexe?: Sexe;                 // 1 caractère
   email: string;              // requis, format email, max 254
   password: string;           // requis, 6-120 car., maj+min+chiffre+caractère spécial ASCII
   dateNaissance: string;      // requis, format yyyy-MM-dd, doit être dans le passé
@@ -229,7 +232,7 @@ interface ProfileResponse {
   email: string;
   nom: string;
   prenom: string;
-  sexe: string | null;
+  sexe: Sexe | null;
   telephone: string | null;
   telephone1: string | null;
   dateNaissance: string; // yyyy-MM-dd
@@ -268,7 +271,7 @@ interface UserAdminResponse {
   email: string;
   nom: string;
   prenom: string;
-  sexe: string | null;
+  sexe: Sexe | null;
   telephone: string | null;
   telephone1: string | null;
   dateNaissance: string;
@@ -291,7 +294,7 @@ interface CreateUserByAdminRequest {
   password: string;   // requis
   nom: string;         // requis
   prenom: string;      // requis
-  sexe?: string;
+  sexe?: Sexe;
   telephone?: string;
   telephone1?: string;
   dateNaissance?: string;
@@ -307,7 +310,7 @@ Body :
 interface UpdateUserByAdminRequest {
   nom?: string;
   prenom?: string;
-  sexe?: string;
+  sexe?: Sexe;
   telephone?: string;
   telephone1?: string;
   dateNaissance?: string;
@@ -710,7 +713,7 @@ interface CreatePaiementRequest {
 ```
 Codes : 400 `MONTANT_PAIEMENT_INVALIDE`, 409 `ECHEANCE_DEJA_PAYEE`.
 #### GET /api/paiements/{id}
-Rôle requis : ROLE_ADMIN, ROLE_AGENT, ROLE_CLIENT, ROLE_BAILLEUR (classe), pas de restriction supplémentaire par méthode observée — vérifier ownership côté service. Réponse (data) : `PaiementResponse`. Codes : 404.
+Rôle : `hasAnyRole('ADMIN','AGENT')` ou ownership via `@paiementOwnershipResolver` (locataire ou bailleur propriétaire du contrat concerné — corrigé le 2026-09-28, un IDOR permettait auparavant à tout utilisateur authentifié de récupérer n'importe quel paiement par id, confirmé par test réel puis corrigé). Réponse (data) : `PaiementResponse`. Codes : 404, 403 `ACCESS_DENIED`.
 
 ```typescript
 interface PaiementResponse {
@@ -1276,6 +1279,8 @@ interface PagedResponse<T> {
 - ✅ **Résolu (2026-09-28)** — Vérification QR des documents : confirmé absente (voir section 12) et documentée comme fonctionnalité non livrée, pas de fix appliqué (décision produit à prendre séparément).
 - ✅ **Résolu et éclairci (2026-09-28)** — `OffreAdminAPI`/`OffreAdminController` : testé en réel (`ROLE_CLIENT` → `GET /api/offres` → `403` **avant tout fix**). **Découverte importante** : quand le controller ne porte aucune annotation `@PreAuthorize` (ni active ni commentée), Spring applique bien celle de l'interface (repli/fallback confirmé empiriquement). Cela signifie que le point "CourController" ci-dessus était probablement déjà protégé par `CourAPI` avant le fix (annotations *commentées*, donc absentes du bytecode — situation identique à Offre) : le code était trompeur à la lecture, mais l'exploitation réelle était vraisemblablement déjà bloquée par ce mécanisme de repli. Les deux fixes (Cour, Offre) restent appliqués par cohérence de convention (le controller répète toujours l'annotation ailleurs dans le code) et par prudence (le comportement de repli de Spring n'est pas garanti contractuellement et pourrait changer). **Conséquence pour l'audit des autres modules** : ne plus considérer "annotation absente sur le controller" comme automatiquement une faille — vérifier d'abord si l'interface porte l'annotation avant de conclure à un problème.
 - ✅ **Résolu (2026-09-28)** — `GET /api/documents/**` : les règles de rôle/ownership sont posées sur les méthodes de service (pas le controller/interface) via des beans `*Security`/`*OwnershipResolver` dédiés. Testé en réel sur `contrats-location` : ownership correctement appliqué (locataire du contrat OU bailleur propriétaire, `403` sinon). Voir section 12.
-- `GET /api/paiements/{id}` : pas de restriction par méthode au-delà de l'annotation de classe (`hasAnyRole('ADMIN','AGENT','CLIENT','BAILLEUR')`) — ownership potentiellement non vérifié à ce niveau précis (à comparer avec `PaiementOwnershipResolver` utilisé ailleurs pour les reçus).
+- ✅ **Résolu et corrigé (2026-09-28)** — `GET /api/paiements/{id}` : IDOR confirmée par test réel (3 comptes de rôles différents ont récupéré le même paiement, dont un tiers sans aucun lien). Corrigé en réutilisant `@paiementOwnershipResolver` (déjà utilisé pour les reçus). Voir section 6.
 - ✅ **Résolu (2026-09-28)** — `POST /api/auth/signup` : forme de `data` (absente, confirmé) et matrice d'erreurs (tous les cas de `UserService.createUser` confirmés par lecture + test réel du cas `RUNTIME_ERROR` téléphone déjà utilisé). Voir section 2 ci-dessus.
-- Champs `sexe` dans les DTOs utilisateur : typé `Character` côté Java (donc un seul caractère `M`/`F`), mappé ici en `string` TypeScript par simplicité — à contraindre à `'M' | 'F'` côté frontend si validation stricte souhaitée.
+- ✅ **Résolu (2026-09-28)** — Champ `sexe` : contraint au type `Sexe = 'M' | 'F'` partout dans ce document (voir section 1) au lieu d'un `string` générique.
+
+**Toutes les zones d'incertitude de l'audit initial sont résolues au 2026-09-28.**
