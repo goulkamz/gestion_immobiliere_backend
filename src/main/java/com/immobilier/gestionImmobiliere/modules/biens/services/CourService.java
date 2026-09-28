@@ -120,43 +120,6 @@ public class CourService {
     }
 
     @Transactional
-    public ResponseEntity<?> create(CreateCourDTO dto) {
-        Secteur secteur = secteurRepository.findById(dto.getIdSecteur())
-                .orElseThrow(() -> new SecteurNotFoundException(dto.getIdSecteur()));
-        User proprietaire = userRepository.findById(dto.getIdProprietaire())
-                .orElseThrow(() -> new ResourceNotFoundException("user",dto.getIdProprietaire()));
-
-        Cour cour = Cour.builder()
-                .secteur(secteur)
-                .proprietaire(proprietaire)
-                .referenceCour(dto.getReferenceCour())
-                .lotCour(dto.getLotCour())
-                .numeroPorte(dto.getNumeroPorte())
-                .createdAt(LocalDateTime.now())
-                .build();
-        courRepository.save(cour);
-        return buildSuccessResponse(HttpStatus.CREATED, "Cour créée avec succès", "COUR_CREATED", toDto(cour));
-    }
-
-    @Transactional
-    public ResponseEntity<?> update(Integer id, UpdateCourDTO dto) {
-        Cour cour = findOrThrow(id);
-
-        if (dto.getIdSecteur() != null) {
-            Secteur secteur = secteurRepository.findById(dto.getIdSecteur())
-                    .orElseThrow(() -> new ResourceNotFoundException("secteur",dto.getIdSecteur()));
-            cour.setSecteur(secteur);
-        }
-        if (dto.getReferenceCour() != null) cour.setReferenceCour(dto.getReferenceCour());
-        if (dto.getLotCour() != null) cour.setLotCour(dto.getLotCour());
-        if (dto.getNumeroPorte() != null) cour.setNumeroPorte(dto.getNumeroPorte());
-        cour.setUpdatedAt(LocalDateTime.now());
-
-        courRepository.save(cour);
-        return buildSuccessResponse(HttpStatus.OK, "Cour mise à jour", "COUR_UPDATED", toDto(cour));
-    }
-
-    @Transactional
     public ResponseEntity<?> delete(Integer id) {
         courRepository.delete(findOrThrow(id));
         return buildSuccessResponse(HttpStatus.OK, "Cour supprimée", "COUR_DELETED", null);

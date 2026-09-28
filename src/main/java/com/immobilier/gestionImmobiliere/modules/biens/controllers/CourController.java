@@ -22,29 +22,31 @@ public class CourController implements CourAPI {
     }
 
     @Override
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN','BAILLEUR')")
     public ResponseEntity<?> getAll(Integer idSecteur, Pageable pageable,@AuthenticationPrincipal UserDetailsImpl currentUser) {
         return courService.getAll(idSecteur, pageable,currentUser);
     }
 
     @Override
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN','BAILLEUR')")
     public ResponseEntity<?> getById(@PathVariable Integer id, @AuthenticationPrincipal UserDetailsImpl currentUser) {
         return courService.getById(id,currentUser);
     }
 
     @Override
-    //@PreAuthorize("hasRole('AGENT')")
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
     public ResponseEntity<?> create(CreateCourDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser) {
         return courService.create(dto, currentUser.getIdUser());
     }
 
     @Override
-    //@PreAuthorize("hasAnyRole('AGENT','ADMIN')")
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
     public ResponseEntity<?> update(Integer id, UpdateCourDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser) {
         return courService.update(id, dto, currentUser.getIdUser());
     }
 
     @Override
-    //@PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
     public ResponseEntity<?> delete(Integer id) {
         return courService.delete(id);
     }
