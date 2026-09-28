@@ -11,6 +11,7 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -38,7 +39,11 @@ class RoleBasedAccessIntegrationTest extends AbstractIntegrationTest {
         Cookie accessCookie = seConnecterEtRecupererCookieAcces("admin@gestimmo.test");
 
         mockMvc.perform(get("/api/admin/users").cookie(accessCookie))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content").isArray())
+                .andExpect(jsonPath("$.data.page.totalElements").isNumber())
+                .andExpect(jsonPath("$.data.page.totalPages").isNumber())
+                .andExpect(jsonPath("$.data.pageable").doesNotExist());
     }
 
     @org.junit.jupiter.api.Test
