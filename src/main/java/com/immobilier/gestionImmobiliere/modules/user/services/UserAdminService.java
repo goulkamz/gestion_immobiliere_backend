@@ -10,6 +10,7 @@ import com.immobilier.gestionImmobiliere.exceptions.EmailAlreadyExistsException;
 import com.immobilier.gestionImmobiliere.exceptions.ResourceNotFoundException;
 import com.immobilier.gestionImmobiliere.exceptions.RoleNotFoundException;
 import com.immobilier.gestionImmobiliere.modules.journal.services.JournalService;
+import com.immobilier.gestionImmobiliere.modules.user.jwt.JwtUtils;
 import com.immobilier.gestionImmobiliere.modules.user.dto.requests.*;
 import com.immobilier.gestionImmobiliere.modules.user.dto.responses.UserAdminResponseDTO;
 import org.springframework.data.domain.Page;
@@ -30,17 +31,19 @@ public class UserAdminService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtUtils jwtUtils;
 
 
     public UserAdminService(UserRepository userRepository, RoleRepository roleRepository,
-                            PasswordEncoder passwordEncoder) {
+                            PasswordEncoder passwordEncoder, JwtUtils jwtUtils) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
+        this.jwtUtils = jwtUtils;
     }
 
     public ResponseEntity<?> getAll(ERole role, Pageable pageable) {
-        Page<User> page = role != null ? userRepository.findByRole_LibelleRole(role, pageable) : userRepository.findAll(pageable);
+        Page<User> page = role != null ? userRepository.findByRole_LibelleRoleAndIsDeletedFalse(role, pageable) : userRepository.findByIsDeletedFalse(pageable);
         return buildSuccessResponse(HttpStatus.OK, "Liste des utilisateurs", "USER_LIST", page.map(this::toDto));
     }
 
@@ -117,6 +120,9 @@ public class UserAdminService {
         Boolean ancienStatut = user.isFlagActif();
         user.setFlagActif(dto.getFlagActif());
         userRepository.save(user);
+        if (Boolean.FALSE.equals(dto.getFlagActif())) {
+            jwtUtils.revokeAllUserTokens(user.getEmail());
+        }
         return buildSuccessResponse(HttpStatus.OK,
                 dto.getFlagActif() ? "Compte activé" : "Compte désactivé", "USER_STATUS_UPDATED", toDto(user));
     }
@@ -127,7 +133,8 @@ public class UserAdminService {
             throw new CannotDeactivateSelfException(); // même garde-fou pour la suppression
         }
         User user = findOrThrow(id);
-        userRepository.delete(user); // soft delete via @SQLDelete (déjà en place sur User)
+        userRepository.delete(user); // soft delete + desactivation via @SQLDelete sur User
+        jwtUtils.revokeAllUserTokens(user.getEmail());
 
         return buildSuccessResponse(HttpStatus.OK, "Utilisateur supprimé", "USER_DELETED", null);
     }

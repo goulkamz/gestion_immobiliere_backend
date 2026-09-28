@@ -10,6 +10,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.SQLDelete;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -17,6 +18,9 @@ import java.util.Date;
 
     @Entity
     @Table(name = "users")
+    // Pas de @SQLRestriction : contrats, paiements et journaux doivent toujours pouvoir
+    // charger l'utilisateur d'un compte supprime.
+    @SQLDelete(sql = "UPDATE users SET is_deleted = true, flag_actif = false, updated_at = NOW() WHERE id_user = ?")
     @Data
     @SuperBuilder
     @AllArgsConstructor

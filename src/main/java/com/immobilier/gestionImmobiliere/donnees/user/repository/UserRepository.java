@@ -32,8 +32,8 @@ public interface UserRepository extends JpaRepository<User, Integer> {
 
     boolean existsByTelephone(String telephone);
 
-    Page<User> findAll(Pageable pageable);
-    Page<User> findByRole_LibelleRole(ERole role, Pageable pageable);
+    Page<User> findByIsDeletedFalse(Pageable pageable);
+    Page<User> findByRole_LibelleRoleAndIsDeletedFalse(ERole role, Pageable pageable);
     boolean existsByTelephoneAndIdUserNot(String telephone, Integer idUser);
     boolean existsByEmailAndIdUserNot(String email, Integer idUser);
 
