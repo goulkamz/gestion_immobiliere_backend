@@ -150,7 +150,16 @@ interface CreateUserRequest {
   idRole: number;             // requis — id du rôle
 }
 ```
-Réponse (data) : probablement un message de confirmation / DTO utilisateur créé (non totalement confirmé — le service `UserService.createUser` n'a pas été lu en détail). Codes : 400 `VALIDATION_ERROR`, 409 `EMAIL_ALREADY_EXISTS`.
+Réponse : pas de champ `data` (confirmé par test réel, 2026-09-28) — l'enveloppe se limite à `{ success: true, code: "TEMP_USER_CREATED", message: "...", timestamp }`. Statut HTTP `201`.
+Codes d'erreur (tous confirmés par lecture de `UserService.createUser` + `GlobalExceptionHandler`, `throws Exception` sur l'interface n'est que du boilerplate défensif — en pratique chaque cas métier est mappé) :
+- `400 VALIDATION_ERROR` — champ(s) invalide(s) (regex email/mot de passe/téléphone, etc.)
+- `400 INVALID_EMAIL` — email sans `@`/`.`
+- `400 INVALID_PASSWORD` — mot de passe vide/nul (rare, la validation `@Pattern` intercepte avant)
+- `400 ROLE_NOT_FOUND` — `idRole` inexistant
+- `400 RUNTIME_ERROR` — cas ad hoc non typés : téléphone déjà utilisé (`"Ce numéro de téléphone est déjà utilisé"`, testé et confirmé), ou trop de tentatives de renvoi de code sur une inscription en attente (`"Trop de tentatives. Réessayez plus tard."`) — le message métier exact est renvoyé au client dans ces deux cas précis.
+- `409 EMAIL_ALREADY_EXISTS`
+- `429 TOO_MANY_REQUESTS` — rate limiting par IP sur `signup:*` (Redis)
+- `500 INTERNAL_ERROR` — uniquement en cas d'erreur réellement imprévue (fallback générique, ne devrait jamais se produire en usage normal)
 
 ### POST /api/auth/activation
 Active le compte via le code reçu par email.
@@ -1262,12 +1271,11 @@ interface PagedResponse<T> {
 
 ## 17. Zones d'incertitude (non confirmées par simple lecture statique)
 
-- ~~`POST /api/auth/signup` : forme exacte de `data`~~ — non résolu, reste à tester manuellement (voir plus bas).
 - ✅ **Résolu (2026-09-28)** — `PaysAdminAPI`/`VilleAdminAPI`/`SecteurAdminAPI` : confirmé par test réel (agent connecté) que le `@PreAuthorize` du *controller* l'emporte bien sur celui de l'interface (Spring résout la méthode la plus spécifique). Les 3 interfaces ont été corrigées pour porter les annotations method-level exactes (`create`/`update` = `hasAnyRole('ADMIN','AGENT')`, `delete` = `hasRole('ADMIN')`), le contrat documenté correspond maintenant au comportement réel.
 - ✅ **Résolu (2026-09-28)** — `CourController` : les `@PreAuthorize` de `create`/`update`/`delete` étaient bien désactivés (aucune protection effective au-delà de l'authentification simple). Confirmé par test réel : un `ROLE_CLIENT` pouvait créer/modifier/supprimer une cour avant le fix. Corrigé : les 5 méthodes du controller portent maintenant les mêmes annotations que `CourAPI`.
 - ✅ **Résolu (2026-09-28)** — Vérification QR des documents : confirmé absente (voir section 12) et documentée comme fonctionnalité non livrée, pas de fix appliqué (décision produit à prendre séparément).
 - ✅ **Résolu et éclairci (2026-09-28)** — `OffreAdminAPI`/`OffreAdminController` : testé en réel (`ROLE_CLIENT` → `GET /api/offres` → `403` **avant tout fix**). **Découverte importante** : quand le controller ne porte aucune annotation `@PreAuthorize` (ni active ni commentée), Spring applique bien celle de l'interface (repli/fallback confirmé empiriquement). Cela signifie que le point "CourController" ci-dessus était probablement déjà protégé par `CourAPI` avant le fix (annotations *commentées*, donc absentes du bytecode — situation identique à Offre) : le code était trompeur à la lecture, mais l'exploitation réelle était vraisemblablement déjà bloquée par ce mécanisme de repli. Les deux fixes (Cour, Offre) restent appliqués par cohérence de convention (le controller répète toujours l'annotation ailleurs dans le code) et par prudence (le comportement de repli de Spring n'est pas garanti contractuellement et pourrait changer). **Conséquence pour l'audit des autres modules** : ne plus considérer "annotation absente sur le controller" comme automatiquement une faille — vérifier d'abord si l'interface porte l'annotation avant de conclure à un problème.
 - `GET /api/documents/**` (hors rapport mensuel et reçu) : aucune règle de rôle/ownership explicite trouvée au niveau controller/interface ; l'accès semble contrôlé plus bas (dans les `*DocumentService`, non audités ligne à ligne) — à valider par test manuel pour chaque type de document avant intégration frontend, notamment pour s'assurer qu'un client ne peut pas récupérer le contrat d'un autre locataire.
 - `GET /api/paiements/{id}` : pas de restriction par méthode au-delà de l'annotation de classe (`hasAnyRole('ADMIN','AGENT','CLIENT','BAILLEUR')`) — ownership potentiellement non vérifié à ce niveau précis (à comparer avec `PaiementOwnershipResolver` utilisé ailleurs pour les reçus).
-- `POST /api/auth/signup` renvoie `throws Exception` sur l'interface — le mapping d'erreur exact pour un échec inattendu à ce endpoint spécifique (hors validations/409 déjà documentées) n'a pas été vérifié par test.
+- ✅ **Résolu (2026-09-28)** — `POST /api/auth/signup` : forme de `data` (absente, confirmé) et matrice d'erreurs (tous les cas de `UserService.createUser` confirmés par lecture + test réel du cas `RUNTIME_ERROR` téléphone déjà utilisé). Voir section 2 ci-dessus.
 - Champs `sexe` dans les DTOs utilisateur : typé `Character` côté Java (donc un seul caractère `M`/`F`), mappé ici en `string` TypeScript par simplicité — à contraindre à `'M' | 'F'` côté frontend si validation stricte souhaitée.
