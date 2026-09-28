@@ -70,8 +70,9 @@ services:
   minio:
     image: minio/minio:latest
     container_name: gestion-immo-minio
+    # API S3 exposee au public par nginx (medias.<domaine>), en lecture seule
     ports:
-      - "9000:9000"
+      - "127.0.0.1:9000:9000"
       - "127.0.0.1:9001:9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
@@ -103,8 +104,9 @@ services:
       context: .
       dockerfile: dockerfile
     container_name: gestion-immo-backend
+    # Public : via nginx (api.<domaine>). Acces direct conserve en local pour le dev.
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     environment:
       # Profil
       - SPRING_PROFILES_ACTIVE=${PROFILES_ACTIVE}
@@ -141,7 +143,8 @@ services:
       # App
       - APP_BASE_URL=${BASE_URL}
       - APP_CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
-      - APP_SECURITY_TRUSTED_PROXIES=${SECURITY_TRUSTED_PROXIES:-}
+      # nginx (IP fixe ci-dessous) : seul proxy dont X-Forwarded-For est cru
+      - APP_SECURITY_TRUSTED_PROXIES=${SECURITY_TRUSTED_PROXIES:-172.28.0.10}
 
       # Mail
       - SPRING_MAIL_HOST=${MAIL_HOST}
@@ -173,7 +176,7 @@ services:
 
       # MinIO
       - APP_MINIO_ENDPOINT=${MINIO_ENDPOINT}
-      - APP_MINIO_PUBLIC_ENDPOINT=${MINIO_PUBLIC_ENDPOINT}
+      - APP_MINIO_PUBLIC_ENDPOINT=https://${MEDIAS_DOMAIN:-medias.gestimmo.localhost}
       - APP_MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
       - APP_MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
       - APP_MINIO_BUCKET_MEDIAS_PUBLIC=medias-publics
@@ -191,6 +194,40 @@ services:
     networks:
       - immobiliere-network
 
+  nginx:
+    image: nginx:stable-alpine
+    container_name: gestion-immo-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - API_DOMAIN=${API_DOMAIN:-api.gestimmo.localhost}
+      - MEDIAS_DOMAIN=${MEDIAS_DOMAIN:-medias.gestimmo.localhost}
+    volumes:
+      - ./nginx/templates:/etc/nginx/templates:ro
+      - ./nginx/letsencrypt:/etc/letsencrypt:ro
+      - ./nginx/acme:/var/www/acme:ro
+    # Recharge periodique pour prendre en compte les certificats renouveles
+    command: /bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & exec /docker-entrypoint.sh nginx -g "daemon off;"'
+    depends_on:
+      - backend
+      - minio
+    restart: unless-stopped
+    networks:
+      immobiliere-network:
+        ipv4_address: 172.28.0.10
+
+  # Production uniquement (docker compose --profile prod) : renouvellement Let's Encrypt
+  certbot:
+    image: certbot/certbot:latest
+    container_name: gestion-immo-certbot
+    profiles: ["prod"]
+    volumes:
+      - ./nginx/letsencrypt:/etc/letsencrypt
+      - ./nginx/acme:/var/www/acme
+    entrypoint: /bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/acme --quiet; sleep 12h & wait $${!}; done'
+    restart: unless-stopped
+
 volumes:
   postgres-data:
     driver: local
@@ -202,3 +239,6 @@ volumes:
 networks:
   immobiliere-network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

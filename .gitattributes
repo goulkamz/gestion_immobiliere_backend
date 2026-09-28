@@ -1,2 +1,6 @@
 /mvnw text eol=lf
 *.cmd text eol=crlf
+
+# Scripts et configuration executes sur le serveur Linux : toujours en LF
+*.sh text eol=lf
+nginx/templates/* text eol=lf
