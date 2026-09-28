@@ -20,21 +20,19 @@ public class OffreAdminController implements OffreAdminAPI {
     }
 
     @Override
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
     public ResponseEntity<?> getAll(StatutOffre statut,Pageable pageable) {
         return offreService.getAll( statut,pageable);
     }
 
     @Override
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
     public ResponseEntity<?> getById(Integer id) {
         return offreService.getById(id);
     }
 
-    /**
-     * @param id
-     * @param dto
-     * @return
-     */
     @Override
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
     public ResponseEntity<?> updateStatut(Integer id, UpdateStatutOffreDTO dto) {
         return offreService.updateStatut(id, dto);
     }
