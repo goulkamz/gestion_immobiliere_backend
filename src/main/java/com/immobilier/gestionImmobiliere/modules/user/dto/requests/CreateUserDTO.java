@@ -18,7 +18,7 @@ import java.util.Date;
     public class CreateUserDTO {
 
         private static final String PHONE_REGEX = "^(\\+\\d{1,3}[- ]?)?\\d{9,15}$";
-        private static final String PASSWORD_REGEX = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=])(?=\\S+$).{6,}$";
+        private static final String PASSWORD_REGEX = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[!-/:-@\\[-`{-~])(?=\\S+$).{6,}$";
         private static final String SEXE_REGEX = "^(?i)[MF]$";
 
         @NotBlank(message = "Le nom est obligatoire")
