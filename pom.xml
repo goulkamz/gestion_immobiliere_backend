@@ -28,6 +28,10 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
+
+		<!-- BOM 4.1.1 : Tomcat 11.0.24, touche par CVE-2026-65905/65182/68525 (corriges en
+		     11.0.25). A retirer des que le BOM fournit une version >= 11.0.25. -->
+		<tomcat.version>11.0.26</tomcat.version>
 	</properties>
 	<dependencies>
 		<!-- Spring Boot Starters -->
@@ -141,14 +145,6 @@
 			<version>0.4.20</version>
 		</dependency>
 
-		<!-- Override explicite : commons-io 2.15.1 (transitif de tika) est trop ancien
-		     pour le commons-compress requis par Testcontainers -->
-		<dependency>
-			<groupId>commons-io</groupId>
-			<artifactId>commons-io</artifactId>
-			<version>2.19.0</version>
-		</dependency>
-
 		<dependency>
 			<groupId>io.minio</groupId>
 			<artifactId>minio</artifactId>
@@ -175,7 +171,7 @@
 		<dependency>
 			<groupId>org.apache.tika</groupId>
 			<artifactId>tika-core</artifactId>
-			<version>2.9.2</version>
+			<version>3.3.2</version> <!-- CVE-2025-66516 (XXE), corrige en 3.2.2 -->
 		</dependency>
 
 		<dependency>
