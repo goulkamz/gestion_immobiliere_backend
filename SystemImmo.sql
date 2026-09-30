@@ -584,7 +584,7 @@ CREATE TABLE paiement_echeance (
 CREATE TABLE paiement_location_bien_service (
     id_location_bien_service INTEGER NOT NULL,
     id_paiement INTEGER NOT NULL,
-    type_paiement VARCHAR(254) NOT NULL DEFAULT 'INITIAL', -- INITIAL, PROLONGATION
+    type_paiement VARCHAR(254) NOT NULL DEFAULT 'NORMAL', -- NORMAL, PROLONGATION
     created_at TIMESTAMP(6) DEFAULT NOW(),
     updated_at TIMESTAMP(6) DEFAULT NOW(),
     is_deleted BOOLEAN DEFAULT FALSE,

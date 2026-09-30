@@ -285,7 +285,7 @@ VALUES (id_client2, id_bien_sono, 'Événement mariage', NOW() - INTERVAL '2 day
 
 INSERT INTO paiement_location_bien_service (id_location_bien_service, id_paiement, type_paiement)
 VALUES ((SELECT id_location_bien_service FROM location_bien_service WHERE destination = 'Événement mariage'),
-        (SELECT id_paiement FROM paiement WHERE reference_paiement = 'PAY-2026-0002'), 'INITIAL');
+        (SELECT id_paiement FROM paiement WHERE reference_paiement = 'PAY-2026-0002'), 'NORMAL');
 
 -- Scénario C — ACTIF prolongée
 INSERT INTO paiement (date_paiement, montant_paiement, mode_paiement, reference_paiement, sens, user_create)
@@ -296,7 +296,7 @@ VALUES (id_client1, id_bien_vehicule, 'Mission terrain prolongée', NOW() - INTE
 
 INSERT INTO paiement_location_bien_service (id_location_bien_service, id_paiement, type_paiement)
 VALUES ((SELECT id_location_bien_service FROM location_bien_service WHERE destination = 'Mission terrain prolongée'),
-        (SELECT id_paiement FROM paiement WHERE reference_paiement = 'PAY-2026-0003'), 'INITIAL');
+        (SELECT id_paiement FROM paiement WHERE reference_paiement = 'PAY-2026-0003'), 'NORMAL');
 
 INSERT INTO paiement (date_paiement, montant_paiement, mode_paiement, reference_paiement, sens, user_create)
 VALUES (NOW(), 105000, 'ESPECES', 'PAY-2026-0004', 'ENTREE', id_agent);
@@ -314,7 +314,7 @@ VALUES (id_client2, id_bien_vehicule, 'Location raccourcie test', NOW() - INTERV
 
 INSERT INTO paiement_location_bien_service (id_location_bien_service, id_paiement, type_paiement)
 VALUES ((SELECT id_location_bien_service FROM location_bien_service WHERE destination = 'Location raccourcie test'),
-        (SELECT id_paiement FROM paiement WHERE reference_paiement = 'PAY-2026-0005'), 'INITIAL');
+        (SELECT id_paiement FROM paiement WHERE reference_paiement = 'PAY-2026-0005'), 'NORMAL');
 
 -- Remboursement : lié à un NOUVEAU paiement SORTIE (pas au paiement d'origine) — corrige l'erreur de l'ancien seed
 INSERT INTO paiement (date_paiement, montant_paiement, mode_paiement, reference_paiement, sens, user_create)
