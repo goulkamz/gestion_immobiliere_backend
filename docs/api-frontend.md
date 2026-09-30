@@ -896,7 +896,7 @@ interface OffreResponse {
 
 ## 10. Réservations (`/api/reservations`) — `ReservationAPI`
 
-Réservation d'une maison, convertible ensuite en contrat de location. **RG2 : pas de chevauchement de dates pour une même maison** (partagé avec `contrat_location`).
+Réservation d'une maison : un simple **blocage temporaire** le temps qu'un agent confirme, pas le bail réel. `dateFin` de la réservation **n'est pas saisie par le client** — elle est calculée côté serveur (`dateDebut + DELAI_EXPIRATION_RESERVATION_HEURES`, paramètre système, défaut 6h) et ne représente que l'échéance technique d'expiration du blocage (job planifié horaire, voir `Scheduler.expirerReservationsEnAttente`), pas la durée réelle du séjour souhaité (inconnue à ce stade — un locataire sait rarement à l'avance quand il repartira). **RG2 : pas de chevauchement de dates pour une même maison** s'applique donc à cette courte fenêtre de blocage, pas à un séjour long ; une fois convertie en contrat de location, c'est `StatutMaison` (LOUEE) qui empêche toute nouvelle réservation, plus les dates.
 Contrôleur : `@PreAuthorize("hasAnyRole('CLIENT','AGENT','ADMIN','BAILLEUR')")` par défaut, précisé par méthode.
 
 ### GET /api/reservations
@@ -905,8 +905,8 @@ Réponse (data) : `PagedResponse<ReservationResponse>`.
 ### GET /api/reservations/{id}
 Rôle requis : ROLE_ADMIN, ROLE_AGENT, ou le propriétaire de la maison (`@reservationSecurity.isProprietaireMaison`), ou l'auteur de la réservation (`@reservationSecurity.isOwner`). Réponse : `ReservationResponse`. Codes : 404, 403.
 ### POST /api/reservations
-Crée une réservation. Rôle requis : ROLE_CLIENT, ROLE_AGENT, ROLE_ADMIN (le bailleur ne réserve pas son propre bien).
-Body : `{ idMaison: number; dateDebut: string; dateFin: string }` (`idMaison`, `dateFin` requis ; `dateDebut` requis et `@FutureOrPresent`).
+Crée une réservation (un blocage temporaire, pas encore le bail). Rôle requis : ROLE_CLIENT, ROLE_AGENT, ROLE_ADMIN (le bailleur ne réserve pas son propre bien).
+Body : `{ idMaison: number; dateDebut: string }` (`idMaison` requis ; `dateDebut` requis et `@FutureOrPresent`). **Pas de `dateFin` dans le body** — calculée côté serveur, voir ci-dessus.
 Codes : 409 `CONFLIT_RESERVATION`/`MAISON_INDISPONIBLE`.
 ### PATCH /api/reservations/{id}/confirmer
 Rôle requis : ROLE_ADMIN, ROLE_AGENT uniquement (le bailleur ne tranche pas).
@@ -914,7 +914,7 @@ Rôle requis : ROLE_ADMIN, ROLE_AGENT uniquement (le bailleur ne tranche pas).
 Rôle requis : ROLE_ADMIN, ROLE_AGENT, ou l'auteur de la réservation (rétractation) — pas le bailleur.
 ### PATCH /api/reservations/{id}/convertir
 Convertit la réservation en contrat de location. Rôle requis : ROLE_AGENT, ROLE_ADMIN.
-Query : `montantLoyer` (number, requis), `typeContrat?` (string).
+Query : `montantLoyer` (number, requis), `typeContrat?` (string), `dateSortie?` (string ISO LocalDateTime — **optionnelle : bail à durée indéterminée si absente**, cas courant).
 Réponse (data) : `ConversionResponse`.
 
 ```typescript

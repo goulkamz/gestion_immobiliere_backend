@@ -35,8 +35,8 @@ public interface ReservationMaisonRepository extends JpaRepository<ReservationMa
     List<ReservationMaison> findByStatutOrderByDateDebutAsc(StatutReservation statut);
 
     /**
-     * Réservations EN_ATTENTE dont dateDebut + délai d'expiration est déjà dépassé
-     * (seuil = maintenant - délai, donc dateDebut < seuil ⇔ dateDebut + délai < maintenant).
+     * Réservations EN_ATTENTE expirées : dateFin (= dateDebut + délai d'expiration,
+     * calculée à la création) est déjà dépassée.
      */
-    List<ReservationMaison> findByStatutAndDateDebutBefore(StatutReservation statut, LocalDateTime seuil);
+    List<ReservationMaison> findByStatutAndDateFinBefore(StatutReservation statut, LocalDateTime maintenant);
 }

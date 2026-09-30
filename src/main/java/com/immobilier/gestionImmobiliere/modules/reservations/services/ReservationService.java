@@ -71,10 +71,6 @@ public class ReservationService {
     }
     @Transactional
     public ResponseEntity<?> create(CreateReservationDTO dto, Integer currentUserId) {
-        if (!dto.getDateFin().isAfter(dto.getDateDebut())) {
-            throw new IllegalArgumentException("La date de fin doit être postérieure à la date de début");
-        }
-
         Maison maison = maisonRepository.findById(dto.getIdMaison())
                 .orElseThrow(() -> new ResourceNotFoundException("maison", dto.getIdMaison()));
         User user = userRepository.findById(currentUserId)
@@ -85,8 +81,13 @@ public class ReservationService {
             throw new MaisonIndisponibleException(maison.getIdMaison());
         }
 
-        // RG2 — vérification des conflits de dates
-        if (!reservationRepository.findConflits(dto.getIdMaison(), dto.getDateDebut(), dto.getDateFin()).isEmpty()) {
+        // dateFin n'est qu'un marqueur technique d'expiration du blocage (pas la durée
+        // réelle du séjour, inconnue à ce stade — voir convertirEnLocation)
+        int delaiHeures = parametreService.getEntier(CleParametre.DELAI_EXPIRATION_RESERVATION_HEURES, 6);
+        LocalDateTime dateFin = dto.getDateDebut().plusHours(delaiHeures);
+
+        // RG2 — vérification des conflits sur la fenêtre de blocage
+        if (!reservationRepository.findConflits(dto.getIdMaison(), dto.getDateDebut(), dateFin).isEmpty()) {
             throw new ConflitReservationException(dto.getIdMaison());
         }
 
@@ -94,7 +95,7 @@ public class ReservationService {
                 .user(user)
                 .maison(maison)
                 .dateDebut(dto.getDateDebut())
-                .dateFin(dto.getDateFin())
+                .dateFin(dateFin)
                 .statut(StatutReservation.EN_ATTENTE)
                 .build();
         reservationRepository.save(reservation);
@@ -132,16 +133,14 @@ public class ReservationService {
     }
 
     /**
-     * Job planifié — annule les réservations EN_ATTENTE non confirmées dont le délai
-     * d'expiration (dateDebut + DELAI_EXPIRATION_RESERVATION_HEURES) est dépassé, et
-     * repasse la maison en DISPONIBLE si aucune autre réservation active ne la couvre.
+     * Job planifié — annule les réservations EN_ATTENTE non confirmées dont dateFin
+     * (= dateDebut + DELAI_EXPIRATION_RESERVATION_HEURES, calculée à la création)
+     * est dépassée, et repasse la maison en DISPONIBLE si aucune autre réservation
+     * active ne la couvre.
      */
     @Transactional
     public void expirerReservationsEnAttente() {
-        int delaiHeures = parametreService.getEntier(CleParametre.DELAI_EXPIRATION_RESERVATION_HEURES, 6);
-        LocalDateTime seuil = LocalDateTime.now().minusHours(delaiHeures);
-
-        List<ReservationMaison> expirees = reservationRepository.findByStatutAndDateDebutBefore(StatutReservation.EN_ATTENTE, seuil);
+        List<ReservationMaison> expirees = reservationRepository.findByStatutAndDateFinBefore(StatutReservation.EN_ATTENTE, LocalDateTime.now());
         for (ReservationMaison reservation : expirees) {
             reservation.setStatut(StatutReservation.ANNULEE);
             reservationRepository.save(reservation);
@@ -161,9 +160,13 @@ public class ReservationService {
     /**
      * F21 — conversion en contrat de location. Délègue au ContratLocationService
      * pour éviter de dupliquer la logique de création de bail (génération d'échéances incluse).
+     * dateSortie est optionnelle (bail à durée indéterminée si absente) : dateFin de
+     * la réservation n'est qu'un marqueur technique d'expiration du blocage, pas la
+     * durée réelle du séjour, donc on ne la réutilise pas ici.
      */
     @Transactional
-    public ResponseEntity<?> convertirEnLocation(Integer id, BigDecimal montantLoyer, String typeContrat, Integer currentUserId) {
+    public ResponseEntity<?> convertirEnLocation(Integer id, BigDecimal montantLoyer, String typeContrat,
+                                                 LocalDateTime dateSortie, Integer currentUserId) {
         ReservationMaison reservation = findOrThrow(id);
 
         if (reservation.getStatut() != StatutReservation.CONFIRMEE) {
@@ -174,7 +177,7 @@ public class ReservationService {
         contratDto.setIdLocataire(reservation.getUser().getIdUser());
         contratDto.setIdMaison(reservation.getMaison().getIdMaison());
         contratDto.setDateEntree(reservation.getDateDebut());
-        contratDto.setDateSortie(reservation.getDateFin());
+        contratDto.setDateSortie(dateSortie);
         contratDto.setMontantLoyer(montantLoyer);
         contratDto.setTypeContrat(typeContrat);
 

@@ -52,7 +52,7 @@ class EcritureMetierIntegrationTest extends AbstractIntegrationTest {
     void parcoursComplet_reservationConfirmationConversionPaiementResiliation() throws Exception {
         LocalDateTime debut = LocalDateTime.now().plusDays(30).truncatedTo(ChronoUnit.SECONDS);
         appel(client, post("/api/reservations"), """
-                {"idMaison":5,"dateDebut":"%s","dateFin":"%s"}""".formatted(debut, debut.plusMonths(6)),
+                {"idMaison":5,"dateDebut":"%s"}""".formatted(debut),
                 status().isCreated());
         assertThat(statutMaison(5)).isEqualTo("RESERVEE");
         int idResa = jdbc.queryForObject(
@@ -97,7 +97,7 @@ class EcritureMetierIntegrationTest extends AbstractIntegrationTest {
     void reservation_chevauchantUneReservationExistante_refusee() throws Exception {
         LocalDateTime debut = LocalDateTime.now().plusDays(6).truncatedTo(ChronoUnit.SECONDS);
         appel(client, post("/api/reservations"), """
-                {"idMaison":2,"dateDebut":"%s","dateFin":"%s"}""".formatted(debut, debut.plusDays(2)),
+                {"idMaison":2,"dateDebut":"%s"}""".formatted(debut),
                 status().isConflict());
         assertThat(statutMaison(2)).isEqualTo("DISPONIBLE");
     }
@@ -106,24 +106,15 @@ class EcritureMetierIntegrationTest extends AbstractIntegrationTest {
     void reservation_maisonLouee_refusee() throws Exception {
         LocalDateTime debut = LocalDateTime.now().plusDays(40).truncatedTo(ChronoUnit.SECONDS);
         appel(client, post("/api/reservations"), """
-                {"idMaison":1,"dateDebut":"%s","dateFin":"%s"}""".formatted(debut, debut.plusDays(5)),
+                {"idMaison":1,"dateDebut":"%s"}""".formatted(debut),
                 status().isConflict());
-    }
-
-    @Test
-    void reservation_finAvantDebut_refusee() throws Exception {
-        LocalDateTime debut = LocalDateTime.now().plusDays(40).truncatedTo(ChronoUnit.SECONDS);
-        appel(client, post("/api/reservations"), """
-                {"idMaison":3,"dateDebut":"%s","dateFin":"%s"}""".formatted(debut, debut.minusDays(1)),
-                status().isBadRequest());
-        assertThat(statutMaison(3)).isEqualTo("DISPONIBLE");
     }
 
     @Test
     void reservation_annulee_libereLaMaison() throws Exception {
         LocalDateTime debut = LocalDateTime.now().plusDays(50).truncatedTo(ChronoUnit.SECONDS);
         appel(client, post("/api/reservations"), """
-                {"idMaison":3,"dateDebut":"%s","dateFin":"%s"}""".formatted(debut, debut.plusDays(10)),
+                {"idMaison":3,"dateDebut":"%s"}""".formatted(debut),
                 status().isCreated());
         int idResa = jdbc.queryForObject(
                 "SELECT MAX(id_reservation) FROM reservation_maison WHERE id_maison = 3", Integer.class);

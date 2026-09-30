@@ -10,6 +10,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @RequestMapping("/api/reservations")
 public interface ReservationAPI {
@@ -30,8 +31,11 @@ public interface ReservationAPI {
     @PatchMapping("/{id}/annuler")
     ResponseEntity<?> annuler(@PathVariable Integer id, @AuthenticationPrincipal UserDetailsImpl currentUser);
 
+    // dateSortie optionnelle : bail à durée indéterminée si non fournie (cas courant
+    // en pratique, le locataire ne sachant pas toujours à l'avance quand il partira)
     @PatchMapping("/{id}/convertir")
     ResponseEntity<?> convertir(@PathVariable Integer id, @RequestParam BigDecimal montantLoyer,
                                 @RequestParam(required = false) String typeContrat,
+                                @RequestParam(required = false) LocalDateTime dateSortie,
                                 @AuthenticationPrincipal UserDetailsImpl currentUser);
 }
