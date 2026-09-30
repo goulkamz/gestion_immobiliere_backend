@@ -11,6 +11,8 @@ import com.immobilier.gestionImmobiliere.donnees.user.repository.UserRepository;
 import com.immobilier.gestionImmobiliere.exceptions.*;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.CreateContratLocationDTO;
 import com.immobilier.gestionImmobiliere.modules.contrats.services.ContratLocationService;
+import com.immobilier.gestionImmobiliere.donnees.parametres.model.CleParametre;
+import com.immobilier.gestionImmobiliere.modules.parametres.services.ParametreService;
 import com.immobilier.gestionImmobiliere.modules.reservations.dto.requests.CreateReservationDTO;
 import com.immobilier.gestionImmobiliere.modules.reservations.dto.responses.ReservationResponseDTO;
 import org.springframework.data.domain.Page;
@@ -22,6 +24,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
 
 import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
 
@@ -32,13 +36,16 @@ public class ReservationService {
     private final MaisonRepository maisonRepository;
     private final UserRepository userRepository;
     private final ContratLocationService contratLocationService;
+    private final ParametreService parametreService;
 
     public ReservationService(ReservationMaisonRepository reservationRepository, MaisonRepository maisonRepository,
-                              UserRepository userRepository, ContratLocationService contratLocationService) {
+                              UserRepository userRepository, ContratLocationService contratLocationService,
+                              ParametreService parametreService) {
         this.reservationRepository = reservationRepository;
         this.maisonRepository = maisonRepository;
         this.userRepository = userRepository;
         this.contratLocationService = contratLocationService;
+        this.parametreService = parametreService;
     }
 
     public ResponseEntity<?> getAllForCurrentUser(Integer idMaison, Integer currentUserId,
@@ -119,15 +126,36 @@ public class ReservationService {
 
         reservation.setStatut(StatutReservation.ANNULEE);
         reservationRepository.save(reservation);
+        libererMaisonSiLibre(reservation);
 
-        // Libère la maison uniquement si aucune autre réservation active ne la couvre
+        return buildSuccessResponse(HttpStatus.OK, "Réservation annulée", "RESERVATION_ANNULEE", toDto(reservation));
+    }
+
+    /**
+     * Job planifié — annule les réservations EN_ATTENTE non confirmées dont le délai
+     * d'expiration (dateDebut + DELAI_EXPIRATION_RESERVATION_HEURES) est dépassé, et
+     * repasse la maison en DISPONIBLE si aucune autre réservation active ne la couvre.
+     */
+    @Transactional
+    public void expirerReservationsEnAttente() {
+        int delaiHeures = parametreService.getEntier(CleParametre.DELAI_EXPIRATION_RESERVATION_HEURES, 6);
+        LocalDateTime seuil = LocalDateTime.now().minusHours(delaiHeures);
+
+        List<ReservationMaison> expirees = reservationRepository.findByStatutAndDateDebutBefore(StatutReservation.EN_ATTENTE, seuil);
+        for (ReservationMaison reservation : expirees) {
+            reservation.setStatut(StatutReservation.ANNULEE);
+            reservationRepository.save(reservation);
+            libererMaisonSiLibre(reservation);
+        }
+    }
+
+    // Libère la maison uniquement si aucune autre réservation active ne la couvre
+    private void libererMaisonSiLibre(ReservationMaison reservation) {
         Maison maison = reservation.getMaison();
         if (reservationRepository.findConflits(maison.getIdMaison(), reservation.getDateDebut(), reservation.getDateFin()).isEmpty()) {
             maison.setStatut(StatutMaison.DISPONIBLE);
             maisonRepository.save(maison);
         }
-
-        return buildSuccessResponse(HttpStatus.OK, "Réservation annulée", "RESERVATION_ANNULEE", toDto(reservation));
     }
 
     /**

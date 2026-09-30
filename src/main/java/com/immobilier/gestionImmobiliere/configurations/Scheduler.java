@@ -5,6 +5,7 @@ import com.immobilier.gestionImmobiliere.modules.documents.services.RapportMensu
 import com.immobilier.gestionImmobiliere.modules.medias.services.MediaReconciliationService;
 import com.immobilier.gestionImmobiliere.modules.paiements.services.EcheanceGenerationService;
 import com.immobilier.gestionImmobiliere.modules.paiements.services.EcheanceService;
+import com.immobilier.gestionImmobiliere.modules.reservations.services.ReservationService;
 import com.immobilier.gestionImmobiliere.modules.user.jwt.JwtUtils;
 import com.immobilier.gestionImmobiliere.modules.user.services.PasswordResetService;
 import com.immobilier.gestionImmobiliere.modules.user.services.UserService;
@@ -28,6 +29,7 @@ public class Scheduler {
     private final EcheanceService echeanceService;
     private final EcheanceGenerationService echeanceGenerationService;
     private final RapportMensuelDocumentService rapportMensuelDocumentService;
+    private final ReservationService reservationService;
 
     // Nettoyage tous les jours a 2h du matin
     @Scheduled(cron = "0 0 2 * * *")
@@ -94,5 +96,16 @@ public class Scheduler {
     public void genererRapportDuMois() {
         LocalDate moisEnCours = LocalDate.now().withDayOfMonth(1);
         rapportMensuelDocumentService.genererOuRecuperer(moisEnCours, null);
+    }
+
+    /**
+     * Toutes les heures — annule les réservations EN_ATTENTE dont le délai
+     * d'expiration (dateDebut + DELAI_EXPIRATION_RESERVATION_HEURES) est dépassé,
+     * et repasse la maison en DISPONIBLE. Fréquence horaire car le délai par
+     * défaut (6h) rendrait un contrôle quotidien trop grossier.
+     */
+    @Scheduled(cron = "0 0 * * * *")
+    public void expirerReservationsEnAttente() {
+        reservationService.expirerReservationsEnAttente();
     }
 }

@@ -8,5 +8,6 @@ public final class CleParametre {
     public static final String MEDIAS_RETENTION_JOURS = "MEDIAS_RETENTION_JOURS";
     public static final String MEDIAS_MAX_FICHIERS_PAR_LOT = "MEDIAS_MAX_FICHIERS_PAR_LOT";
     public static final String PENALITE_RETARD_MONTANT = "PENALITE_RETARD_MONTANT";
+    public static final String DELAI_EXPIRATION_RESERVATION_HEURES = "DELAI_EXPIRATION_RESERVATION_HEURES";
     // les clés de pénalité seront ajoutées une fois le mode de calcul confirmé
 }
