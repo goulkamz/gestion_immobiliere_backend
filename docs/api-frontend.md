@@ -1059,15 +1059,16 @@ interface JournalResponse {
 
 ---
 
-## 14. Paramètres système (`/api/parametres`) — `ParametreAPI`
-
-Rôle requis : ROLE_ADMIN uniquement (les deux endpoints ont `@PreAuthorize("hasRole('ADMIN')")` explicite sur l'interface).
+## 14. Paramètres système (`/api/parametres`, `/api/public/parametres`) — `ParametreAPI`, `ParametrePublicAPI`
 
 ### GET /api/parametres
-Liste tous les paramètres système. Réponse (data) : `ParametreResponse[]`.
+Rôle requis : ROLE_ADMIN uniquement. Liste **tous** les paramètres système. Réponse (data) : `ParametreResponse[]`.
 ### PATCH /api/parametres/{cle}
-Met à jour la valeur d'un paramètre par sa clé.
+Rôle requis : ROLE_ADMIN uniquement. Met à jour la valeur d'un paramètre par sa clé.
 Body : `{ valeur: string }` (requis).
+### GET /api/public/parametres
+**Public, aucune authentification requise.** Renvoie uniquement les paramètres d'une **liste blanche explicite** (`CleParametre.CLES_PUBLIQUES`, actuellement `TOLERANCE_LOCATION_JOURS` et `DELAI_EXPIRATION_RESERVATION_HEURES`) — jamais un miroir de `GET /api/parametres`. À utiliser pour tout message frontend référençant une valeur dynamique (ex. "votre réservation expire dans X heures", "vous avez X jours de tolérance avant pénalité de retard") plutôt que de coder la valeur en dur. Pour exposer une nouvelle clé publiquement, elle doit être ajoutée explicitement à `CLES_PUBLIQUES` côté backend (pas d'auto-exposition).
+Réponse (data) : `ParametreResponse[]` (même forme que l'endpoint admin, mais liste filtrée).
 
 ```typescript
 type TypeValeurParametre = 'ENTIER' | 'DECIMAL' | 'BOOLEEN' | 'TEXTE';
@@ -1077,7 +1078,8 @@ interface ParametreResponse {
 }
 // Clés connues (donnees/parametres/model/CleParametre.java) :
 // TOLERANCE_LOCATION_JOURS, TOLERANCE_MANDAT_JOURS, MEDIAS_RETENTION_JOURS,
-// MEDIAS_MAX_FICHIERS_PAR_LOT, PENALITE_RETARD_MONTANT
+// MEDIAS_MAX_FICHIERS_PAR_LOT, PENALITE_RETARD_MONTANT, DELAI_EXPIRATION_RESERVATION_HEURES
+// Clés publiques (GET /api/public/parametres) : TOLERANCE_LOCATION_JOURS, DELAI_EXPIRATION_RESERVATION_HEURES
 ```
 
 ---

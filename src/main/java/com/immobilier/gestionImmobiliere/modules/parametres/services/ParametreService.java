@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.parametres.services;
 
+import com.immobilier.gestionImmobiliere.donnees.parametres.model.CleParametre;
 import com.immobilier.gestionImmobiliere.donnees.parametres.model.ParametreSysteme;
 import com.immobilier.gestionImmobiliere.donnees.parametres.model.TypeValeurParametre;
 import com.immobilier.gestionImmobiliere.donnees.parametres.repository.ParametreRepository;
@@ -58,6 +59,17 @@ public class ParametreService {
         List<ParametreResponseDTO> result = parametreRepository.findAllByOrderByCleAsc().stream()
                 .map(this::toDto).toList();
         return buildSuccessResponse(HttpStatus.OK, "Paramètres système", "PARAMETRES_LIST", result);
+    }
+
+    /**
+     * Lecture seule sans authentification — jamais un miroir de getAll() : ne renvoie
+     * que les clés explicitement listées dans CleParametre.CLES_PUBLIQUES.
+     */
+    public ResponseEntity<?> getPublics() {
+        List<ParametreResponseDTO> result = parametreRepository.findAllByOrderByCleAsc().stream()
+                .filter(p -> CleParametre.CLES_PUBLIQUES.contains(p.getCle()))
+                .map(this::toDto).toList();
+        return buildSuccessResponse(HttpStatus.OK, "Paramètres système publics", "PARAMETRES_PUBLICS_LIST", result);
     }
 
     /**
