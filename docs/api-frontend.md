@@ -443,7 +443,7 @@ interface CreateMaisonRequest {
 }
 ```
 #### PUT /api/maisons/{id}
-Rôle requis : ROLE_AGENT. Body : mêmes champs que create sauf `idCour`/`avance`, tous optionnels.
+Rôle requis : ROLE_AGENT. Body : mêmes champs que create sauf `idCour`, tous optionnels.
 #### PATCH /api/maisons/{id}/statut
 Rôle requis : ROLE_AGENT. Body : `{ statut: StatutMaison }` (requis). Codes : 409 `INVALID_STATUT_TRANSITION`.
 #### DELETE /api/maisons/{id}
@@ -455,8 +455,6 @@ interface MaisonResponse {
   loyer: number | null; caution: number | null; avance: number | null; nombreMoisCaution: number | null;
   statut: StatutMaison; idCour: number; referenceCour: string;
 }
-// avance : saisie uniquement à la création (CreateMaisonDTO), pas d'édition possible
-// après coup (UpdateMaisonDTO ne porte pas ce champ) — limitation connue, pas un bug.
 ```
 
 ### Catégorie bien/service (`/api/categories`) — `CategorieBienServiceAPI`

@@ -11,5 +11,6 @@ public class UpdateMaisonDTO {
     private Integer nombrePiece;
     private BigDecimal loyer;
     private BigDecimal caution;
+    private BigDecimal avance;
     private Integer nombreMoisCaution;
 }

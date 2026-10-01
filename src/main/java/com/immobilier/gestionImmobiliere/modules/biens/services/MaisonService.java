@@ -87,6 +87,7 @@ public class MaisonService {
         if (dto.getNombrePiece() != null) maison.setNombrePiece(dto.getNombrePiece());
         if (dto.getLoyer() != null) maison.setLoyer(dto.getLoyer());
         if (dto.getCaution() != null) maison.setCaution(dto.getCaution());
+        if (dto.getAvance() != null) maison.setAvance(dto.getAvance());
         if (dto.getNombreMoisCaution() != null) maison.setNombreMoisCaution(dto.getNombreMoisCaution());
         maison.setUserUpdate(currentUserId);
         maison.setUpdatedAt(LocalDateTime.now());
