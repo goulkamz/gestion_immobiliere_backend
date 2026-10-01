@@ -160,7 +160,7 @@ public class AdminStatsService {
                 .map(row -> BailleurCreancierDTO.builder()
                         .idBailleur((Integer) row[0])
                         .nomComplet((String) row[1])
-                        .periodeMois(((java.sql.Date) row[2]).toLocalDate())
+                        .periodeMois((LocalDate) row[2])
                         .montantDu(((Number) row[3]).doubleValue())
                         .build())
                 .toList();

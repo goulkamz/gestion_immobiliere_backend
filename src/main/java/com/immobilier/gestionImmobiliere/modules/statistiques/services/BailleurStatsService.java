@@ -59,7 +59,7 @@ public class BailleurStatsService {
     public ResponseEntity<?> getRevenus(Integer idBailleur) {
         List<BailleurRevenuDTO> result = echeanceLoyerRepository.revenusPourBailleur(idBailleur).stream()
                 .map(row -> BailleurRevenuDTO.builder()
-                        .periodeMois(((java.sql.Date) row[0]).toLocalDate())
+                        .periodeMois((LocalDate) row[0])
                         .montantDu(((Number) row[1]).doubleValue())
                         .montantRecu(((Number) row[2]).doubleValue())
                         .statut(String.valueOf(row[3]))
