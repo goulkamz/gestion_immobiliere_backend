@@ -16,21 +16,46 @@ import java.time.LocalDate;
 import java.util.List;
 
 public interface EcheanceLoyerRepository extends JpaRepository<EcheanceLoyer, Integer> {
-    Page<EcheanceLoyer> findByEntiteEcheanceTypeAndEntiteEcheanceId(TypeEcheance type, Integer entiteId, Pageable pageable);
-    Page<EcheanceLoyer> findByStatut(StatutEcheance statut, Pageable pageable);
     List<EcheanceLoyer> findByIdEcheanceIn(List<Integer> ids);
     List<EcheanceLoyer> findByEntiteEcheanceTypeAndStatutAndDateEcheanceBefore(TypeEcheance type,StatutEcheance statut, LocalDate date);
     List<EcheanceLoyer> findByEntiteEcheanceTypeAndEntiteEcheanceIdAndStatut(TypeEcheance type, Integer entiteId, StatutEcheance statut);
     List<EcheanceLoyer> findByEntiteEcheanceTypeAndEntiteEcheanceIdAndDateEcheanceGreaterThanEqualAndStatutNot(TypeEcheance type, Integer entiteId, LocalDate date, StatutEcheance statutExclu);
 
+    /**
+     * Filtre pleinement optionnel (type/statut) — ADMIN/AGENT. Remplace l'ancienne
+     * logique qui n'appliquait "type" que combiné à "entiteId" (sinon ignoré en
+     * silence, fuite de tous types mélangés quel que soit le filtre demandé).
+     */
     @Query("SELECT e FROM EcheanceLoyer e WHERE " +
-            "(e.entiteEcheanceType = 'LOCATION' AND e.entiteEcheanceId IN :locationIds) OR " +
-            "(e.entiteEcheanceType = 'MANDAT' AND e.entiteEcheanceId IN :mandatIds)")
-    Page<EcheanceLoyer> findForBailleur(@Param("locationIds") List<Integer> locationIds,
-                                        @Param("mandatIds") List<Integer> mandatIds,
+            "(:type IS NULL OR e.entiteEcheanceType = :type) AND " +
+            "(:entiteId IS NULL OR e.entiteEcheanceId = :entiteId) AND " +
+            "(:statut IS NULL OR e.statut = :statut)")
+    Page<EcheanceLoyer> findAllFiltered(@Param("type") TypeEcheance type,
+                                        @Param("entiteId") Integer entiteId,
+                                        @Param("statut") StatutEcheance statut,
                                         Pageable pageable);
 
-    Page<EcheanceLoyer> findByEntiteEcheanceTypeAndEntiteEcheanceIdIn(TypeEcheance type, List<Integer> ids, Pageable pageable);
+    /**
+     * Filtre optionnel (type/statut) — BAILLEUR. Remplace findForBailleur qui
+     * mélangeait toujours LOCATION et MANDAT sans jamais tenir compte de "type".
+     */
+    @Query("SELECT e FROM EcheanceLoyer e WHERE " +
+            "((e.entiteEcheanceType = com.immobilier.gestionImmobiliere.donnees.paiements.model.TypeEcheance.LOCATION AND e.entiteEcheanceId IN :locationIds) OR " +
+            " (e.entiteEcheanceType = com.immobilier.gestionImmobiliere.donnees.paiements.model.TypeEcheance.MANDAT AND e.entiteEcheanceId IN :mandatIds)) AND " +
+            "(:type IS NULL OR e.entiteEcheanceType = :type) AND " +
+            "(:statut IS NULL OR e.statut = :statut)")
+    Page<EcheanceLoyer> findForBailleurFiltered(@Param("locationIds") List<Integer> locationIds,
+                                                @Param("mandatIds") List<Integer> mandatIds,
+                                                @Param("type") TypeEcheance type,
+                                                @Param("statut") StatutEcheance statut,
+                                                Pageable pageable);
+
+    /** CLIENT : type forcé à LOCATION côté serveur (jamais piloté par le client), statut optionnel. */
+    @Query("SELECT e FROM EcheanceLoyer e WHERE e.entiteEcheanceType = com.immobilier.gestionImmobiliere.donnees.paiements.model.TypeEcheance.LOCATION " +
+            "AND e.entiteEcheanceId IN :ids AND (:statut IS NULL OR e.statut = :statut)")
+    Page<EcheanceLoyer> findLocationPourClient(@Param("ids") List<Integer> ids,
+                                               @Param("statut") StatutEcheance statut,
+                                               Pageable pageable);
 
     List<EcheanceLoyer> findByEntiteEcheanceTypeAndEntiteEcheanceIdAndDateEcheanceBetween(
             TypeEcheance type, Integer entiteId, LocalDate debut, LocalDate fin);

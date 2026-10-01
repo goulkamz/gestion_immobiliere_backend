@@ -58,25 +58,21 @@ public class EcheanceService {
         Page<EcheanceLoyer> page;
 
         if (isAdminOrAgent) {
-            if (type != null && entiteId != null) {
-                page = echeanceRepository.findByEntiteEcheanceTypeAndEntiteEcheanceId(type, entiteId, pageable);
-            } else if (statut != null) {
-                page = echeanceRepository.findByStatut(statut, pageable);
-            } else {
-                page = echeanceRepository.findAll(pageable);
-            }
+            page = echeanceRepository.findAllFiltered(type, entiteId, statut, pageable);
         } else if (isBailleur) {
             List<Integer> locationIds = contratLocationRepository.findIdsByProprietaire(currentUserId);
             List<Integer> mandatIds = contratMandatRepository.findIdsByProprietaire(currentUserId);
-            page = echeanceRepository.findForBailleur(
+            page = echeanceRepository.findForBailleurFiltered(
                     locationIds.isEmpty() ? List.of(-1) : locationIds,
                     mandatIds.isEmpty() ? List.of(-1) : mandatIds,
+                    type, statut,
                     pageable);
         } else {
             // CLIENT : uniquement les échéances de ses propres contrats de location
+            // (type forcé à LOCATION côté serveur, jamais piloté par le client)
             List<Integer> locationIds = contratLocationRepository.findIdsByLocataire(currentUserId);
-            page = echeanceRepository.findByEntiteEcheanceTypeAndEntiteEcheanceIdIn(
-                    TypeEcheance.LOCATION, locationIds.isEmpty() ? List.of(-1) : locationIds, pageable);
+            page = echeanceRepository.findLocationPourClient(
+                    locationIds.isEmpty() ? List.of(-1) : locationIds, statut, pageable);
         }
 
         return buildSuccessResponse(HttpStatus.OK, "Liste des échéances", "ECHEANCE_LIST", page.map(this::toDto));
