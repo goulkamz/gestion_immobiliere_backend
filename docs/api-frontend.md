@@ -729,6 +729,7 @@ Contrôleur : `@PreAuthorize("hasAnyRole('ADMIN','AGENT','BAILLEUR','CLIENT')")`
 
 #### GET /api/echeances
 Rôle requis : tous rôles authentifiés listés ci-dessus (filtré par ownership pour client/bailleur). Query : `type?` (`TypeEcheance`: `MANDAT`|`LOCATION`), `entiteId?`, `statut?` (`StatutEcheance`), pagination.
+**`type` correctement appliqué pour les 3 rôles depuis le 2026-10-01** (corrigé : avant cette date, `type` seul sans `entiteId` était ignoré pour ADMIN/AGENT, et totalement ignoré pour BAILLEUR qui recevait toujours un mélange LOCATION+MANDAT — `CLIENT` reste volontairement forcé à `LOCATION` côté serveur quel que soit `type` envoyé, par cohérence métier).
 Réponse (data) : `PagedResponse<EcheanceResponse>`.
 #### GET /api/echeances/{id}
 Réponse : `EcheanceResponse`. Codes : 404, 403.
