@@ -33,6 +33,7 @@ DECLARE
 
     id_cour1 INTEGER; -- Ouagadougou, bailleur1
     id_cour2 INTEGER; -- Bobo-Dioulasso, bailleur2
+    id_cour3 INTEGER; -- Ouagadougou (secteur 15), bailleur2 — bailleur2 a donc 2 cours (filtre multi-cours)
 
     id_maison_a INTEGER; -- LOUEE (client1) - cour1
     id_maison_b INTEGER; -- DISPONIBLE - cour1
@@ -133,14 +134,19 @@ SELECT id_bien_service INTO id_bien_sono FROM bien_service WHERE libelle = 'Kit 
 INSERT INTO cour (id_secteur, id_user, reference_cour, lot_cour, numero_porte, created_at)
 VALUES
     (id_secteur_s12, id_bailleur1, 'COUR-2026-001', 'Lot 45', 12, NOW()),
-    (id_secteur_s03, id_bailleur2, 'COUR-2026-002', 'Lot 8', 3, NOW());
+    (id_secteur_s03, id_bailleur2, 'COUR-2026-002', 'Lot 8', 3, NOW()),
+    -- bailleur2 possède une 2e cour (secteur 15, Ouagadougou) pour tester
+    -- le filtre multi-cours côté frontend (masqué si un seul bailleur n'a qu'une cour)
+    (id_secteur_s15, id_bailleur2, 'COUR-2026-003', 'Lot 22', 7, NOW());
 
 SELECT id_cour INTO id_cour1 FROM cour WHERE reference_cour = 'COUR-2026-001';
 SELECT id_cour INTO id_cour2 FROM cour WHERE reference_cour = 'COUR-2026-002';
+SELECT id_cour INTO id_cour3 FROM cour WHERE reference_cour = 'COUR-2026-003';
 
 -- ==============================================================
 -- Maisons — cour1 : A (louée), B (disponible), E (louée puis résiliée)
 --            cour2 : C (louée), D (disponible)
+--            cour3 : F (disponible) — 2e cour de bailleur2
 -- ==============================================================
 INSERT INTO maison (id_cour, type_maison, nom_commun_maison, nombre_piece, loyer, caution, nombre_mois_caution, statut, created_at)
 VALUES
@@ -148,7 +154,8 @@ VALUES
     (id_cour1, 'Studio', 'Maison B - Studio', 1, 60000, 120000, 2, 'DISPONIBLE', NOW()),
     (id_cour1, 'Studio', 'Maison E - Studio annexe', 1, 70000, 140000, 2, 'DISPONIBLE', NOW()), -- redevenue disponible après résiliation
     (id_cour2, 'Villa', 'Maison C - Villa 2 pièces', 2, 100000, 200000, 2, 'LOUEE', NOW()),
-    (id_cour2, 'Studio', 'Maison D - Studio', 1, 55000, 110000, 2, 'DISPONIBLE', NOW());
+    (id_cour2, 'Studio', 'Maison D - Studio', 1, 55000, 110000, 2, 'DISPONIBLE', NOW()),
+    (id_cour3, 'Studio', 'Maison F - Studio annexe', 1, 65000, 130000, 2, 'DISPONIBLE', NOW());
 
 SELECT id_maison INTO id_maison_a FROM maison WHERE nom_commun_maison = 'Maison A - Villa 3 pièces';
 SELECT id_maison INTO id_maison_b FROM maison WHERE nom_commun_maison = 'Maison B - Studio';
