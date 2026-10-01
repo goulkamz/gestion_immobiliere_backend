@@ -12,7 +12,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@PreAuthorize("hasRole('ADMIN')")
 public class UserAdminController implements UserAdminAPI {
 
     private final UserAdminService userAdminService;
@@ -21,37 +20,46 @@ public class UserAdminController implements UserAdminAPI {
         this.userAdminService = userAdminService;
     }
 
+    // Lecture ouverte à l'agent : besoin de lister les bailleurs/gestionnaires
+    // pour peupler les sélecteurs de création de cour/bien-service.
     @Override
+    @PreAuthorize("hasAnyRole('ADMIN','AGENT')")
     public ResponseEntity<?> getAll(ERole role, Pageable pageable) {
         return userAdminService.getAll(role, pageable);
     }
 
     @Override
+    @PreAuthorize("hasAnyRole('ADMIN','AGENT')")
     public ResponseEntity<?> getById(Integer id) {
         return userAdminService.getById(id);
     }
 
     @Override
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> create(CreateUserByAdminDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser) {
         return userAdminService.create(dto, currentUser.getIdUser());
     }
 
     @Override
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> update(Integer id, UpdateUserByAdminDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser) {
         return userAdminService.update(id, dto, currentUser.getIdUser());
     }
 
     @Override
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> updateRole(Integer id, UpdateUserRoleDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser) {
         return userAdminService.updateRole(id, dto, currentUser.getIdUser());
     }
 
     @Override
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> updateStatus(Integer id, UpdateUserStatusDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser) {
         return userAdminService.updateStatus(id, dto, currentUser.getIdUser());
     }
 
     @Override
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> delete(Integer id, @AuthenticationPrincipal UserDetailsImpl currentUser) {
         return userAdminService.delete(id, currentUser.getIdUser());
     }

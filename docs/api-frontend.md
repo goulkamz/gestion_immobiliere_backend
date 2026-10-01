@@ -259,10 +259,10 @@ Réponse (data) : `ProfileResponse`.
 
 ## 4. Administration des utilisateurs (`/api/admin/users`) — `UserAdminAPI`
 
-Contrôleur : `UserAdminController`, `@PreAuthorize("hasRole('ADMIN')")` au niveau classe — **tous les endpoints ci-dessous sont réservés à ROLE_ADMIN**.
+Contrôleur : `UserAdminController`, `@PreAuthorize` **au niveau méthode depuis le 2026-10-01** (plus de niveau classe) : `getAll`/`getById` ouverts à `hasAnyRole('ADMIN','AGENT')` (l'agent a besoin de lister les bailleurs/gestionnaires pour peupler les sélecteurs de création de cour/bien-service) ; `create`/`update`/`updateRole`/`updateStatus`/`delete` restent réservés à `hasRole('ADMIN')` seul.
 
 ### GET /api/admin/users
-Liste paginée des utilisateurs.
+Rôle requis : ROLE_ADMIN, ROLE_AGENT. Liste paginée des utilisateurs — utiliser `?role=ROLE_BAILLEUR` ou `?role=ROLE_AGENT` pour peupler un sélecteur (`idProprietaire` d'une cour, `idGestionnaire` d'un bien/service).
 Query : `role?` (`ERole`), pagination.
 Réponse (data) : `PagedResponse<UserAdminResponse>` avec :
 ```typescript
@@ -283,10 +283,10 @@ interface UserAdminResponse {
 ```
 
 ### GET /api/admin/users/{id}
-Détail d'un utilisateur. Réponse : `UserAdminResponse`. Codes : 404.
+Rôle requis : ROLE_ADMIN, ROLE_AGENT. Détail d'un utilisateur. Réponse : `UserAdminResponse`. Codes : 404.
 
 ### POST /api/admin/users
-Crée un utilisateur (admin peut créer n'importe quel rôle).
+Rôle requis : ROLE_ADMIN uniquement. Crée un utilisateur (admin peut créer n'importe quel rôle).
 Body :
 ```typescript
 interface CreateUserByAdminRequest {
@@ -304,7 +304,7 @@ interface CreateUserByAdminRequest {
 Réponse : `UserAdminResponse`. Codes : 409 `EMAIL_ALREADY_EXISTS`.
 
 ### PUT /api/admin/users/{id}
-Met à jour un utilisateur (hors mot de passe/rôle, qui ont leurs propres endpoints dédiés pour la traçabilité).
+Rôle requis : ROLE_ADMIN uniquement. Met à jour un utilisateur (hors mot de passe/rôle, qui ont leurs propres endpoints dédiés pour la traçabilité).
 Body :
 ```typescript
 interface UpdateUserByAdminRequest {
@@ -318,13 +318,13 @@ interface UpdateUserByAdminRequest {
 ```
 
 ### PATCH /api/admin/users/{id}/role
-Change le rôle d'un utilisateur. Body : `{ role: EnumRole }` (requis).
+Rôle requis : ROLE_ADMIN uniquement. Change le rôle d'un utilisateur. Body : `{ role: EnumRole }` (requis).
 
 ### PATCH /api/admin/users/{id}/status
-Active/désactive un compte. Body : `{ flagActif: boolean }` (requis). Codes : 403 `CANNOT_DEACTIVATE_SELF` (un admin ne peut pas se désactiver lui-même).
+Rôle requis : ROLE_ADMIN uniquement. Active/désactive un compte. Body : `{ flagActif: boolean }` (requis). Codes : 403 `CANNOT_DEACTIVATE_SELF` (un admin ne peut pas se désactiver lui-même).
 
 ### DELETE /api/admin/users/{id}
-Supprime (soft delete) un utilisateur. Codes : 404, 403 `CANNOT_DEACTIVATE_SELF` potentiellement applicable selon implémentation service.
+Rôle requis : ROLE_ADMIN uniquement. Supprime (soft delete) un utilisateur. Codes : 404, 403 `CANNOT_DEACTIVATE_SELF` potentiellement applicable selon implémentation service.
 
 ---
 
