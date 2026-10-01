@@ -452,9 +452,11 @@ Rôle requis : ROLE_ADMIN uniquement.
 ```typescript
 interface MaisonResponse {
   idMaison: number; typeMaison: string | null; nomCommunMaison: string | null; nombrePiece: number | null;
-  loyer: number | null; caution: number | null; nombreMoisCaution: number | null;
+  loyer: number | null; caution: number | null; avance: number | null; nombreMoisCaution: number | null;
   statut: StatutMaison; idCour: number; referenceCour: string;
 }
+// avance : saisie uniquement à la création (CreateMaisonDTO), pas d'édition possible
+// après coup (UpdateMaisonDTO ne porte pas ce champ) — limitation connue, pas un bug.
 ```
 
 ### Catégorie bien/service (`/api/categories`) — `CategorieBienServiceAPI`

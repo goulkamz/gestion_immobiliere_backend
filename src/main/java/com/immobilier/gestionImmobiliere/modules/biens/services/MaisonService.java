@@ -180,6 +180,7 @@ public class MaisonService {
                 .nombrePiece(m.getNombrePiece())
                 .loyer(m.getLoyer())
                 .caution(m.getCaution())
+                .avance(m.getAvance())
                 .nombreMoisCaution(m.getNombreMoisCaution())
                 .statut(m.getStatut())
                 .idCour(m.getCour().getIdCour())
