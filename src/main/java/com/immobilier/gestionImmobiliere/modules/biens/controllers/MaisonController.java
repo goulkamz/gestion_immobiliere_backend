@@ -41,7 +41,7 @@ public class MaisonController implements MaisonAPI {
     }
 
     @Override
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
     public ResponseEntity<?> delete(Integer id) {
         return maisonService.delete(id);
     }

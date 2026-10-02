@@ -26,7 +26,7 @@ public interface CategorieBienServiceAPI {
     @PutMapping("/{id}")
     ResponseEntity<?> update(@PathVariable Integer id, @Valid @RequestBody UpdateCategorieDTO dto);
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
     @DeleteMapping("/{id}")
     ResponseEntity<?> delete(@PathVariable Integer id);
 }

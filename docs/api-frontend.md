@@ -447,7 +447,7 @@ Rôle requis : ROLE_AGENT. Body : mêmes champs que create sauf `idCour`, tous o
 #### PATCH /api/maisons/{id}/statut
 Rôle requis : ROLE_AGENT. Body : `{ statut: StatutMaison }` (requis). Codes : 409 `INVALID_STATUT_TRANSITION`.
 #### DELETE /api/maisons/{id}
-Rôle requis : ROLE_ADMIN uniquement.
+Rôle requis : ROLE_AGENT, ROLE_ADMIN (harmonisé le 2026-10-02 avec `DELETE /api/cours/{id}` et `DELETE /api/biens-services/{id}`, déjà ouverts à l'agent — incohérent de restreindre la suppression d'une seule maison à l'admin alors que l'agent peut supprimer la cour entière qui la contient).
 
 ```typescript
 interface MaisonResponse {
@@ -469,7 +469,7 @@ Rôle requis : ROLE_AGENT, ROLE_ADMIN. Body : `{ libelle: string; description?: 
 #### PUT /api/categories/{id}
 Rôle requis : ROLE_AGENT, ROLE_ADMIN. Body : `{ libelle?: string; description?: string }`.
 #### DELETE /api/categories/{id}
-Rôle requis : ROLE_ADMIN uniquement.
+Rôle requis : ROLE_AGENT, ROLE_ADMIN (harmonisé le 2026-10-02, même raisonnement que pour les maisons — cohérent avec `create`/`update` déjà ouverts à l'agent sur ce même endpoint).
 
 ```typescript
 interface CategorieResponse { idCategorie: number; libelle: string; description: string | null; }
