@@ -9,8 +9,11 @@ import com.immobilier.gestionImmobiliere.donnees.contrats.model.StatutDecompteSo
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.StatutLocation;
 import com.immobilier.gestionImmobiliere.donnees.contrats.repository.ContratLocationRepository;
 import com.immobilier.gestionImmobiliere.donnees.contrats.repository.DecompteSortieRepository;
+import com.immobilier.gestionImmobiliere.donnees.paiements.model.EcheanceLoyer;
 import com.immobilier.gestionImmobiliere.donnees.paiements.model.Paiement;
 import com.immobilier.gestionImmobiliere.donnees.paiements.model.SensPaiement;
+import com.immobilier.gestionImmobiliere.donnees.paiements.model.StatutEcheance;
+import com.immobilier.gestionImmobiliere.donnees.paiements.model.TypeEcheance;
 import com.immobilier.gestionImmobiliere.donnees.paiements.repository.EcheanceLoyerRepository;
 import com.immobilier.gestionImmobiliere.donnees.paiements.repository.PaiementRepository;
 import com.immobilier.gestionImmobiliere.donnees.user.model.User;
@@ -38,6 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
 
@@ -164,6 +168,11 @@ public class ContratLocationService {
      * Modifie dateSortie (prolonge/réduit le bail) et/ou montantLoyer sans clôturer
      * le contrat — à distinguer de terminer()/resilierContratLocation() qui fixent
      * dateSortie au moment de mettre fin au bail. Réservé aux contrats ACTIF.
+     *
+     * Si montantLoyer change, les échéances déjà générées ne sont pas régénérées
+     * (dates/numérotation conservées) mais leur montantDu est mis à jour pour
+     * celles non réglées (EN_ATTENTE/EN_RETARD) — PAYE/ANNULE restent inchangées,
+     * elles reflètent ce qui a réellement été dû/réglé à l'époque.
      */
     @Transactional
     public ResponseEntity<?> modifier(Integer id, UpdateContratLocationDTO dto, Integer currentUserId) {
@@ -179,7 +188,18 @@ public class ContratLocationService {
             }
             location.setDateSortie(dto.getDateSortie());
         }
-        if (dto.getMontantLoyer() != null) location.setMontantLoyer(dto.getMontantLoyer());
+        if (dto.getMontantLoyer() != null) {
+            location.setMontantLoyer(dto.getMontantLoyer());
+
+            List<EcheanceLoyer> nonReglees = echeanceLoyerRepository.findByEntiteEcheanceTypeAndEntiteEcheanceIdAndStatutIn(
+                    TypeEcheance.LOCATION, location.getIdContratLocation(),
+                    List.of(StatutEcheance.EN_ATTENTE, StatutEcheance.EN_RETARD));
+            nonReglees.forEach(e -> {
+                e.setMontantDu(dto.getMontantLoyer());
+                e.setUserUpdate(currentUserId);
+            });
+            echeanceLoyerRepository.saveAll(nonReglees);
+        }
 
         location.setUserUpdate(currentUserId);
         locationRepository.save(location);

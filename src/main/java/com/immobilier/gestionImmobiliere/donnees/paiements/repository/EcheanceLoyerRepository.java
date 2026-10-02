@@ -20,6 +20,7 @@ public interface EcheanceLoyerRepository extends JpaRepository<EcheanceLoyer, In
     List<EcheanceLoyer> findByEntiteEcheanceTypeAndStatutAndDateEcheanceBefore(TypeEcheance type,StatutEcheance statut, LocalDate date);
     List<EcheanceLoyer> findByEntiteEcheanceTypeAndEntiteEcheanceIdAndStatut(TypeEcheance type, Integer entiteId, StatutEcheance statut);
     List<EcheanceLoyer> findByEntiteEcheanceTypeAndEntiteEcheanceIdAndDateEcheanceGreaterThanEqualAndStatutNot(TypeEcheance type, Integer entiteId, LocalDate date, StatutEcheance statutExclu);
+    List<EcheanceLoyer> findByEntiteEcheanceTypeAndEntiteEcheanceIdAndStatutIn(TypeEcheance type, Integer entiteId, List<StatutEcheance> statuts);
 
     /**
      * Filtre pleinement optionnel (type/statut) — ADMIN/AGENT. Remplace l'ancienne

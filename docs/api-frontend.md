@@ -675,7 +675,7 @@ Résiliation anticipée. Rôle requis : ROLE_AGENT, ROLE_ADMIN.
 Body : `{ etatDesLieuxSortie: string; dateSortie?: string; coutReparation: number }` (`etatDesLieuxSortie` et `coutReparation` requis, `coutReparation >= 0`).
 #### PATCH /api/contrats-location/{id}/modifier
 Modifie dateSortie (prolonge/réduit le bail) et/ou montantLoyer **sans clôturer le contrat** (ajouté le 2026-10-02) — à distinguer de `terminer`/`resilier` ci-dessus qui mettent fin au bail. Rôle requis : ROLE_AGENT, ROLE_ADMIN. Réservé aux contrats ACTIF.
-Body : `{ dateSortie?: string; montantLoyer?: number }` (tous optionnels, seuls les champs fournis sont modifiés ; ne régénère pas les échéances déjà générées si `montantLoyer` change).
+Body : `{ dateSortie?: string; montantLoyer?: number }` (tous optionnels, seuls les champs fournis sont modifiés). Si `montantLoyer` change : les échéances déjà générées ne sont **pas régénérées** (dates/numérotation conservées), mais leur `montantDu` est **mis à jour** pour celles encore `EN_ATTENTE`/`EN_RETARD` — les échéances `PAYE`/`ANNULE` restent inchangées (elles reflètent ce qui a réellement été dû/réglé à l'époque).
 Codes : 409 `INVALID_STATUT_TRANSITION` (contrat non ACTIF).
 #### PATCH /api/contrats-location/decomptes-sortie/{idDecompte}/regler
 Règle le décompte de sortie (restitution avance/caution ou complément dû). Rôle requis : ROLE_AGENT, ROLE_ADMIN.
