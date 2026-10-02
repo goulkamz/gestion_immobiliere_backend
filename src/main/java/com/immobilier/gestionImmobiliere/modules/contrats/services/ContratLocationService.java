@@ -21,6 +21,7 @@ import com.immobilier.gestionImmobiliere.exceptions.ResourceNotFoundException;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.CreateContratLocationDTO;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.ResilierLocationDTO;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.TerminerLocationDTO;
+import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.UpdateContratLocationDTO;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.responses.ContratLocationResponseDTO;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.responses.DecompteSortieResponseDTO;
 import com.immobilier.gestionImmobiliere.modules.paiements.dto.requests.ConfirmerReglementSortieDTO;
@@ -157,6 +158,33 @@ public class ContratLocationService {
         echeanceGenerationService.genererEcheancesLocation(location);
 
         return location;
+    }
+
+    /**
+     * Modifie dateSortie (prolonge/réduit le bail) et/ou montantLoyer sans clôturer
+     * le contrat — à distinguer de terminer()/resilierContratLocation() qui fixent
+     * dateSortie au moment de mettre fin au bail. Réservé aux contrats ACTIF.
+     */
+    @Transactional
+    public ResponseEntity<?> modifier(Integer id, UpdateContratLocationDTO dto, Integer currentUserId) {
+        ContratLocation location = findOrThrow(id);
+
+        if (location.getStatut() != StatutLocation.ACTIF) {
+            throw new InvalidStatutTransitionException(location.getStatut().name(), "MODIFICATION_LOCATION");
+        }
+
+        if (dto.getDateSortie() != null) {
+            if (!dto.getDateSortie().isAfter(location.getDateEntree())) {
+                throw new IllegalArgumentException("La date de sortie doit être postérieure à la date d'entrée");
+            }
+            location.setDateSortie(dto.getDateSortie());
+        }
+        if (dto.getMontantLoyer() != null) location.setMontantLoyer(dto.getMontantLoyer());
+
+        location.setUserUpdate(currentUserId);
+        locationRepository.save(location);
+
+        return buildSuccessResponse(HttpStatus.OK, "Contrat de location modifié", "LOCATION_UPDATED", toDto(location));
     }
 
     @Transactional

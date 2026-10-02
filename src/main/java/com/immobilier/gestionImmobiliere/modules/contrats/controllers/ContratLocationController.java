@@ -4,6 +4,7 @@ import com.immobilier.gestionImmobiliere.modules.contrats.apis.ContratLocationAP
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.CreateContratLocationDTO;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.ResilierLocationDTO;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.TerminerLocationDTO;
+import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.UpdateContratLocationDTO;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.responses.ContratLocationResponseDTO;
 import com.immobilier.gestionImmobiliere.modules.contrats.services.ContratLocationService;
 import com.immobilier.gestionImmobiliere.modules.paiements.dto.requests.ConfirmerReglementSortieDTO;
@@ -63,6 +64,11 @@ public class ContratLocationController implements ContratLocationAPI {
         return locationService.resilierContratLocation(id,dto,currentUser.getIdUser());
     }
 
+
+    @Override
+    public ResponseEntity<?> modifier(Integer id, UpdateContratLocationDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser) {
+        return locationService.modifier(id, dto, currentUser.getIdUser());
+    }
 
     @Override
     public ResponseEntity<?> reglerDecompteSortie(Integer idDecompte, ConfirmerReglementSortieDTO dto, UserDetailsImpl currentUser) {

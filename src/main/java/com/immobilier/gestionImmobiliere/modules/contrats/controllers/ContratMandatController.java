@@ -4,6 +4,7 @@ import com.immobilier.gestionImmobiliere.donnees.contrats.model.StatutMandat;
 import com.immobilier.gestionImmobiliere.modules.contrats.apis.ContratMandatAPI;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.CreateContratMandatDTO;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.ResilierMandatDTO;
+import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.UpdateContratMandatDTO;
 import com.immobilier.gestionImmobiliere.modules.contrats.services.ContratMandatService;
 import com.immobilier.gestionImmobiliere.modules.user.jwtService.UserDetailsImpl;
 import org.springframework.data.domain.Pageable;
@@ -52,6 +53,12 @@ public class ContratMandatController implements ContratMandatAPI {
     @PreAuthorize("hasRole('AGENT')")
     public ResponseEntity<?> resilier(Integer id, ResilierMandatDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser) {
         return mandatService.resilier(id, dto, currentUser.getIdUser());
+    }
+
+    @Override
+    @PreAuthorize("hasRole('AGENT')")
+    public ResponseEntity<?> modifier(Integer id, UpdateContratMandatDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser) {
+        return mandatService.modifier(id, dto, currentUser.getIdUser());
     }
 
     @Override

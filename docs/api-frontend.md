@@ -627,6 +627,10 @@ Passe le mandat En attente → Actif. Rôle requis : ROLE_AGENT. Codes : 409 `IN
 #### PATCH /api/contrats-mandat/{id}/resilierContratLocation
 Résilie le mandat. Rôle requis : ROLE_AGENT.
 Body : `{ motifResiliation: string }` (requis).
+#### PATCH /api/contrats-mandat/{id}/modifier
+Modifie dateFin/commission/modeFacturation/typeMandat sans changer le statut (ajouté le 2026-10-02). Rôle requis : ROLE_AGENT uniquement (pas ADMIN, même restriction que create/activer/resilier sur ce contrôleur). Réservé aux mandats EN_ATTENTE/ACTIF.
+Body : `{ dateFin?: string; commission?: number; modeFacturation?: string; typeMandat?: 'GESTION'|'LOCATION'|'VENTE' }` (tous optionnels, seuls les champs fournis sont modifiés).
+Codes : 409 `INVALID_STATUT_TRANSITION` (mandat RESILIE/EXPIRE).
 #### DELETE /api/contrats-mandat/{id}
 Rôle requis : ROLE_ADMIN uniquement.
 
@@ -669,6 +673,10 @@ Body : `{ etatDesLieuxSortie: string; dateSortie?: string; fraisReparation: numb
 #### PATCH /api/contrats-location/{id}/resilier
 Résiliation anticipée. Rôle requis : ROLE_AGENT, ROLE_ADMIN.
 Body : `{ etatDesLieuxSortie: string; dateSortie?: string; coutReparation: number }` (`etatDesLieuxSortie` et `coutReparation` requis, `coutReparation >= 0`).
+#### PATCH /api/contrats-location/{id}/modifier
+Modifie dateSortie (prolonge/réduit le bail) et/ou montantLoyer **sans clôturer le contrat** (ajouté le 2026-10-02) — à distinguer de `terminer`/`resilier` ci-dessus qui mettent fin au bail. Rôle requis : ROLE_AGENT, ROLE_ADMIN. Réservé aux contrats ACTIF.
+Body : `{ dateSortie?: string; montantLoyer?: number }` (tous optionnels, seuls les champs fournis sont modifiés ; ne régénère pas les échéances déjà générées si `montantLoyer` change).
+Codes : 409 `INVALID_STATUT_TRANSITION` (contrat non ACTIF).
 #### PATCH /api/contrats-location/decomptes-sortie/{idDecompte}/regler
 Règle le décompte de sortie (restitution avance/caution ou complément dû). Rôle requis : ROLE_AGENT, ROLE_ADMIN.
 Body : `{ modePaiement: string; reference?: string }` (`modePaiement` requis).

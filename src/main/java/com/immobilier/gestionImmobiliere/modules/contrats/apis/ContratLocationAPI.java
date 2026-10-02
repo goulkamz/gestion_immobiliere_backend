@@ -3,6 +3,7 @@ package com.immobilier.gestionImmobiliere.modules.contrats.apis;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.CreateContratLocationDTO;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.ResilierLocationDTO;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.TerminerLocationDTO;
+import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.UpdateContratLocationDTO;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.responses.ContratLocationResponseDTO;
 import com.immobilier.gestionImmobiliere.modules.paiements.dto.requests.ConfirmerReglementSortieDTO;
 import com.immobilier.gestionImmobiliere.modules.user.jwtService.UserDetailsImpl;
@@ -31,6 +32,13 @@ public interface ContratLocationAPI {
 
     @PatchMapping("/{id}/terminer")
     ResponseEntity<?> terminer(@PathVariable Integer id, @Valid @RequestBody TerminerLocationDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser);
+
+    // Modifie dateSortie (prolonge/réduit le bail) et/ou montantLoyer sans clôturer
+    // le contrat — à distinguer de terminer()/resilierContratLocation() qui mettent
+    // fin au bail. Réservé aux contrats ACTIF.
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
+    @PatchMapping("/{id}/modifier")
+    ResponseEntity<?> modifier(@PathVariable Integer id, @Valid @RequestBody UpdateContratLocationDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser);
 
 
 

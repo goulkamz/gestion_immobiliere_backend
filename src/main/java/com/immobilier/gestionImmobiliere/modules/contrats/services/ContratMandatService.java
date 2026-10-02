@@ -17,6 +17,7 @@ import com.immobilier.gestionImmobiliere.exceptions.MandatActifExistantException
 import com.immobilier.gestionImmobiliere.exceptions.ResourceNotFoundException;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.CreateContratMandatDTO;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.ResilierMandatDTO;
+import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.UpdateContratMandatDTO;
 
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.responses.ContratMandatResponseDTO;
 import com.immobilier.gestionImmobiliere.modules.paiements.services.EcheanceService;
@@ -144,6 +145,32 @@ public class ContratMandatService {
         //echeanceService.supprimerEcheancesFutures(mandat.getIdMandat(), LocalDate.now());
 
         return buildSuccessResponse(HttpStatus.OK, "Mandat résilié", "MANDAT_RESILIE", toDto(mandat));
+    }
+
+    /**
+     * Modifie dateFin/commission/modeFacturation/typeMandat sans changer le statut.
+     * Réservé aux mandats EN_ATTENTE/ACTIF : un mandat RESILIE/EXPIRE est figé.
+     */
+    @Transactional
+    public ResponseEntity<?> modifier(Integer id, UpdateContratMandatDTO dto, Integer currentUserId) {
+        ContratMandat mandat = findOrThrow(id);
+
+        if (mandat.getStatut() != StatutMandat.EN_ATTENTE && mandat.getStatut() != StatutMandat.ACTIF) {
+            throw new InvalidStatutTransitionException(mandat.getStatut().name(), "MODIFICATION_MANDAT");
+        }
+
+        if (dto.getDateFin() != null) {
+            if (!dto.getDateFin().isAfter(mandat.getDateDebut())) {
+                throw new IllegalArgumentException("La date de fin doit être postérieure à la date de début");
+            }
+            mandat.setDateFin(dto.getDateFin());
+        }
+        if (dto.getCommission() != null) mandat.setCommission(dto.getCommission());
+        if (dto.getModeFacturation() != null) mandat.setModeFacturation(dto.getModeFacturation());
+        if (dto.getTypeMandat() != null) mandat.setTypeMandat(dto.getTypeMandat());
+
+        mandatRepository.save(mandat);
+        return buildSuccessResponse(HttpStatus.OK, "Mandat modifié", "MANDAT_UPDATED", toDto(mandat));
     }
 
     @Transactional
