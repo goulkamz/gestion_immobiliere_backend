@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.annonces.controllers;
 
+import com.immobilier.gestionImmobiliere.donnees.annonces.model.StatutTemoignage;
 import com.immobilier.gestionImmobiliere.modules.annonces.apis.TemoignageAdminAPI;
 import com.immobilier.gestionImmobiliere.modules.annonces.dto.requests.CreateTemoignageDTO;
 import com.immobilier.gestionImmobiliere.modules.annonces.dto.requests.UpdateStatutTemoignageDTO;
@@ -20,8 +21,8 @@ public class TemoignageAdminController implements TemoignageAdminAPI {
 
     @Override
     @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
-    public ResponseEntity<?> getAll(Boolean flagActif, Pageable pageable) {
-        return temoignageService.getAll(flagActif, pageable);
+    public ResponseEntity<?> getAll(StatutTemoignage statut, Pageable pageable) {
+        return temoignageService.getAll(statut, pageable);
     }
 
     @Override

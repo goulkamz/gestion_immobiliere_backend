@@ -41,8 +41,7 @@ public class Temoignage extends Model_1 {
     @Column(name = "date_temoignage", nullable = false)
     private LocalDate dateTemoignage;
 
-    // false = retire de l'affichage public par un admin
-    @Column(name = "flag_actif", nullable = false)
-    @Builder.Default
-    private boolean flagActif = true;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "statut", nullable = false)
+    private StatutTemoignage statut;
 }

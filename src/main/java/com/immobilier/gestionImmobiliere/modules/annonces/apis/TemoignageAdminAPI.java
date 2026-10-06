@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.annonces.apis;
 
+import com.immobilier.gestionImmobiliere.donnees.annonces.model.StatutTemoignage;
 import com.immobilier.gestionImmobiliere.modules.annonces.dto.requests.CreateTemoignageDTO;
 import com.immobilier.gestionImmobiliere.modules.annonces.dto.requests.UpdateStatutTemoignageDTO;
 import jakarta.validation.Valid;
@@ -13,9 +14,9 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/admin/temoignages")
 public interface TemoignageAdminAPI {
 
-    // Moderation : inclut les temoignages inactifs ; ?flagActif=false = file d'attente de validation
+    // Moderation : tous statuts confondus ; ?statut=EN_ATTENTE = file d'attente de validation
     @GetMapping
-    ResponseEntity<?> getAll(@RequestParam(required = false) Boolean flagActif,
+    ResponseEntity<?> getAll(@RequestParam(required = false) StatutTemoignage statut,
                              @PageableDefault(sort = "idTemoignage", direction = Sort.Direction.DESC) Pageable pageable);
 
     // Saisie par l'agence

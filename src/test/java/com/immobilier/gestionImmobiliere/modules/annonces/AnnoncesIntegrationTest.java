@@ -156,16 +156,18 @@ class AnnoncesIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void temoignages_publics_filtresParFlagActif_etTriesParDateDecroissante() throws Exception {
+    void temoignages_publics_seulementPublies_etTriesParDateDecroissante() throws Exception {
         // Table videe : le seed contient deja des temoignages qui fausseraient les index du tri
         jdbc.update("DELETE FROM temoignage");
         jdbc.update("""
-                INSERT INTO temoignage (nom_auteur, role, texte, note, date_temoignage) VALUES
-                ('Ancien Temoin', 'LOCATAIRE', 'Texte ancien', NULL, '2026-01-10'),
-                ('Recent Temoin', 'PROPRIETAIRE', 'Texte recent', 5, '2026-08-12')""");
+                INSERT INTO temoignage (nom_auteur, role, texte, note, date_temoignage, statut) VALUES
+                ('Ancien Temoin', 'LOCATAIRE', 'Texte ancien', NULL, '2026-01-10', 'PUBLIE'),
+                ('Recent Temoin', 'PROPRIETAIRE', 'Texte recent', 5, '2026-08-12', 'PUBLIE'),
+                ('Attente Temoin', 'AUTRE', 'Texte en attente', NULL, '2026-09-01', 'EN_ATTENTE'),
+                ('Retire Temoin', 'AUTRE', 'Texte retire', NULL, '2026-09-02', 'RETIRE')""");
         int ancien = jdbc.queryForObject("SELECT id_temoignage FROM temoignage WHERE nom_auteur = 'Ancien Temoin'", Integer.class);
 
-        // Public (sans cookie), tri par date decroissante, flagActif non expose, note/photoUrl absents si null
+        // Public (sans cookie), tri par date decroissante, statut non expose, note/photoUrl absents si null
         mockMvc.perform(get("/api/temoignages"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("TEMOIGNAGE_LIST"))
@@ -173,12 +175,12 @@ class AnnoncesIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.data[0].role").value("PROPRIETAIRE"))
                 .andExpect(jsonPath("$.data[0].note").value(5))
                 .andExpect(jsonPath("$.data[0].date").value("2026-08-12"))
-                .andExpect(jsonPath("$.data[0].flagActif").doesNotExist())
+                .andExpect(jsonPath("$.data[0].statut").doesNotExist())
                 .andExpect(jsonPath("$.data[1].nomAuteur").value("Ancien Temoin"))
                 .andExpect(jsonPath("$.data[1].note").doesNotExist());
 
-        // Seul un admin peut desactiver
-        String corps = "{\"flagActif\":false}";
+        // Seul un admin peut retirer
+        String corps = "{\"statut\":\"RETIRE\"}";
         mockMvc.perform(patch("/api/admin/temoignages/" + ancien + "/statut")
                         .contentType(MediaType.APPLICATION_JSON).content(corps))
                 .andExpect(status().isUnauthorized());
@@ -196,6 +198,12 @@ class AnnoncesIntegrationTest extends AbstractIntegrationTest {
         mockMvc.perform(patch("/api/admin/temoignages/999999/statut").cookie(admin)
                         .contentType(MediaType.APPLICATION_JSON).content(corps))
                 .andExpect(status().isNotFound());
+        // Statut inconnu ou absent : refuse
+        for (String invalide : new String[]{"{\"statut\":\"SUPPRIME\"}", "{}"}) {
+            mockMvc.perform(patch("/api/admin/temoignages/" + ancien + "/statut").cookie(admin)
+                            .contentType(MediaType.APPLICATION_JSON).content(invalide))
+                    .andExpect(status().isBadRequest());
+        }
     }
 
     @Test
@@ -212,6 +220,7 @@ class AnnoncesIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.code").value("TEMOIGNAGE_CREATED"))
                 .andExpect(jsonPath("$.data.nomAuteur").value("Auteur Cree"))
+                .andExpect(jsonPath("$.data.statut").value("PUBLIE"))
                 .andExpect(jsonPath("$.data.date").value(java.time.LocalDate.now().toString()));
 
         mockMvc.perform(get("/api/temoignages"))
@@ -239,20 +248,20 @@ class AnnoncesIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.data.nomAuteur").value("Visiteur Public"))
                 .andExpect(jsonPath("$.data.date").value(java.time.LocalDate.now().toString()))
                 .andExpect(jsonPath("$.data.photoUrl").doesNotExist())
-                .andExpect(jsonPath("$.data.flagActif").doesNotExist());
+                .andExpect(jsonPath("$.data.statut").doesNotExist());
         // Invisible du public tant qu'un admin ne l'a pas active
         mockMvc.perform(get("/api/temoignages"))
                 .andExpect(jsonPath("$.data[?(@.nomAuteur == 'Visiteur Public')]").isEmpty());
         int depose = jdbc.queryForObject("SELECT id_temoignage FROM temoignage WHERE nom_auteur = 'Visiteur Public'", Integer.class);
-        mockMvc.perform(get("/api/admin/temoignages?flagActif=false").cookie(agent))
+        mockMvc.perform(get("/api/admin/temoignages?statut=EN_ATTENTE").cookie(agent))
                 .andExpect(jsonPath("$.data.content[?(@.nomAuteur == 'Visiteur Public')]").isNotEmpty());
         mockMvc.perform(patch("/api/admin/temoignages/" + depose + "/statut").cookie(admin)
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"flagActif\":true}"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"statut\":\"PUBLIE\"}"))
                 .andExpect(status().isOk());
         mockMvc.perform(get("/api/temoignages"))
                 .andExpect(jsonPath("$.data[?(@.nomAuteur == 'Visiteur Public')]").isNotEmpty());
         assertThat(jdbc.queryForObject(
-                "SELECT count(*) FROM temoignage WHERE nom_auteur = 'Visiteur Public' AND photo_url IS NULL",
+                "SELECT count(*) FROM temoignage WHERE nom_auteur = 'Visiteur Public' AND photo_url IS NULL AND statut = 'PUBLIE'",
                 Integer.class)).isEqualTo(1);
 
         // Piege a robots : succes apparent, rien d'enregistre
@@ -290,17 +299,19 @@ class AnnoncesIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void temoignage_listeAdmin_incluDesactives_etReserveALAgence() throws Exception {
-        jdbc.update("INSERT INTO temoignage (nom_auteur, role, texte, flag_actif) VALUES ('Desactive Liste', 'AUTRE', 'texte', false)");
+    void temoignage_listeAdmin_filtreParStatut_etReserveALAgence() throws Exception {
+        jdbc.update("INSERT INTO temoignage (nom_auteur, role, texte, statut) VALUES ('Retire Liste', 'AUTRE', 'texte', 'RETIRE')");
 
         mockMvc.perform(get("/api/admin/temoignages")).andExpect(status().isUnauthorized());
         mockMvc.perform(get("/api/admin/temoignages").cookie(client)).andExpect(status().isForbidden());
         mockMvc.perform(get("/api/admin/temoignages").cookie(agent))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.content[?(@.nomAuteur == 'Desactive Liste')].flagActif").value(false));
+                .andExpect(jsonPath("$.data.content[?(@.nomAuteur == 'Retire Liste')].statut").value("RETIRE"));
+        mockMvc.perform(get("/api/admin/temoignages?statut=PUBLIE").cookie(agent))
+                .andExpect(jsonPath("$.data.content[?(@.nomAuteur == 'Retire Liste')]").isEmpty());
         mockMvc.perform(get("/api/temoignages"))
-                .andExpect(jsonPath("$.data[?(@.nomAuteur == 'Desactive Liste')]").isEmpty());
-        jdbc.update("DELETE FROM temoignage WHERE nom_auteur = 'Desactive Liste'");
+                .andExpect(jsonPath("$.data[?(@.nomAuteur == 'Retire Liste')]").isEmpty());
+        jdbc.update("DELETE FROM temoignage WHERE nom_auteur = 'Retire Liste'");
     }
 
     private Cookie connexion(String email) throws Exception {

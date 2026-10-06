@@ -269,14 +269,15 @@ VALUES ('Sana Awa', 'sana.awa@test.com', '70123456', 'Appartement', 'Ouagadougou
 INSERT INTO offre (nom_complet, email, telephone, type_offre, titre, description, adresse, date_offre, statut)
 VALUES ('Traore Boureima', 'traore.b@test.com', '70654321', 'MAISON', 'Cour à confier en gestion', 'Cour de 4 maisons, secteur 15, bon état', 'Secteur 15, Ouagadougou', NOW(), 'ACTIVE');
 
--- Temoignages : 4 publies (page d'accueil) + 1 depot public en attente de validation (flag_actif = false)
-INSERT INTO temoignage (nom_auteur, role, texte, note, date_temoignage, flag_actif)
+-- Temoignages : 4 PUBLIE (page d'accueil), 1 EN_ATTENTE (depot public a valider), 1 RETIRE (ecarte par un admin)
+INSERT INTO temoignage (nom_auteur, role, texte, note, date_temoignage, statut)
 VALUES
-    ('Fatou Ouédraogo', 'PROPRIETAIRE', 'Depuis que j''ai confié la gestion de ma cour à l''agence, je reçois mes loyers sans retard et je suis informée de chaque paiement.', 5, CURRENT_DATE - 20, TRUE),
-    ('Ibrahim Kaboré', 'LOCATAIRE', 'Studio propre, démarches simples et un agent toujours joignable quand un problème se présente.', 4, CURRENT_DATE - 45, TRUE),
-    ('Équipe de l''agence', 'AGENCE', 'Notre priorité : des biens bien entretenus, des loyers suivis et des échanges transparents avec chaque propriétaire.', NULL, CURRENT_DATE - 60, TRUE),
-    ('Salimata Compaoré', 'LOCATAIRE', 'La réservation en ligne m''a évité plusieurs déplacements, et le contrat a été prêt rapidement.', 5, CURRENT_DATE - 90, TRUE),
-    ('Visiteur Anonyme', 'AUTRE', 'Site clair et agence réactive, je recommande.', 4, CURRENT_DATE - 1, FALSE);
+    ('Fatou Ouédraogo', 'PROPRIETAIRE', 'Depuis que j''ai confié la gestion de ma cour à l''agence, je reçois mes loyers sans retard et je suis informée de chaque paiement.', 5, CURRENT_DATE - 20, 'PUBLIE'),
+    ('Ibrahim Kaboré', 'LOCATAIRE', 'Studio propre, démarches simples et un agent toujours joignable quand un problème se présente.', 4, CURRENT_DATE - 45, 'PUBLIE'),
+    ('Équipe de l''agence', 'AGENCE', 'Notre priorité : des biens bien entretenus, des loyers suivis et des échanges transparents avec chaque propriétaire.', NULL, CURRENT_DATE - 60, 'PUBLIE'),
+    ('Salimata Compaoré', 'LOCATAIRE', 'La réservation en ligne m''a évité plusieurs déplacements, et le contrat a été prêt rapidement.', 5, CURRENT_DATE - 90, 'PUBLIE'),
+    ('Visiteur Anonyme', 'AUTRE', 'Site clair et agence réactive, je recommande.', 4, CURRENT_DATE - 1, 'EN_ATTENTE'),
+    ('Anonyme Retiré', 'AUTRE', 'Texte écarté par la modération.', 1, CURRENT_DATE - 30, 'RETIRE');
 
 INSERT INTO contact (nom_complet, email, telephone, sujet, message, date_envoi, statut)
 VALUES ('Zongo Salif', 'zongo.salif@test.com', '70999888', 'Question sur une annonce', 'Bonjour, le studio du secteur 12 est-il toujours disponible ?', NOW(), 'NON_LU');

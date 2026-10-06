@@ -432,7 +432,7 @@ CREATE TABLE offre (
 );
 
 -- ==============================================================
--- Table: temoignage (affiches sur la page d'accueil ; flag_actif = retrait admin)
+-- Table: temoignage (page d'accueil ; statut : EN_ATTENTE -> PUBLIE -> RETIRE)
 -- ==============================================================
 CREATE TABLE temoignage (
     id_temoignage INTEGER PRIMARY KEY DEFAULT nextval('seq_temoignage'),
@@ -442,7 +442,7 @@ CREATE TABLE temoignage (
     note SMALLINT CHECK (note BETWEEN 1 AND 5),
     photo_url VARCHAR(512),
     date_temoignage DATE NOT NULL DEFAULT CURRENT_DATE,
-    flag_actif BOOLEAN NOT NULL DEFAULT TRUE,
+    statut VARCHAR(20) NOT NULL DEFAULT 'EN_ATTENTE' CHECK (statut IN ('EN_ATTENTE', 'PUBLIE', 'RETIRE')),
     created_at TIMESTAMP(6) DEFAULT NOW(),
     updated_at TIMESTAMP(6) DEFAULT NOW(),
     is_deleted BOOLEAN DEFAULT FALSE

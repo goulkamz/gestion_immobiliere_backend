@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.annonces.services;
 
+import com.immobilier.gestionImmobiliere.donnees.annonces.model.StatutTemoignage;
 import com.immobilier.gestionImmobiliere.donnees.annonces.model.Temoignage;
 import com.immobilier.gestionImmobiliere.donnees.annonces.repository.TemoignageRepository;
 import com.immobilier.gestionImmobiliere.exceptions.ResourceNotFoundException;
@@ -27,7 +28,7 @@ import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.build
 @Service
 public class TemoignageService {
 
-    // Depot public : quota serre par IP (le temoignage reste inactif jusqu'a validation)
+    // Depot public : quota serre par IP (le temoignage reste EN_ATTENTE jusqu'a validation)
     private static final int DEPOTS_PUBLICS_MAX = 3;
     private static final Duration DEPOTS_PUBLICS_FENETRE = Duration.ofHours(1);
 
@@ -44,21 +45,21 @@ public class TemoignageService {
 
     public ResponseEntity<?> getAllActifs() {
         List<TemoignageResponseDTO> liste = temoignageRepository
-                .findByFlagActifTrueOrderByDateTemoignageDescIdTemoignageDesc()
+                .findByStatutOrderByDateTemoignageDescIdTemoignageDesc(StatutTemoignage.PUBLIE)
                 .stream().map(this::toDto).toList();
         return buildSuccessResponse(HttpStatus.OK, "Liste des témoignages", "TEMOIGNAGE_LIST", liste);
     }
 
-    // Moderation : tous les temoignages, y compris inactifs (en attente de validation ou retires)
-    public ResponseEntity<?> getAll(Boolean flagActif, Pageable pageable) {
-        Page<Temoignage> page = flagActif != null
-                ? temoignageRepository.findByFlagActif(flagActif, pageable)
+    // Moderation : tous les temoignages quel que soit leur statut (filtre optionnel)
+    public ResponseEntity<?> getAll(StatutTemoignage statut, Pageable pageable) {
+        Page<Temoignage> page = statut != null
+                ? temoignageRepository.findByStatut(statut, pageable)
                 : temoignageRepository.findAll(pageable);
         return buildSuccessResponse(HttpStatus.OK, "Liste des témoignages", "TEMOIGNAGE_ADMIN_LIST",
                 page.map(this::toAdminDto));
     }
 
-    // Publication automatique : actif des la creation, un admin peut le retirer ensuite
+    // Saisie par l'agence (de confiance) : publie des la creation, un admin peut le retirer ensuite
     @Transactional
     public ResponseEntity<?> create(CreateTemoignageDTO dto) {
         Temoignage temoignage = Temoignage.builder()
@@ -68,6 +69,7 @@ public class TemoignageService {
                 .note(dto.getNote())
                 .photoUrl(dto.getPhotoUrl())
                 .dateTemoignage(dto.getDate() != null ? dto.getDate() : LocalDate.now())
+                .statut(StatutTemoignage.PUBLIE)
                 .build();
         temoignageRepository.save(temoignage);
         return buildSuccessResponse(HttpStatus.CREATED, "Témoignage créé avec succès", "TEMOIGNAGE_CREATED", toAdminDto(temoignage));
@@ -87,7 +89,7 @@ public class TemoignageService {
 
         Temoignage temoignage = Temoignage.builder()
                 .nomAuteur(dto.getNomAuteur().trim())
-                .flagActif(false) // valide par un agent/admin avant publication
+                .statut(StatutTemoignage.EN_ATTENTE) // valide par un admin avant publication
                 .role(dto.getRole())
                 .texte(dto.getTexte().trim())
                 .note(dto.getNote())
@@ -101,7 +103,7 @@ public class TemoignageService {
     public ResponseEntity<?> updateStatut(Integer id, UpdateStatutTemoignageDTO dto) {
         Temoignage temoignage = temoignageRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("temoignage", id));
-        temoignage.setFlagActif(dto.getFlagActif());
+        temoignage.setStatut(dto.getStatut());
         temoignageRepository.save(temoignage);
         return buildSuccessResponse(HttpStatus.OK, "Statut mis à jour", "TEMOIGNAGE_STATUT_UPDATED", toAdminDto(temoignage));
     }
@@ -120,7 +122,7 @@ public class TemoignageService {
 
     private TemoignageResponseDTO toAdminDto(Temoignage t) {
         TemoignageResponseDTO dto = toDto(t);
-        dto.setFlagActif(t.isFlagActif());
+        dto.setStatut(t.getStatut());
         return dto;
     }
 }
