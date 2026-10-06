@@ -14,6 +14,7 @@ import java.util.Optional;
 public interface MediaRepository extends JpaRepository<Media, Integer> {
     List<Media> findByEntiteTypeAndEntiteIdOrderByOrdreAsc(TypeEntiteMedia entiteType, Integer entiteId);
     Optional<Media> findByEntiteTypeAndEntiteIdAndIsPrincipalTrue(TypeEntiteMedia entiteType, Integer entiteId);
+    long countByEntiteTypeAndEntiteId(TypeEntiteMedia entiteType, Integer entiteId);
     @Query("SELECT COALESCE(MAX(m.ordre), -1) + 1 FROM Media m WHERE m.entiteType = :entiteType AND m.entiteId = :entiteId")
     int prochainOrdre(@Param("entiteType") TypeEntiteMedia entiteType, @Param("entiteId") Integer entiteId);
 

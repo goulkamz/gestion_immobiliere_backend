@@ -96,7 +96,7 @@ public class MediaService {
      * MediaPersistenceService.enregistrerAvecRetry() est transactionnelle.
      */
     public ResponseEntity<?> upload(UploadMediaDTO dto) {
-        Media media = uploaderUnFichier(dto.getFichier(), dto.getEntiteType(), dto.getEntiteId(), dto.getIsPrincipal());
+        Media media = uploaderUnFichier(dto.getFichier(), dto.getEntiteType(), dto.getEntiteId(), dto.getIsPrincipal(), false);
         String message = media.getStatutThumbnail() == StatutThumbnail.EN_COURS
                 ? "Vidéo uploadée, génération de la miniature en cours"
                 : "Média uploadé avec succès";
@@ -110,15 +110,31 @@ public class MediaService {
      * s'applique qu'au premier fichier du lot.
      */
     public ResponseEntity<?> uploadMultiple(UploadMultipleMediaDTO dto) {
+        return uploaderLot(dto.getFichiers(), dto.getEntiteType(), dto.getEntiteId(), dto.getIsPrincipal(), false);
+    }
+
+    /**
+     * Depot public de photos sur une offre : images uniquement (pas de video), le quota par
+     * offre et l'autorisation (jeton) sont verifies en amont par l'appelant.
+     */
+    public ResponseEntity<?> uploadPhotosOffre(Integer idOffre, List<MultipartFile> fichiers) {
+        return uploaderLot(fichiers, TypeEntiteMedia.OFFRE, idOffre, false, true);
+    }
+
+    public long compterMedias(TypeEntiteMedia entiteType, Integer entiteId) {
+        return mediaRepository.countByEntiteTypeAndEntiteId(entiteType, entiteId);
+    }
+
+    private ResponseEntity<?> uploaderLot(List<MultipartFile> fichiers, TypeEntiteMedia entiteType, Integer entiteId,
+                                          Boolean isPrincipal, boolean imagesSeulement) {
         List<MediaResponseDTO> reussis = new ArrayList<>();
         List<UploadEchecDTO> echecs = new ArrayList<>();
 
-        List<MultipartFile> fichiers = dto.getFichiers();
         for (int i = 0; i < fichiers.size(); i++) {
             MultipartFile fichier = fichiers.get(i);
-            boolean vouluPrincipal = i == 0 && Boolean.TRUE.equals(dto.getIsPrincipal());
+            boolean vouluPrincipal = i == 0 && Boolean.TRUE.equals(isPrincipal);
             try {
-                Media media = uploaderUnFichier(fichier, dto.getEntiteType(), dto.getEntiteId(), vouluPrincipal);
+                Media media = uploaderUnFichier(fichier, entiteType, entiteId, vouluPrincipal, imagesSeulement);
                 reussis.add(toDto(media));
             } catch (Exception e) {
                 echecs.add(UploadEchecDTO.builder()
@@ -145,8 +161,12 @@ public class MediaService {
      * Logique d'upload unitaire, extraite de l'ancien upload() pour être
      * réutilisable par upload() (1 fichier) et uploadMultiple() (n fichiers).
      */
-    private Media uploaderUnFichier(MultipartFile fichier, TypeEntiteMedia entiteType, Integer entiteId, Boolean isPrincipal) {
+    private Media uploaderUnFichier(MultipartFile fichier, TypeEntiteMedia entiteType, Integer entiteId, Boolean isPrincipal,
+                                 boolean imagesSeulement) {
         String typeReel = fileStorageService.detecterTypeReel(fichier);
+        if (imagesSeulement && !FORMATS_IMAGE.contains(typeReel)) {
+            throw new FormatMediaInvalideException(typeReel);
+        }
         boolean estVideo = validerFichier(fichier, typeReel);
 
         String bucket = fileStorageService.bucketPour(entiteType);

@@ -1,11 +1,14 @@
 package com.immobilier.gestionImmobiliere.modules.annonces;
 
 import com.immobilier.gestionImmobiliere.support.AbstractIntegrationTest;
+import com.jayway.jsonpath.JsonPath;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -15,6 +18,7 @@ import java.time.temporal.ChronoUnit;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -346,5 +350,44 @@ class AnnoncesIntegrationTest extends AbstractIntegrationTest {
                         .content("{\"email\":\"%s\",\"password\":\"%s\"}".formatted(email, MOT_DE_PASSE_SEED)))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getCookie("access_token");
+    }
+
+    @Test
+    void depotPhotosOffre_exigeLeJetonDeCreation_etRefuseLesVideos() throws Exception {
+        String body = mockMvc.perform(post("/api/public/offres").contentType(MediaType.APPLICATION_JSON).content("""
+                        {"nomComplet":"Proprio Photos","email":"photos@test.com","typeOffre":"MAISON",
+                         "titre":"Maison photos","adresse":"Secteur 3"}"""))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        int offre = JsonPath.read(body, "$.data.idOffre");
+        String jeton = JsonPath.read(body, "$.data.jetonDepotPhotos");
+
+        MockMultipartFile image = new MockMultipartFile("fichiers", "etoile.png", "image/png",
+                new ClassPathResource("image/etoile.png").getInputStream());
+        MockMultipartFile faux = new MockMultipartFile("fichiers", "video.mp4", "video/mp4", "pas une image".getBytes());
+
+        // Sans jeton, mauvais jeton : refuse
+        mockMvc.perform(multipart("/api/public/offres/" + offre + "/medias").file(image))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(multipart("/api/public/offres/" + offre + "/medias").file(image).header("X-Upload-Token", "mauvais"))
+                .andExpect(status().isForbidden());
+
+        // Jeton d'une offre != jeton d'une autre offre
+        mockMvc.perform(multipart("/api/public/offres/1/medias").file(image).header("X-Upload-Token", jeton))
+                .andExpect(status().isForbidden());
+
+        // Bon jeton : l'image passe, le faux fichier est rejete
+        mockMvc.perform(multipart("/api/public/offres/" + offre + "/medias").file(image).file(faux)
+                        .header("X-Upload-Token", jeton))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.reussis.length()").value(1))
+                .andExpect(jsonPath("$.data.echecs.length()").value(1));
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM medias WHERE entite_type = 'OFFRE' AND entite_id = ?",
+                Integer.class, offre)).isEqualTo(1);
+
+        // Le jeton n'est jamais renvoye ensuite (lecture agence)
+        mockMvc.perform(get("/api/offres/" + offre).cookie(agent))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.jetonDepotPhotos").doesNotExist());
     }
 }

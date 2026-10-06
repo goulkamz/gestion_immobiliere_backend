@@ -106,7 +106,7 @@ public class WebSecurityConfig {
                 .filter(s -> !s.isEmpty())
                 .toList());
         configuration.setAllowedHeaders(Arrays.asList("x-xsrf-token", "Access-Control-Allow-Headers", "Origin", "Accept", "X-Requested-With",
-                "Content-Type", "Access-Control-Request-Method", "Access-Control-Request-Headers", "Authorization", "Token"));
+                "Content-Type", "Access-Control-Request-Method", "Access-Control-Request-Headers", "Authorization", "Token", "X-Upload-Token"));
         // configuration.addExposedHeader("Token");
         configuration.addAllowedMethod("*");
         configuration.setAllowCredentials(true);
