@@ -885,13 +885,13 @@ interface CreateOffreRequest {
   adresse?: string;
 }
 ```
-Réponse (data) : `OffreResponse`.
+Réponse (data) : `OffreResponse`, `statut` = `EN_ATTENTE` à la création.
 #### GET /api/offres
 Rôle requis : ROLE_AGENT, ROLE_ADMIN (déclaré sur l'interface au niveau classe — **le controller `OffreAdminController` ne répète pas `@PreAuthorize` par méthode**, contrairement aux autres modules ; se fier à l'annotation de classe de l'interface). Query : `statut?` (`StatutOffre`), pagination. Réponse (data) : `PagedResponse<OffreResponse>`.
 #### GET /api/offres/{id}
 Rôle requis : ROLE_AGENT, ROLE_ADMIN. Réponse : `OffreResponse`. Codes : 404.
 #### PATCH /api/offres/{id}/statut
-Rôle requis : ROLE_AGENT, ROLE_ADMIN. Body : `{ statut: StatutOffre }` (requis).
+Rôle requis : ROLE_AGENT, ROLE_ADMIN. Body : `{ statut: StatutOffre }` (requis) : `EN_ATTENTE`, `TRAITEE` ou `REFUSEE`. Une offre n'est qu'une prise de contact : l'agent vérifie auprès du proposant puis crée lui-même la cour/maison via les écrans existants, aucune conversion automatique. Codes : 400 (statut inconnu, dont les anciennes valeurs `ACTIVE`/`EXPIREE`/`SUSPENDUE`), 404.
 
 ```typescript
 interface OffreResponse {
@@ -1160,7 +1160,8 @@ interface AdminStatsResponse {
   locationsBienServiceParStatut: Record<string, number>;
   totalEncaisseBienService: number; totalRembourseBienService: number;
   annoncesParStatut: Record<string, number>; demandesParStatut: Record<string, number>;
-  offresNonTraitees: number; contactsNonLus: number;
+  offresNonTraitees: number; // offres au statut EN_ATTENTE
+  contactsNonLus: number;
 }
 interface VilleStatsDTO { nomVille: string; nbMaisons: number; nbLocatairesActifs: number; }
 interface BailleurTopDTO { idBailleur: number; nomComplet: string; nbMaisons: number; }
@@ -1235,7 +1236,7 @@ interface ClientRemboursementDTO { idRemboursement: number; montant: number; mot
 type StatutAnnonce = 'ACTIVE' | 'EXPIREE' | 'SUSPENDUE';
 type StatutContact = 'NON_LU' | 'LU' | 'TRAITE';
 type StatutDemande = 'EN_ATTENTE' | 'EN_COURS' | 'SATISFAITE' | 'ANNULEE';
-type StatutOffre = 'ACTIVE' | 'EXPIREE' | 'SUSPENDUE';
+type StatutOffre = 'EN_ATTENTE' | 'TRAITEE' | 'REFUSEE'; // statut de traitement (pas de conversion automatique en cour/maison)
 
 type StatutBienService = 'DISPONIBLE' | 'RESERVEE' | 'LOUEE' | 'EN_MAINTENANCE';
 type StatutLocationBienService = 'EN_ATTENTE' | 'ACTIF' | 'TERMINE' | 'ANNULE';

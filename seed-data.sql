@@ -267,7 +267,7 @@ INSERT INTO demande (nom_complet, email, telephone, type_bien, localisation_souh
 VALUES ('Sana Awa', 'sana.awa@test.com', '70123456', 'Appartement', 'Ouagadougou', 100000, 'Recherche 2 pièces proche université', NOW(), 'EN_ATTENTE');
 
 INSERT INTO offre (nom_complet, email, telephone, type_offre, titre, description, adresse, date_offre, statut)
-VALUES ('Traore Boureima', 'traore.b@test.com', '70654321', 'MAISON', 'Cour à confier en gestion', 'Cour de 4 maisons, secteur 15, bon état', 'Secteur 15, Ouagadougou', NOW(), 'ACTIVE');
+VALUES ('Traore Boureima', 'traore.b@test.com', '70654321', 'MAISON', 'Cour à confier en gestion', 'Cour de 4 maisons, secteur 15, bon état', 'Secteur 15, Ouagadougou', NOW(), 'EN_ATTENTE');
 
 -- Temoignages : 4 PUBLIE (page d'accueil), 1 EN_ATTENTE (depot public a valider), 1 RETIRE (ecarte par un admin)
 INSERT INTO temoignage (nom_auteur, role, texte, note, date_temoignage, statut)

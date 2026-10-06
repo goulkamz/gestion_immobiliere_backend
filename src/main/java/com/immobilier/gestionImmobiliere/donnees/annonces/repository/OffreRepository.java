@@ -11,5 +11,5 @@ public interface OffreRepository extends JpaRepository<Offre, Integer> {
 
     // Statistiques OffreRepository
 
-    long countByIsDeletedFalse();
+    long countByIsDeletedFalseAndStatut(StatutOffre statut);
 }

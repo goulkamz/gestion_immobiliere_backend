@@ -1,6 +1,7 @@
 package com.immobilier.gestionImmobiliere.modules.statistiques.services;
 
 import com.immobilier.gestionImmobiliere.donnees.annonces.model.StatutContact;
+import com.immobilier.gestionImmobiliere.donnees.annonces.model.StatutOffre;
 import com.immobilier.gestionImmobiliere.donnees.annonces.repository.*;
 import com.immobilier.gestionImmobiliere.donnees.biens.repository.*;
 import com.immobilier.gestionImmobiliere.donnees.contrats.repository.*;
@@ -97,7 +98,7 @@ public class AdminStatsService {
 
                 .annoncesParStatut(toMap(annonceRepository.countByStatut()))
                 .demandesParStatut(toMap(demandeRepository.countByStatut()))
-                .offresNonTraitees(offreRepository.countByIsDeletedFalse())
+                .offresNonTraitees(offreRepository.countByIsDeletedFalseAndStatut(StatutOffre.EN_ATTENTE))
                 .contactsNonLus(contactRepository.countByIsDeletedFalseAndStatut(StatutContact.NON_LU))
 
                 .connexionsRecentes7j(userRepository.countConnexionsRecentes())

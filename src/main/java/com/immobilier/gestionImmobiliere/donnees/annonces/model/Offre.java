@@ -49,7 +49,7 @@ public class Offre extends Model_1 {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "statut")
-    private StatutOffre statut; // libre (pas de contrainte explicite dans le cahier des charges)
+    private StatutOffre statut;
 
     @Column(name = "image")
     private Short image;

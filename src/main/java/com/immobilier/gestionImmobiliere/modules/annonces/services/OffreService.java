@@ -62,7 +62,7 @@ public class OffreService {
                 .description(dto.getDescription())
                 .adresse(dto.getAdresse())
                 .dateOffre(LocalDateTime.now())
-                .statut(StatutOffre.ACTIVE)
+                .statut(StatutOffre.EN_ATTENTE)
                 .build();
         offreRepository.save(offre);
         return buildSuccessResponse(HttpStatus.CREATED, "Offre déposée avec succès", "OFFRE_CREATED", toDto(offre));

@@ -99,13 +99,15 @@ class AnnoncesIntegrationTest extends AbstractIntegrationTest {
 
         int demande = jdbc.queryForObject("SELECT id_demande FROM demande WHERE email = 'demandeur@test.com'", Integer.class);
         int offre = jdbc.queryForObject("SELECT id_offre FROM offre WHERE email = 'proprio@test.com'", Integer.class);
+        assertThat(jdbc.queryForObject("SELECT statut FROM offre WHERE id_offre = ?", String.class, offre))
+                .isEqualTo("EN_ATTENTE");
         int contact = jdbc.queryForObject("SELECT id_contact FROM contact WHERE email = 'visiteur@test.com'", Integer.class);
 
         mockMvc.perform(patch("/api/demandes/" + demande + "/statut").cookie(agent)
                         .contentType(MediaType.APPLICATION_JSON).content("{\"statut\":\"EN_COURS\"}"))
                 .andExpect(status().isOk());
         mockMvc.perform(patch("/api/offres/" + offre + "/statut").cookie(agent)
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"statut\":\"SUSPENDUE\"}"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"statut\":\"TRAITEE\"}"))
                 .andExpect(status().isOk());
         mockMvc.perform(patch("/api/contacts/" + contact + "/statut").cookie(agent)
                         .contentType(MediaType.APPLICATION_JSON).content("{\"statut\":\"TRAITE\"}"))
@@ -114,7 +116,7 @@ class AnnoncesIntegrationTest extends AbstractIntegrationTest {
         assertThat(jdbc.queryForObject("SELECT statut FROM demande WHERE id_demande = ?", String.class, demande))
                 .isEqualTo("EN_COURS");
         assertThat(jdbc.queryForObject("SELECT statut FROM offre WHERE id_offre = ?", String.class, offre))
-                .isEqualTo("SUSPENDUE");
+                .isEqualTo("TRAITEE");
         assertThat(jdbc.queryForObject("SELECT statut FROM contact WHERE id_contact = ?", String.class, contact))
                 .isEqualTo("TRAITE");
     }
@@ -127,16 +129,41 @@ class AnnoncesIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isCreated());
         int offre = jdbc.queryForObject("SELECT id_offre FROM offre WHERE email = 'filtre@test.com'", Integer.class);
         mockMvc.perform(patch("/api/offres/" + offre + "/statut").cookie(agent)
-                        .contentType(MediaType.APPLICATION_JSON).content("{\"statut\":\"SUSPENDUE\"}"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"statut\":\"REFUSEE\"}"))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(get("/api/offres?statut=SUSPENDUE").cookie(agent))
+        mockMvc.perform(get("/api/offres?statut=REFUSEE").cookie(agent))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.content[?(@.statut != 'SUSPENDUE')]").isEmpty())
+                .andExpect(jsonPath("$.data.content[?(@.statut != 'REFUSEE')]").isEmpty())
                 .andExpect(jsonPath("$.data.content[?(@.email == 'filtre@test.com')]").isNotEmpty());
-        mockMvc.perform(get("/api/offres?statut=ACTIVE").cookie(agent))
+        mockMvc.perform(get("/api/offres?statut=EN_ATTENTE").cookie(agent))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content[?(@.email == 'filtre@test.com')]").isEmpty());
+        // Anciennes valeurs de l'enum : refusees
+        mockMvc.perform(patch("/api/offres/" + offre + "/statut").cookie(agent)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"statut\":\"SUSPENDUE\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void statsAdmin_offresNonTraitees_compteSeulementLesEnAttente() throws Exception {
+        int attente = jdbc.queryForObject("SELECT count(*) FROM offre WHERE statut = 'EN_ATTENTE'", Integer.class);
+        mockMvc.perform(post("/api/public/offres").contentType(MediaType.APPLICATION_JSON).content("""
+                        {"nomComplet":"Proprietaire Stats","email":"stats@test.com","typeOffre":"MAISON",
+                         "titre":"Offre stats","adresse":"Secteur 4"}"""))
+                .andExpect(status().isCreated());
+        int offre = jdbc.queryForObject("SELECT id_offre FROM offre WHERE email = 'stats@test.com'", Integer.class);
+
+        mockMvc.perform(get("/api/stats/admin").cookie(admin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.offresNonTraitees").value(attente + 1));
+
+        // Une fois traitee, l'offre ne compte plus
+        mockMvc.perform(patch("/api/offres/" + offre + "/statut").cookie(agent)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"statut\":\"TRAITEE\"}"))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/stats/admin").cookie(admin))
+                .andExpect(jsonPath("$.data.offresNonTraitees").value(attente));
     }
 
     @Test
