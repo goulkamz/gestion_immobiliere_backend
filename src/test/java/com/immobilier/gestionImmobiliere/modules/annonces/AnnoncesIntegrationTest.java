@@ -157,6 +157,8 @@ class AnnoncesIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void temoignages_publics_filtresParFlagActif_etTriesParDateDecroissante() throws Exception {
+        // Table videe : le seed contient deja des temoignages qui fausseraient les index du tri
+        jdbc.update("DELETE FROM temoignage");
         jdbc.update("""
                 INSERT INTO temoignage (nom_auteur, role, texte, note, date_temoignage) VALUES
                 ('Ancien Temoin', 'LOCATAIRE', 'Texte ancien', NULL, '2026-01-10'),
