@@ -556,7 +556,9 @@ CREATE TABLE medias (
     CONSTRAINT chk_medias_entite CHECK (
         (entite_type = 'COUR' AND entite_id IS NOT NULL) OR
         (entite_type = 'ANNONCE' AND entite_id IS NOT NULL) OR
-        (entite_type = 'MAISON' AND entite_id IS NOT NULL)
+        (entite_type = 'MAISON' AND entite_id IS NOT NULL) OR
+        (entite_type = 'BIEN_SERVICE' AND entite_id IS NOT NULL) OR
+        (entite_type = 'OFFRE' AND entite_id IS NOT NULL)
     ),
     -- Unicite de l'ordre limitee aux medias actifs (un media en soft delete garde son
     -- ordre) ; DEFERRABLE pour permettre la permutation d'ordres lors d'un reorder.

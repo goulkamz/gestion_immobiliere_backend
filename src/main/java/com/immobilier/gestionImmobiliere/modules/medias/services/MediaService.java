@@ -71,7 +71,20 @@ public class MediaService {
         this.eventPublisher = eventPublisher;
     }
 
+    // Consultation publique : refuse les entites dont les medias sont prives (ex. OFFRE)
     public ResponseEntity<?> getByEntite(TypeEntiteMedia entiteType, Integer entiteId) {
+        if (!fileStorageService.estPublic(entiteType)) {
+            throw new IllegalArgumentException("Les médias de ce type d'entité ne sont pas publics");
+        }
+        return listerMedias(entiteType, entiteId);
+    }
+
+    // Consultation agent/admin : tous les types d'entite, prives compris
+    public ResponseEntity<?> getByEntiteAgence(TypeEntiteMedia entiteType, Integer entiteId) {
+        return listerMedias(entiteType, entiteId);
+    }
+
+    private ResponseEntity<?> listerMedias(TypeEntiteMedia entiteType, Integer entiteId) {
         List<MediaResponseDTO> medias = mediaRepository
                 .findByEntiteTypeAndEntiteIdOrderByOrdreAsc(entiteType, entiteId)
                 .stream().map(this::toDto).toList();
@@ -305,8 +318,23 @@ public class MediaService {
      */
     public ResponseEntity<?> lireFichier(Integer id, boolean miniature) {
         Media media = findOrThrow(id);
+        if (!fileStorageService.estPublic(media.getEntiteType())) {
+            throw new ResourceNotFoundException("média", id);
+        }
+        return servirFichier(media, id, miniature, CacheControl.maxAge(Duration.ofDays(7)).cachePublic());
+    }
+
+    /**
+     * Variante agent/admin : sert aussi les medias prives (ex. OFFRE). Jamais de cache
+     * partage (nginx/CDN) : la reponse depend de l'authentification.
+     */
+    public ResponseEntity<?> lireFichierAgence(Integer id, boolean miniature) {
+        return servirFichier(findOrThrow(id), id, miniature, CacheControl.noStore());
+    }
+
+    private ResponseEntity<?> servirFichier(Media media, Integer id, boolean miniature, CacheControl cache) {
         String cle = miniature ? media.getMediaPathThumbnail() : media.getMediaPath();
-        if (!fileStorageService.estPublic(media.getEntiteType()) || cle == null) {
+        if (cle == null) {
             throw new ResourceNotFoundException("média", id);
         }
         FileStorageService.FichierStocke fichier = fileStorageService.lire(
@@ -314,7 +342,7 @@ public class MediaService {
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(fichier.contentType()))
                 .contentLength(fichier.taille())
-                .cacheControl(CacheControl.maxAge(Duration.ofDays(7)).cachePublic())
+                .cacheControl(cache)
                 .body(new InputStreamResource(fichier.contenu()));
     }
 
@@ -323,7 +351,9 @@ public class MediaService {
     }
 
     private MediaResponseDTO toDto(Media m) {
-        String base = apiPublicUrl + "/api/public/medias/" + m.getIdMedia();
+        // Media prive : route authentifiee (cookie agent/admin), jamais l'URL publique
+        String chemin = fileStorageService.estPublic(m.getEntiteType()) ? "/api/public/medias/" : "/api/medias/";
+        String base = apiPublicUrl + chemin + m.getIdMedia();
         String url = base + "/fichier";
         String urlThumbnail = m.getMediaPathThumbnail() != null ? base + "/miniature" : null;
 

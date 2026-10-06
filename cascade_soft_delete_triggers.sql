@@ -23,6 +23,8 @@ DROP TRIGGER IF EXISTS trg_cascade_bienservice_location ON bien_service;
 DROP TRIGGER IF EXISTS trg_cascade_mandat_echeance ON contrat_mandat;
 DROP TRIGGER IF EXISTS trg_cascade_contralocation_echeance ON contra_location;
 DROP TRIGGER IF EXISTS trg_cascade_annonce_medias ON annonce;
+DROP TRIGGER IF EXISTS trg_cascade_bienservice_medias ON bien_service;
+DROP TRIGGER IF EXISTS trg_cascade_offre_medias ON offre;
 
 DROP FUNCTION IF EXISTS fn_cascade_soft_delete_generic() CASCADE;
 DROP FUNCTION IF EXISTS fn_cascade_soft_delete_polymorphic() CASCADE;
@@ -194,6 +196,20 @@ CREATE TRIGGER trg_cascade_annonce_medias
 AFTER UPDATE OF is_deleted ON annonce
 FOR EACH ROW WHEN (OLD.is_deleted IS DISTINCT FROM NEW.is_deleted)
 EXECUTE FUNCTION fn_cascade_soft_delete_polymorphic('medias', 'entite_id', 'entite_type', 'ANNONCE', 'id_annonce');
+
+-- ==============================================================
+-- Triggers : bien_service -> medias(BIEN_SERVICE) / offre -> medias(OFFRE)
+-- ==============================================================
+
+CREATE TRIGGER trg_cascade_bienservice_medias
+AFTER UPDATE OF is_deleted ON bien_service
+FOR EACH ROW WHEN (OLD.is_deleted IS DISTINCT FROM NEW.is_deleted)
+EXECUTE FUNCTION fn_cascade_soft_delete_polymorphic('medias', 'entite_id', 'entite_type', 'BIEN_SERVICE', 'id_bien_service');
+
+CREATE TRIGGER trg_cascade_offre_medias
+AFTER UPDATE OF is_deleted ON offre
+FOR EACH ROW WHEN (OLD.is_deleted IS DISTINCT FROM NEW.is_deleted)
+EXECUTE FUNCTION fn_cascade_soft_delete_polymorphic('medias', 'entite_id', 'entite_type', 'OFFRE', 'id_offre');
 
 -- ==============================================================
 -- Tables volontairement EXCLUES de la cascade (décision métier) :

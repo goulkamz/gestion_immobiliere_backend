@@ -25,7 +25,7 @@ import java.util.UUID;
 public class FileStorageService {
 
     private static final Set<TypeEntiteMedia> ENTITES_PUBLIQUES = Set.of(
-            TypeEntiteMedia.COUR, TypeEntiteMedia.ANNONCE, TypeEntiteMedia.MAISON
+            TypeEntiteMedia.COUR, TypeEntiteMedia.ANNONCE, TypeEntiteMedia.MAISON, TypeEntiteMedia.BIEN_SERVICE
     );
 
     @Value("${app.minio.bucket-medias-public}")

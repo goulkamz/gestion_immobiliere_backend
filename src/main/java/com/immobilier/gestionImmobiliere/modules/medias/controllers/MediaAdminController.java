@@ -33,6 +33,24 @@ public class MediaAdminController implements MediaAdminAPI {
 
     @Override
     @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
+    public ResponseEntity<?> getByEntite(TypeEntiteMedia entiteType, Integer entiteId) {
+        return mediaService.getByEntiteAgence(entiteType, entiteId);
+    }
+
+    @Override
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
+    public ResponseEntity<?> fichier(Integer id) {
+        return mediaService.lireFichierAgence(id, false);
+    }
+
+    @Override
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
+    public ResponseEntity<?> miniature(Integer id) {
+        return mediaService.lireFichierAgence(id, true);
+    }
+
+    @Override
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
     public ResponseEntity<?> delete(Integer id) {
         return mediaService.delete(id);
     }

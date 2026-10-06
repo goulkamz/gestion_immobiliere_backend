@@ -966,12 +966,14 @@ interface ConversionResponse {
 
 Formats acceptés : JPEG, PNG, WEBP. Taille max 5 Mo (`APP_MEDIAS_MAX_SIZE_IMAGE_MO`). Une image principale (`isPrincipal`) par entité. Stockage MinIO interne — jamais exposé directement, tout transite par le backend.
 
+**Entités publiques** (`COUR`, `ANNONCE`, `MAISON`, `BIEN_SERVICE`) : bucket public, médias consultables sans compte via `/api/public/medias`. **Entité privée** (`OFFRE`) : photos jointes par l'agent à une offre spontanée, stockées dans le bucket privé, **jamais accessibles publiquement** (liste publique → 400, fichier/miniature publics → 404) ; l'agent/admin les lit via les routes authentifiées `GET /api/medias…`. Le champ `url` de `MediaResponse` pointe déjà vers la bonne route (publique ou authentifiée) : toujours l'utiliser tel quel.
+
 ### POST /api/medias
 Upload d'un fichier (multipart/form-data). Rôle requis : ROLE_AGENT, ROLE_ADMIN.
 Body (multipart, pas de JSON) :
 ```typescript
 interface UploadMediaRequest {
-  entiteType: TypeEntiteMedia; // 'COUR' | 'ANNONCE' | 'MAISON'
+  entiteType: TypeEntiteMedia; // 'COUR' | 'ANNONCE' | 'MAISON' | 'BIEN_SERVICE' | 'OFFRE'
   entiteId: number;
   fichier: File;                // champ multipart
   isPrincipal?: boolean;
@@ -982,6 +984,10 @@ Codes : 400 `FORMAT_MEDIA_INVALIDE`, 413 `TAILLE_MEDIA_EXCESSIVE`/`IMAGE_DIMENSI
 Upload multiple (max 10 fichiers). Rôle requis : ROLE_AGENT, ROLE_ADMIN.
 Body (multipart) : `entiteType`, `entiteId`, `fichiers: File[]` (1 à 10), `isPrincipal?` (s'applique au premier fichier uniquement).
 Réponse (data) : `UploadMultipleResult`.
+### GET /api/medias
+Liste les médias d'une entité, **tous types confondus (privés compris, ex. `OFFRE`)**. Rôle requis : ROLE_AGENT, ROLE_ADMIN. Query : `entiteType` (requis), `entiteId` (requis). Réponse (data) : `MediaResponse[]`.
+### GET /api/medias/{id}/fichier  et  GET /api/medias/{id}/miniature
+Sert le fichier / la miniature (binaire), y compris pour un média privé. Rôle requis : ROLE_AGENT, ROLE_ADMIN (cookie `access_token`, donc utilisable directement dans un `<img src>` du back-office). Réponse sans cache partagé (`no-store`). Codes : 401, 403, 404.
 ### DELETE /api/medias/{id}
 Rôle requis : ROLE_AGENT, ROLE_ADMIN.
 ### PATCH /api/medias/{id}/principal
@@ -990,7 +996,7 @@ Définit ce média comme image principale de son entité. Rôle requis : ROLE_AG
 Réordonne les médias d'une entité. Rôle requis : ROLE_AGENT, ROLE_ADMIN.
 Body : `{ idsMediaOrdonnes: number[] }` (requis, liste ordonnée des ids dans l'ordre d'affichage souhaité).
 ### GET /api/public/medias
-Liste les médias d'une entité (uniquement `ANNONCE` ou `MAISON` — l'implémentation doit rejeter les autres types). Rôle : public.
+Liste les médias d'une entité publique (`COUR`, `ANNONCE`, `MAISON`, `BIEN_SERVICE`). Un type privé (`OFFRE`) est refusé : 400 `INVALID_ARGUMENT`. Rôle : public.
 Query : `entiteType` (`TypeEntiteMedia`, requis), `entiteId` (number, requis). Réponse (data) : `MediaResponse[]`.
 ### GET /api/public/medias/{id}/fichier
 Sert l'image en taille réelle (binaire, pas JSON). Rôle : public.
@@ -998,7 +1004,7 @@ Sert l'image en taille réelle (binaire, pas JSON). Rôle : public.
 Sert la miniature (binaire). Rôle : public.
 
 ```typescript
-type TypeEntiteMedia = 'COUR' | 'ANNONCE' | 'MAISON';
+type TypeEntiteMedia = 'COUR' | 'ANNONCE' | 'MAISON' | 'BIEN_SERVICE' | 'OFFRE';
 interface MediaResponse {
   idMedia: number; entiteType: TypeEntiteMedia; entiteId: number;
   typeMedia: string; url: string; urlThumbnail: string | null;
@@ -1257,7 +1263,7 @@ type TypeEntiteRemboursement = 'LOCATION_BIEN_SERVICE' | 'CONTRA_LOCATION' | 'EC
 
 type StatutReservation = 'EN_ATTENTE' | 'CONFIRMEE' | 'ANNULEE' | 'CONVERTIE';
 
-type TypeEntiteMedia = 'COUR' | 'ANNONCE' | 'MAISON';
+type TypeEntiteMedia = 'COUR' | 'ANNONCE' | 'MAISON' | 'BIEN_SERVICE' | 'OFFRE';
 
 type TypeValeurParametre = 'ENTIER' | 'DECIMAL' | 'BOOLEEN' | 'TEXTE';
 
