@@ -36,7 +36,10 @@ public class OffreService {
     }
 
     public ResponseEntity<?> getAll(StatutOffre statut, Pageable pageable) {
-        Page<OffreResponseDTO> page = offreRepository.findAll(pageable).map(this::toDto);
+        Page<Offre> offres = statut != null
+                ? offreRepository.findByStatut(statut, pageable)
+                : offreRepository.findAll(pageable);
+        Page<OffreResponseDTO> page = offres.map(this::toDto);
         return buildSuccessResponse(HttpStatus.OK, "Liste des offres", "OFFRE_LIST", page);
     }
 

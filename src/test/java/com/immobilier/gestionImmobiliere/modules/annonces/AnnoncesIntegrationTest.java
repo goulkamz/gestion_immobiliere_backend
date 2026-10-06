@@ -120,6 +120,26 @@ class AnnoncesIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void listeOffres_filtreParStatut() throws Exception {
+        mockMvc.perform(post("/api/public/offres").contentType(MediaType.APPLICATION_JSON).content("""
+                        {"nomComplet":"Proprietaire Filtre","email":"filtre@test.com","typeOffre":"MAISON",
+                         "titre":"Offre filtre","adresse":"Secteur 3"}"""))
+                .andExpect(status().isCreated());
+        int offre = jdbc.queryForObject("SELECT id_offre FROM offre WHERE email = 'filtre@test.com'", Integer.class);
+        mockMvc.perform(patch("/api/offres/" + offre + "/statut").cookie(agent)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"statut\":\"SUSPENDUE\"}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/offres?statut=SUSPENDUE").cookie(agent))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[?(@.statut != 'SUSPENDUE')]").isEmpty())
+                .andExpect(jsonPath("$.data.content[?(@.email == 'filtre@test.com')]").isNotEmpty());
+        mockMvc.perform(get("/api/offres?statut=ACTIVE").cookie(agent))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[?(@.email == 'filtre@test.com')]").isEmpty());
+    }
+
+    @Test
     void formulairePublic_emailInvalide_refuse() throws Exception {
         mockMvc.perform(post("/api/public/contacts").contentType(MediaType.APPLICATION_JSON).content("""
                         {"nomComplet":"X","email":"pas-un-email","message":"test"}"""))
