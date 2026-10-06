@@ -50,7 +50,4 @@ public class Offre extends Model_1 {
     @Enumerated(EnumType.STRING)
     @Column(name = "statut")
     private StatutOffre statut;
-
-    @Column(name = "image")
-    private Short image;
 }

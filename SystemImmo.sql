@@ -271,7 +271,6 @@ CREATE TABLE cour (
     reference_cour VARCHAR(254),
     lot_cour VARCHAR(254),
     numero_porte INTEGER,
-    image SMALLINT,
     user_create INTEGER,
     user_update INTEGER,
     created_at TIMESTAMP(6) DEFAULT NOW(),
@@ -425,7 +424,6 @@ CREATE TABLE offre (
     adresse VARCHAR(254),
     date_offre TIMESTAMP(6),
     statut VARCHAR(254),
-    image SMALLINT,
     created_at TIMESTAMP(6) DEFAULT NOW(),
     updated_at TIMESTAMP(6) DEFAULT NOW(),
     is_deleted BOOLEAN DEFAULT FALSE
