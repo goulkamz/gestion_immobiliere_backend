@@ -83,6 +83,7 @@ public class WebSecurityConfig {
                                 auth.requestMatchers("/api/auth/**").permitAll()
                                         .requestMatchers("/api/public/**").permitAll()
                                         .requestMatchers(HttpMethod.GET, "/api/stats/public", "/api/stats/public/**").permitAll()
+                                        .requestMatchers(HttpMethod.GET, "/api/temoignages").permitAll()
                                         .anyRequest().authenticated()
                 );
 

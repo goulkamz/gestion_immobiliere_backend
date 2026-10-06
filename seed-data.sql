@@ -9,7 +9,7 @@
 TRUNCATE TABLE remboursement, paiement_location_bien_service, location_bien_service,
     paiement_echeance, echeance_loyer, paiement, contra_location, contrat_mandat,
     maison, cour, bien_service, categorie_bien_service, reservation_maison,
-    contact, offre, demande, annonce, secteur, ville, pays, users
+    contact, offre, temoignage, demande, annonce, secteur, ville, pays, users
 RESTART IDENTITY CASCADE;
 
 

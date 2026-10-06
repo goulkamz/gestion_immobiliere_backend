@@ -901,6 +901,22 @@ interface OffreResponse {
 }
 ```
 
+### Témoignages (`/api/temoignages` public, `/api/admin/temoignages` admin)
+
+#### GET /api/temoignages
+**Public** (`permitAll`, GET uniquement). Tableau brut sans pagination, tri par `date` décroissante (puis id décroissant) ; seuls les témoignages actifs (`flag_actif = true`) sont renvoyés. Code : `TEMOIGNAGE_LIST`.
+#### PATCH /api/admin/temoignages/{id}/statut
+Rôle requis : ROLE_ADMIN. Body : `{ flagActif: boolean }` (requis). Un témoignage désactivé disparaît de `GET /api/temoignages`. Codes : 404. **Aucun endpoint de création pour l'instant** (collecte non décidée) : les lignes sont insérées en base.
+
+```typescript
+interface Temoignage {
+  idTemoignage: number; nomAuteur: string;
+  role: "PROPRIETAIRE" | "LOCATAIRE" | "AGENCE" | "AUTRE";
+  texte: string; note?: number /* 1-5, absent si non noté */; photoUrl?: string /* absent si null */;
+  date: string; // yyyy-MM-dd
+}
+```
+
 ---
 
 ## 10. Réservations (`/api/reservations`) — `ReservationAPI`

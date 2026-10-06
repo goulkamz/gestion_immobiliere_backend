@@ -155,6 +155,47 @@ class AnnoncesIntegrationTest extends AbstractIntegrationTest {
         }
     }
 
+    @Test
+    void temoignages_publics_filtresParFlagActif_etTriesParDateDecroissante() throws Exception {
+        jdbc.update("""
+                INSERT INTO temoignage (nom_auteur, role, texte, note, date_temoignage) VALUES
+                ('Ancien Temoin', 'LOCATAIRE', 'Texte ancien', NULL, '2026-01-10'),
+                ('Recent Temoin', 'PROPRIETAIRE', 'Texte recent', 5, '2026-08-12')""");
+        int ancien = jdbc.queryForObject("SELECT id_temoignage FROM temoignage WHERE nom_auteur = 'Ancien Temoin'", Integer.class);
+
+        // Public (sans cookie), tri par date decroissante, flagActif non expose, note/photoUrl absents si null
+        mockMvc.perform(get("/api/temoignages"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("TEMOIGNAGE_LIST"))
+                .andExpect(jsonPath("$.data[0].nomAuteur").value("Recent Temoin"))
+                .andExpect(jsonPath("$.data[0].role").value("PROPRIETAIRE"))
+                .andExpect(jsonPath("$.data[0].note").value(5))
+                .andExpect(jsonPath("$.data[0].date").value("2026-08-12"))
+                .andExpect(jsonPath("$.data[0].flagActif").doesNotExist())
+                .andExpect(jsonPath("$.data[1].nomAuteur").value("Ancien Temoin"))
+                .andExpect(jsonPath("$.data[1].note").doesNotExist());
+
+        // Seul un admin peut desactiver
+        String corps = "{\"flagActif\":false}";
+        mockMvc.perform(patch("/api/admin/temoignages/" + ancien + "/statut")
+                        .contentType(MediaType.APPLICATION_JSON).content(corps))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(patch("/api/admin/temoignages/" + ancien + "/statut").cookie(agent)
+                        .contentType(MediaType.APPLICATION_JSON).content(corps))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(patch("/api/admin/temoignages/" + ancien + "/statut").cookie(admin)
+                        .contentType(MediaType.APPLICATION_JSON).content(corps))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/temoignages"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[?(@.nomAuteur == 'Ancien Temoin')]").isEmpty());
+
+        mockMvc.perform(patch("/api/admin/temoignages/999999/statut").cookie(admin)
+                        .contentType(MediaType.APPLICATION_JSON).content(corps))
+                .andExpect(status().isNotFound());
+    }
+
     private Cookie connexion(String email) throws Exception {
         return mockMvc.perform(post("/api/auth/signin").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"%s\",\"password\":\"%s\"}".formatted(email, MOT_DE_PASSE_SEED)))

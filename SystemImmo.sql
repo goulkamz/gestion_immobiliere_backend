@@ -24,6 +24,7 @@ DROP TABLE IF EXISTS cour CASCADE;
 DROP TABLE IF EXISTS bien_service CASCADE;
 DROP TABLE IF EXISTS demande CASCADE;
 DROP TABLE IF EXISTS offre CASCADE;
+DROP TABLE IF EXISTS temoignage CASCADE;
 DROP TABLE IF EXISTS contact CASCADE;
 DROP TABLE IF EXISTS annonce CASCADE;
 DROP TABLE IF EXISTS categorie_bien_service CASCADE;
@@ -54,6 +55,7 @@ DROP SEQUENCE IF EXISTS seq_location_service CASCADE;
 DROP SEQUENCE IF EXISTS seq_maison CASCADE;
 DROP SEQUENCE IF EXISTS seq_media CASCADE;
 DROP SEQUENCE IF EXISTS seq_offre CASCADE;
+DROP SEQUENCE IF EXISTS seq_temoignage CASCADE;
 DROP SEQUENCE IF EXISTS seq_paiement CASCADE;
 DROP SEQUENCE IF EXISTS seq_pays CASCADE;
 DROP SEQUENCE IF EXISTS seq_reservation CASCADE;
@@ -86,6 +88,7 @@ CREATE SEQUENCE seq_location_service START 1;
 CREATE SEQUENCE seq_maison START 1;
 CREATE SEQUENCE seq_media START 1;
 CREATE SEQUENCE seq_offre START 1;
+CREATE SEQUENCE seq_temoignage START 1;
 CREATE SEQUENCE seq_paiement START 1;
 CREATE SEQUENCE seq_pays START 1;
 CREATE SEQUENCE seq_reservation START 1;
@@ -423,6 +426,23 @@ CREATE TABLE offre (
     date_offre TIMESTAMP(6),
     statut VARCHAR(254),
     image SMALLINT,
+    created_at TIMESTAMP(6) DEFAULT NOW(),
+    updated_at TIMESTAMP(6) DEFAULT NOW(),
+    is_deleted BOOLEAN DEFAULT FALSE
+);
+
+-- ==============================================================
+-- Table: temoignage (affiches sur la page d'accueil ; flag_actif = retrait admin)
+-- ==============================================================
+CREATE TABLE temoignage (
+    id_temoignage INTEGER PRIMARY KEY DEFAULT nextval('seq_temoignage'),
+    nom_auteur VARCHAR(254) NOT NULL,
+    role VARCHAR(30) NOT NULL,
+    texte TEXT NOT NULL,
+    note SMALLINT CHECK (note BETWEEN 1 AND 5),
+    photo_url VARCHAR(512),
+    date_temoignage DATE NOT NULL DEFAULT CURRENT_DATE,
+    flag_actif BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP(6) DEFAULT NOW(),
     updated_at TIMESTAMP(6) DEFAULT NOW(),
     is_deleted BOOLEAN DEFAULT FALSE
