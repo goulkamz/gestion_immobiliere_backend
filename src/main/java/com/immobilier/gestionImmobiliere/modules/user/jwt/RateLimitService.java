@@ -21,13 +21,18 @@ public class RateLimitService {
      * Compteur glissant par clé (IP ou userId). Retourne true si la limite est dépassée.
      */
     public boolean estLimiteDepassee(String cle) {
+        return estLimiteDepassee(cle, MAX_TENTATIVES, FENETRE);
+    }
+
+    /** Variante avec quota et fenêtre propres (ex. dépôt public : quelques envois par heure). */
+    public boolean estLimiteDepassee(String cle, int maxTentatives, Duration fenetre) {
         String redisKey = "ratelimit:" + cle;
         Long tentatives = stringRedisTemplate.opsForValue().increment(redisKey);
 
         if (tentatives != null && tentatives == 1) {
-            stringRedisTemplate.expire(redisKey, FENETRE);
+            stringRedisTemplate.expire(redisKey, fenetre);
         }
 
-        return tentatives != null && tentatives > MAX_TENTATIVES;
+        return tentatives != null && tentatives > maxTentatives;
     }
 }

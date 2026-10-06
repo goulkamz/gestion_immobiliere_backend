@@ -1,8 +1,10 @@
 package com.immobilier.gestionImmobiliere.modules.annonces.controllers;
 
 import com.immobilier.gestionImmobiliere.modules.annonces.apis.TemoignageAdminAPI;
+import com.immobilier.gestionImmobiliere.modules.annonces.dto.requests.CreateTemoignageDTO;
 import com.immobilier.gestionImmobiliere.modules.annonces.dto.requests.UpdateStatutTemoignageDTO;
 import com.immobilier.gestionImmobiliere.modules.annonces.services.TemoignageService;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RestController;
@@ -14,6 +16,18 @@ public class TemoignageAdminController implements TemoignageAdminAPI {
 
     public TemoignageAdminController(TemoignageService temoignageService) {
         this.temoignageService = temoignageService;
+    }
+
+    @Override
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
+    public ResponseEntity<?> getAll(Boolean flagActif, Pageable pageable) {
+        return temoignageService.getAll(flagActif, pageable);
+    }
+
+    @Override
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
+    public ResponseEntity<?> create(CreateTemoignageDTO dto) {
+        return temoignageService.create(dto);
     }
 
     @Override

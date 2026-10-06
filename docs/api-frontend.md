@@ -905,8 +905,14 @@ interface OffreResponse {
 
 #### GET /api/temoignages
 **Public** (`permitAll`, GET uniquement). Tableau brut sans pagination, tri par `date` décroissante (puis id décroissant) ; seuls les témoignages actifs (`flag_actif = true`) sont renvoyés. Code : `TEMOIGNAGE_LIST`.
+#### POST /api/temoignages
+**Public** (dépôt anonyme, **en attente de validation** : enregistré inactif, invisible sur `GET /api/temoignages` tant qu'un admin ne l'a pas activé via `PATCH .../statut`). Body : `{ nomAuteur: string (requis, ≤100), role: "PROPRIETAIRE"|"LOCATAIRE"|"AUTRE" (requis), texte: string (requis, 10-1000), note?: number (1-5), siteWeb?: string }`. Précautions : `AGENCE` refusé ; `<` et `>` interdits dans `nomAuteur`/`texte` ; liens (`http:`, `https:`, `www.`, `ftp:`) interdits dans `texte` ; `photoUrl` et `date` ne sont pas acceptés (date = jour du dépôt) ; rate limit **3 dépôts/heure/IP** (429 au-delà) ; `siteWeb` est un champ-piège (honeypot) : à inclure **caché** dans le formulaire et à laisser vide — s'il est rempli, la réponse est un 201 factice et rien n'est enregistré. Réponse 201 (`TEMOIGNAGE_CREATED`, message « il sera publié après validation »). Codes : 400, 429.
+#### GET /api/admin/temoignages
+Rôle requis : ROLE_AGENT, ROLE_ADMIN. Modération : liste paginée (défaut id décroissant) de **tous** les témoignages, y compris inactifs (en attente ou retirés) ; query `flagActif?` (`false` = file d'attente de validation) ; ici `flagActif: boolean` est présent. Code : `TEMOIGNAGE_ADMIN_LIST`.
+#### POST /api/admin/temoignages
+Rôle requis : ROLE_AGENT, ROLE_ADMIN (saisie par l'agence, sans les restrictions du dépôt public). Body : `{ nomAuteur: string (requis, ≤254), role: "PROPRIETAIRE"|"LOCATAIRE"|"AGENCE"|"AUTRE" (requis), texte: string (requis), note?: number (1-5), photoUrl?: string (≤512), date?: "yyyy-MM-dd" (défaut : aujourd'hui) }`. Publication automatique (actif dès la création). Réponse 201 (`TEMOIGNAGE_CREATED`) : `Temoignage`. Codes : 400, 401, 403.
 #### PATCH /api/admin/temoignages/{id}/statut
-Rôle requis : ROLE_ADMIN. Body : `{ flagActif: boolean }` (requis). Un témoignage désactivé disparaît de `GET /api/temoignages`. Codes : 404. **Aucun endpoint de création pour l'instant** (collecte non décidée) : les lignes sont insérées en base.
+Rôle requis : ROLE_ADMIN. Body : `{ flagActif: boolean }` (requis). Un témoignage désactivé disparaît de `GET /api/temoignages`. Codes : 404.
 
 ```typescript
 interface Temoignage {

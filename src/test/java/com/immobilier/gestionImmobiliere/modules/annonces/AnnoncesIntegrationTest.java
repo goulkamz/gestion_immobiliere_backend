@@ -196,6 +196,111 @@ class AnnoncesIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    void temoignage_creation_parAgent_publieImmediatement() throws Exception {
+        String corps = """
+                {"nomAuteur":"Auteur Cree","role":"LOCATAIRE","texte":"Tres bon service","note":4}""";
+
+        mockMvc.perform(post("/api/admin/temoignages").contentType(MediaType.APPLICATION_JSON).content(corps))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/admin/temoignages").cookie(client).contentType(MediaType.APPLICATION_JSON).content(corps))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/api/admin/temoignages").cookie(agent).contentType(MediaType.APPLICATION_JSON).content(corps))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.code").value("TEMOIGNAGE_CREATED"))
+                .andExpect(jsonPath("$.data.nomAuteur").value("Auteur Cree"))
+                .andExpect(jsonPath("$.data.date").value(java.time.LocalDate.now().toString()));
+
+        mockMvc.perform(get("/api/temoignages"))
+                .andExpect(jsonPath("$.data[?(@.nomAuteur == 'Auteur Cree')]").isNotEmpty());
+        // Nettoyage : la date du jour le placerait en tete de liste dans les autres tests
+        jdbc.update("DELETE FROM temoignage WHERE nom_auteur = 'Auteur Cree'");
+
+        // Validation : role manquant, note hors 1..5, texte vide
+        for (String invalide : new String[]{
+                "{\"nomAuteur\":\"X\",\"texte\":\"t\"}",
+                "{\"nomAuteur\":\"X\",\"role\":\"AUTRE\",\"texte\":\"t\",\"note\":6}",
+                "{\"nomAuteur\":\"X\",\"role\":\"AUTRE\",\"texte\":\" \"}"}) {
+            mockMvc.perform(post("/api/admin/temoignages").cookie(admin).contentType(MediaType.APPLICATION_JSON).content(invalide))
+                    .andExpect(status().isBadRequest());
+        }
+    }
+
+    @Test
+    void temoignage_depotPublic_valideEtRestreint() throws Exception {
+        // Depot anonyme valide : enregistre inactif (a valider) ; photoUrl/date fournis par le client sont ignores
+        mockMvc.perform(post("/api/temoignages").contentType(MediaType.APPLICATION_JSON).content("""
+                        {"nomAuteur":"  Visiteur Public ","role":"LOCATAIRE","texte":"Un service vraiment sérieux.",
+                         "note":5,"photoUrl":"http://evil.example/x.png","date":"2000-01-01"}"""))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.nomAuteur").value("Visiteur Public"))
+                .andExpect(jsonPath("$.data.date").value(java.time.LocalDate.now().toString()))
+                .andExpect(jsonPath("$.data.photoUrl").doesNotExist())
+                .andExpect(jsonPath("$.data.flagActif").doesNotExist());
+        // Invisible du public tant qu'un admin ne l'a pas active
+        mockMvc.perform(get("/api/temoignages"))
+                .andExpect(jsonPath("$.data[?(@.nomAuteur == 'Visiteur Public')]").isEmpty());
+        int depose = jdbc.queryForObject("SELECT id_temoignage FROM temoignage WHERE nom_auteur = 'Visiteur Public'", Integer.class);
+        mockMvc.perform(get("/api/admin/temoignages?flagActif=false").cookie(agent))
+                .andExpect(jsonPath("$.data.content[?(@.nomAuteur == 'Visiteur Public')]").isNotEmpty());
+        mockMvc.perform(patch("/api/admin/temoignages/" + depose + "/statut").cookie(admin)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"flagActif\":true}"))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/temoignages"))
+                .andExpect(jsonPath("$.data[?(@.nomAuteur == 'Visiteur Public')]").isNotEmpty());
+        assertThat(jdbc.queryForObject(
+                "SELECT count(*) FROM temoignage WHERE nom_auteur = 'Visiteur Public' AND photo_url IS NULL",
+                Integer.class)).isEqualTo(1);
+
+        // Piege a robots : succes apparent, rien d'enregistre
+        mockMvc.perform(post("/api/temoignages").contentType(MediaType.APPLICATION_JSON).content("""
+                        {"nomAuteur":"Robot","role":"AUTRE","texte":"Texte de robot automatique","siteWeb":"http://spam"}"""))
+                .andExpect(status().isCreated());
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM temoignage WHERE nom_auteur = 'Robot'", Integer.class)).isZero();
+
+        // Refus : role AGENCE, HTML, lien, texte trop court, note hors bornes
+        for (String invalide : new String[]{
+                "{\"nomAuteur\":\"X\",\"role\":\"AGENCE\",\"texte\":\"Texte assez long ici\"}",
+                "{\"nomAuteur\":\"X\",\"role\":\"AUTRE\",\"texte\":\"<script>alert(1)</script> bravo\"}",
+                "{\"nomAuteur\":\"<b>X</b>\",\"role\":\"AUTRE\",\"texte\":\"Texte assez long ici\"}",
+                "{\"nomAuteur\":\"X\",\"role\":\"AUTRE\",\"texte\":\"Visitez https://spam.example maintenant\"}",
+                "{\"nomAuteur\":\"X\",\"role\":\"AUTRE\",\"texte\":\"Allez sur www.spam.example vite\"}",
+                "{\"nomAuteur\":\"X\",\"role\":\"AUTRE\",\"texte\":\"court\"}",
+                "{\"nomAuteur\":\"X\",\"role\":\"AUTRE\",\"texte\":\"Texte assez long ici\",\"note\":9}"}) {
+            mockMvc.perform(post("/api/temoignages").contentType(MediaType.APPLICATION_JSON).content(invalide))
+                    .andExpect(status().isBadRequest());
+        }
+        jdbc.update("DELETE FROM temoignage WHERE nom_auteur = 'Visiteur Public'");
+    }
+
+    @Test
+    void temoignage_depotPublic_limiteParIp() throws Exception {
+        String corps = """
+                {"nomAuteur":"Limite","role":"AUTRE","texte":"Texte assez long pour passer"}""";
+        for (int i = 0; i < 3; i++) {
+            mockMvc.perform(post("/api/temoignages").contentType(MediaType.APPLICATION_JSON).content(corps))
+                    .andExpect(status().isCreated());
+        }
+        mockMvc.perform(post("/api/temoignages").contentType(MediaType.APPLICATION_JSON).content(corps))
+                .andExpect(status().isTooManyRequests());
+        jdbc.update("DELETE FROM temoignage WHERE nom_auteur = 'Limite'");
+    }
+
+    @Test
+    void temoignage_listeAdmin_incluDesactives_etReserveALAgence() throws Exception {
+        jdbc.update("INSERT INTO temoignage (nom_auteur, role, texte, flag_actif) VALUES ('Desactive Liste', 'AUTRE', 'texte', false)");
+
+        mockMvc.perform(get("/api/admin/temoignages")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/admin/temoignages").cookie(client)).andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/admin/temoignages").cookie(agent))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[?(@.nomAuteur == 'Desactive Liste')].flagActif").value(false));
+        mockMvc.perform(get("/api/temoignages"))
+                .andExpect(jsonPath("$.data[?(@.nomAuteur == 'Desactive Liste')]").isEmpty());
+        jdbc.update("DELETE FROM temoignage WHERE nom_auteur = 'Desactive Liste'");
+    }
+
     private Cookie connexion(String email) throws Exception {
         return mockMvc.perform(post("/api/auth/signin").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"%s\",\"password\":\"%s\"}".formatted(email, MOT_DE_PASSE_SEED)))
