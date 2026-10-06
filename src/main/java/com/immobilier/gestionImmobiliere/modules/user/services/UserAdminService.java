@@ -17,11 +17,14 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.EnumSet;
+import java.util.Set;
 
 import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
 
@@ -51,8 +54,15 @@ public class UserAdminService {
         return buildSuccessResponse(HttpStatus.OK, "Utilisateur trouvé", "USER_FOUND", toDto(findOrThrow(id)));
     }
 
+    // Un agent ne peut creer que des comptes client ou bailleur (jamais agent, admin ni les autres roles internes)
+    private static final Set<ERole> ROLES_CREABLES_PAR_AGENT = EnumSet.of(ERole.ROLE_CLIENT, ERole.ROLE_BAILLEUR);
+
     @Transactional
-    public ResponseEntity<?> create(CreateUserByAdminDTO dto, Integer currentUserId) {
+    public ResponseEntity<?> create(CreateUserByAdminDTO dto, Integer currentUserId, boolean estAdmin) {
+        // Controle du role AVANT toute verification d'existence : l'agent ne doit pas pouvoir sonder les emails
+        if (!estAdmin && !ROLES_CREABLES_PAR_AGENT.contains(dto.getRole())) {
+            throw new AccessDeniedException("Vous ne pouvez créer que des comptes client ou bailleur");
+        }
         if (userRepository.existsByEmail(dto.getEmail())) {
             throw new EmailAlreadyExistsException(dto.getEmail());
         }

@@ -286,7 +286,7 @@ interface UserAdminResponse {
 Rôle requis : ROLE_ADMIN, ROLE_AGENT. Détail d'un utilisateur. Réponse : `UserAdminResponse`. Codes : 404.
 
 ### POST /api/admin/users
-Rôle requis : ROLE_ADMIN uniquement. Crée un utilisateur (admin peut créer n'importe quel rôle).
+Rôle requis : ROLE_ADMIN, ROLE_AGENT. Crée un utilisateur. **Admin : n'importe quel rôle. Agent : uniquement `ROLE_CLIENT` et `ROLE_BAILLEUR`** — tout autre rôle (dont `ROLE_AGENT` et `ROLE_ADMIN`) renvoie 403 `ACCESS_DENIED`, y compris si l'email existe déjà (le contrôle du rôle passe avant). Côté UI, ne proposer les autres rôles qu'à un admin.
 Body :
 ```typescript
 interface CreateUserByAdminRequest {
@@ -301,7 +301,7 @@ interface CreateUserByAdminRequest {
   role: EnumRole;      // requis — ERole
 }
 ```
-Réponse : `UserAdminResponse`. Codes : 409 `EMAIL_ALREADY_EXISTS`.
+Réponse : `UserAdminResponse`. Codes : 403 (rôle non autorisé pour un agent), 409 `EMAIL_ALREADY_EXISTS`.
 
 ### PUT /api/admin/users/{id}
 Rôle requis : ROLE_ADMIN uniquement. Met à jour un utilisateur (hors mot de passe/rôle, qui ont leurs propres endpoints dédiés pour la traçabilité).
