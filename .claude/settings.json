@@ -1,0 +1,37 @@
+{
+  "model": "sonnet",
+  "env": { "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "70" },
+  "permissions": {
+    "deny": ["Read(./target/**)", "Read(./node_modules/**)", "Read(./logs/**)"]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "hooks": [
+          { "type": "command", "command": "git status --short && git diff --stat" }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "CMD=$(node -e \"const d=JSON.parse(require('fs').readFileSync(0,'utf8'));process.stdout.write((d.tool_input||d).command||'')\" 2>/dev/null || true); case \"$CMD\" in *grep*|*rg\\ *|*ripgrep*|*find\\ *|*fd\\ *|*ack\\ *|*ag\\ *) [ -f .graphify/graph.json ] && echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"nodesify-graphify: Use nodesify-graphify query instead of grep for architecture questions. Read .graphify/graph_report.md first.\"}}' || true ;; esac"
+          }
+        ]
+      },
+      {
+        "matcher": "Grep|Glob|Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const fs=require('fs');const p='.graphify/graph.json';if(!fs.existsSync(p)){process.exit(0)}const age=Math.round((Date.now()-fs.statSync(p).mtimeMs)/60000);const msg=age>30?'nodesify-graphify: STALE GRAPH (built '+age+' min ago). Run nodesify-graphify update . BEFORE searching. Then use nodesify-graphify query for architecture questions. Read .graphify/graph_report.md first.':'nodesify-graphify: Knowledge graph available. Use nodesify-graphify query for architecture questions. Read .graphify/graph_report.md first.';process.stdout.write(JSON.stringify({hookSpecificOutput:{hookEventName:'PreToolUse',additionalContext:msg}}))\""
+          }
+        ]
+      }
+    ]
+  }
+}
