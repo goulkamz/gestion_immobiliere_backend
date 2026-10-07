@@ -129,7 +129,8 @@ public class EcheanceService {
     public ResponseEntity<?> getEcheanceMandatEnRetard() {
         List<EcheanceLoyer> enRetard = echeanceRepository.findByEntiteEcheanceTypeAndStatutAndDateEcheanceBefore(TypeEcheance.MANDAT,StatutEcheance.EN_RETARD, LocalDate.now());
         return buildSuccessResponse(HttpStatus.OK, "Échéances en retard", "ECHEANCE_EN_RETARD_LIST",
-                enRetard.stream().map(this::toDto).toList());
+                enRetard.stream().map(e -> toMandatDto(e, e.getMontantDu().add(
+                        e.getCommissionDeduite() != null ? e.getCommissionDeduite() : BigDecimal.ZERO))).toList());
     }
 
     /**
@@ -189,6 +190,13 @@ public class EcheanceService {
         ContratMandat mandat = contratMandatRepository.findById(idMandat)
                 .orElseThrow(() -> new ResourceNotFoundException("mandat", idMandat));
 
+        if (mandat.getDateDebut() != null && debutMois.isBefore(mandat.getDateDebut().toLocalDate().withDayOfMonth(1))) {
+            throw new IllegalStateException("La période demandée est antérieure au début du mandat");
+        }
+        if (echeanceRepository.countLocationParCourEtMois(mandat.getCour().getIdCour(), debutMois) == 0) {
+            throw new IllegalStateException("Aucune maison de ce mandat n'est en location sur cette période");
+        }
+
         BigDecimal loyersDus = echeanceRepository.sumMontantDuLocationParCourEtMois(mandat.getCour().getIdCour(), debutMois);
         loyersDus = loyersDus != null ? loyersDus : BigDecimal.ZERO;
 
@@ -230,6 +238,13 @@ public class EcheanceService {
         }
         if (echeance.getStatut() == StatutEcheance.PAYE || echeance.getStatut() == StatutEcheance.ANNULE) {
             throw new IllegalStateException("Cette échéance ne peut etre réglée");
+        }
+
+        if (echeance.getMontantDu().signum() <= 0) {
+            // Rien à reverser (aucun loyer ce mois) : on clôture sans créer de paiement à 0.
+            echeance.setStatut(StatutEcheance.PAYE);
+            echeanceRepository.save(echeance);
+            return buildSuccessResponse(HttpStatus.OK, "Aucun montant à reverser, échéance clôturée", "VIREMENT_MANDAT_CONFIRME", null);
         }
 
         paiementService.soldeEcheances(
@@ -277,6 +292,7 @@ public class EcheanceService {
                 .montantDu(e.getMontantDu())
                 .montantPaye(e.getMontantPaye())
                 .penalite(e.getPenalite())
+                .commissionDeduite(e.getCommissionDeduite())
                 .statut(e.getStatut())
                 .build();
     }

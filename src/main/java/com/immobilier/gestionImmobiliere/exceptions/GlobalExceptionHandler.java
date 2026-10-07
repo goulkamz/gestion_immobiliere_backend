@@ -189,6 +189,11 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage(), "MANDAT_ACTIF_EXISTANT", ex);
     }
 
+    @ExceptionHandler(MandatInsuffisantException.class)
+    public ResponseEntity<?> handleMandatInsuffisant(MandatInsuffisantException ex) {
+        return buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage(), "MANDAT_INSUFFISANT", ex);
+    }
+
     @ExceptionHandler(MaisonIndisponibleException.class)
     public ResponseEntity<?> handleMaisonIndisponible(MaisonIndisponibleException ex) {
         return buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage(), "MAISON_INDISPONIBLE", ex);

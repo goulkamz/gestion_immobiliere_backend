@@ -62,6 +62,11 @@ class EcritureMetierIntegrationTest extends AbstractIntegrationTest {
         assertThat(statutReservation(idResa)).isEqualTo("CONFIRMEE");
 
         appel(agent, patch("/api/reservations/" + idResa + "/convertir")
+                .param("montantLoyer", "55000").param("typeContrat", "FANTAISIE"), null, status().isBadRequest());
+        assertThat(statutReservation(idResa)).as("type de contrat invalide : reservation inchangee").isEqualTo("CONFIRMEE");
+        assertThat(statutMaison(5)).isEqualTo("RESERVEE");
+
+        appel(agent, patch("/api/reservations/" + idResa + "/convertir")
                 .param("montantLoyer", "55000").param("typeContrat", "HABITATION"), null, status().isCreated());
         assertThat(statutReservation(idResa)).isEqualTo("CONVERTIE");
         assertThat(statutMaison(5)).isEqualTo("LOUEE");
@@ -91,6 +96,26 @@ class EcritureMetierIntegrationTest extends AbstractIntegrationTest {
 
         appel(agent, patch("/api/contrats-location/" + idContrat + "/resilier"), """
                 {"etatDesLieuxSortie":"RAS","coutReparation":0}""", status().isConflict());
+    }
+
+    @Test
+    void conversion_courSansMandatActif_refusee() throws Exception {
+        // Maison 6 (Maison F) : sa cour n'a aucun mandat dans le jeu de donnees
+        LocalDateTime debut = LocalDateTime.now().plusDays(60).truncatedTo(ChronoUnit.SECONDS);
+        appel(client, post("/api/reservations"), """
+                {"idMaison":6,"dateDebut":"%s"}""".formatted(debut),
+                status().isCreated());
+        int idResa = jdbc.queryForObject(
+                "SELECT MAX(id_reservation) FROM reservation_maison WHERE id_maison = 6", Integer.class);
+        appel(agent, patch("/api/reservations/" + idResa + "/confirmer"), null, status().isOk());
+
+        appel(agent, patch("/api/reservations/" + idResa + "/convertir")
+                .param("montantLoyer", "65000").param("typeContrat", "HABITATION"), null, status().isConflict());
+
+        assertThat(statutReservation(idResa)).as("reservation inchangee").isEqualTo("CONFIRMEE");
+        assertThat(statutMaison(6)).as("maison inchangee").isEqualTo("RESERVEE");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM contra_location WHERE id_maison = 6", Integer.class))
+                .as("aucun contrat cree").isZero();
     }
 
     @Test

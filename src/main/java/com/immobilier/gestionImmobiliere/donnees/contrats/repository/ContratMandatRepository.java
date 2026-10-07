@@ -8,6 +8,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import com.immobilier.gestionImmobiliere.donnees.contrats.model.TypeMandat;
+
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,6 +18,7 @@ public interface ContratMandatRepository extends JpaRepository<ContratMandat, In
     Page<ContratMandat> findByCour_IdCour(Integer idCour, Pageable pageable);
     Page<ContratMandat> findByStatut(StatutMandat statut, Pageable pageable);
     boolean existsByCour_IdCourAndStatut(Integer idCour, StatutMandat statut);
+    boolean existsByCour_IdCourAndStatutAndTypeMandatIn(Integer idCour, StatutMandat statut, Collection<TypeMandat> types);
     Page<ContratMandat> findByCour_Proprietaire_IdUser(Integer idProprietaire, Pageable pageable);
 
     List<ContratMandat> findByStatut(StatutMandat statut);

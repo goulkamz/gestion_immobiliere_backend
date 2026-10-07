@@ -18,5 +18,6 @@ public class EcheanceResponseDTO {
     private BigDecimal montantDu;
     private BigDecimal montantPaye;
     private BigDecimal penalite;
+    private BigDecimal commissionDeduite;
     private StatutEcheance statut;
 }

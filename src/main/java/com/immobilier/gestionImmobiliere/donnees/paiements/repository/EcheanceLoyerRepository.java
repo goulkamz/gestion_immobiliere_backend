@@ -68,6 +68,13 @@ public interface EcheanceLoyerRepository extends JpaRepository<EcheanceLoyer, In
             "AND DATE_TRUNC('month', e.date_echeance) = DATE_TRUNC('month', CAST(:periode AS date))", nativeQuery = true)
     BigDecimal sumMontantDuLocationParCourEtMois(@Param("idCour") Integer idCour, @Param("periode") LocalDate periode);
 
+    @Query(value = "SELECT COUNT(*) FROM echeance_loyer e " +
+            "JOIN contra_location cl ON cl.id_contra_location = e.entite_echeance_id AND e.entite_echeance_type = 'LOCATION' " +
+            "JOIN maison m ON m.id_maison = cl.id_maison " +
+            "WHERE m.id_cour = :idCour AND e.is_deleted = false " +
+            "AND DATE_TRUNC('month', e.date_echeance) = DATE_TRUNC('month', CAST(:periode AS date))", nativeQuery = true)
+    long countLocationParCourEtMois(@Param("idCour") Integer idCour, @Param("periode") LocalDate periode);
+
     @Query(value = "SELECT COALESCE(SUM(montant_du - montant_paye), 0) FROM echeance_loyer " +
             "WHERE entite_echeance_type = 'LOCATION' AND entite_echeance_id = :idContrat " +
             "AND statut NOT IN ('PAYE', 'ANNULE') AND is_deleted = false", nativeQuery = true)

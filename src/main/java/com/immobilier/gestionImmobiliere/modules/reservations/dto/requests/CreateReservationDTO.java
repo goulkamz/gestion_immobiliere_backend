@@ -9,6 +9,8 @@ import java.time.LocalDateTime;
 @Data
 public class CreateReservationDTO {
     @NotNull private Integer idMaison;
+    // Renseigné uniquement par un agent/admin qui réserve pour le compte d'un client
+    private Integer idClient;
     // dateFin n'est pas saisie par le client : elle est calculée côté serveur
     // (dateDebut + DELAI_EXPIRATION_RESERVATION_HEURES), la réservation n'étant
     // qu'une demande de blocage temporaire, pas le bail réel (dateSortie du

@@ -7,6 +7,7 @@ import com.immobilier.gestionImmobiliere.donnees.contrats.model.ContratLocation;
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.DecompteSortie;
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.StatutDecompteSortie;
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.StatutLocation;
+import com.immobilier.gestionImmobiliere.donnees.contrats.model.TypeContrat;
 import com.immobilier.gestionImmobiliere.donnees.contrats.repository.ContratLocationRepository;
 import com.immobilier.gestionImmobiliere.donnees.contrats.repository.DecompteSortieRepository;
 import com.immobilier.gestionImmobiliere.donnees.paiements.model.EcheanceLoyer;
@@ -110,7 +111,9 @@ public class ContratLocationService {
     }
 
     /**
-     * Point d'entrée standard — exige que la maison soit DISPONIBLE (F14).
+     * Point d'entrée réservé aux conversions de réservation confirmée (F21).
+     * Exige que la maison soit RESERVEE (et non DISPONIBLE) : c'est l'état attendu
+     * à ce stade, une précondition différente et explicite, pas un contournement.
      */
     @Transactional
     public ContratLocationResponseDTO createFromReservation(CreateContratLocationDTO dto, Integer currentUserId) {
@@ -118,18 +121,16 @@ public class ContratLocationService {
         return toDto(location);
     }
 
-
     /**
-     * Point d'entrée réservé aux conversions de réservation confirmée (F21).
-     * Saute la vérification StatutMaison.DISPONIBLE : la maison est légitimement
-     * en RESERVEE à ce stade, et c'est précisément l'état attendu ici — pas un
-     * contournement, mais une précondition différente et explicite.
+     * Crée le contrat, passe la maison à LOUEE et génère les échéances.
+     * exigerDisponible = true  : la maison doit être DISPONIBLE (création standard, F14).
+     * exigerDisponible = false : la maison doit être RESERVEE (conversion de réservation).
      */
-
     private ContratLocation creerContrat(CreateContratLocationDTO dto, Integer currentUserId, boolean exigerDisponible) {
         if (dto.getDateSortie() != null && !dto.getDateSortie().isAfter(dto.getDateEntree())) {
             throw new IllegalArgumentException("La date de sortie doit être postérieure à la date d'entrée");
         }
+        TypeContrat typeContrat = TypeContrat.depuisValeur(dto.getTypeContrat());
         Maison maison = maisonRepository.findById(dto.getIdMaison())
                 .orElseThrow(() -> new ResourceNotFoundException("maison", dto.getIdMaison()));
         User locataire = userRepository.findById(dto.getIdLocataire())
@@ -149,7 +150,7 @@ public class ContratLocationService {
                 .dateEntree(dto.getDateEntree())
                 .dateSortie(dto.getDateSortie())
                 .montantLoyer(dto.getMontantLoyer())
-                .typeContrat(dto.getTypeContrat())
+                .typeContrat(typeContrat != null ? typeContrat.name() : null)
                 .etatDesLieuxEntree(dto.getEtatDesLieuxEntree())
                 .statut(StatutLocation.ACTIF)
                 .userCreate(currentUserId)

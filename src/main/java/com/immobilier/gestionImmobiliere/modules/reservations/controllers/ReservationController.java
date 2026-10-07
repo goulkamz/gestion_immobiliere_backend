@@ -44,7 +44,8 @@ public class ReservationController implements ReservationAPI {
     @Override
     @PreAuthorize("hasAnyRole('CLIENT','AGENT','ADMIN')")
     public ResponseEntity<?> create(CreateReservationDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser) {
-        return reservationService.create(dto, currentUser.getIdUser());
+        boolean pourLeCompteDUnClient = currentUser.hasAnyRole("ADMIN", "AGENT") && dto.getIdClient() != null;
+        return reservationService.create(dto, pourLeCompteDUnClient ? dto.getIdClient() : currentUser.getIdUser());
     }
 
     // Validation : réservée à Agent/Admin uniquement — le Bailleur ne tranche plus

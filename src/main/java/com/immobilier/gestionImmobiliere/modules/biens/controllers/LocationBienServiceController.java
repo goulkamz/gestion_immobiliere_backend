@@ -29,7 +29,8 @@ public class LocationBienServiceController implements LocationBienServiceAPI {
 
     @Override
     public ResponseEntity<?> create(CreateLocationBienServiceDTO dto, UserDetailsImpl currentUser) {
-        return locationService.create(dto, currentUser.getIdUser());
+        boolean pourLeCompteDUnClient = currentUser.hasAnyRole("ADMIN", "AGENT") && dto.getIdClient() != null;
+        return locationService.create(dto, pourLeCompteDUnClient ? dto.getIdClient() : currentUser.getIdUser(), currentUser.getIdUser());
     }
 
     /**

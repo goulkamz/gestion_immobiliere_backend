@@ -85,11 +85,11 @@ public class LocationBienServiceService {
      * mais non contractuel tant que l'agent n'a pas confirmé.
      */
     @Transactional
-    public ResponseEntity<?> create(CreateLocationBienServiceDTO dto, Integer currentUserId) {
+    public ResponseEntity<?> create(CreateLocationBienServiceDTO dto, Integer idClient, Integer currentUserId) {
         BienService bien = bienServiceRepository.findById(dto.getIdBienService())
                 .orElseThrow(() -> new ResourceNotFoundException("bienService", dto.getIdBienService()));
-        User client = userRepository.findById(currentUserId)
-                .orElseThrow(() -> new ResourceNotFoundException("user", currentUserId));
+        User client = userRepository.findById(idClient)
+                .orElseThrow(() -> new ResourceNotFoundException("user", idClient));
 
         if (dto.getDateFin().isBefore(dto.getDateDebut())) {
             throw new IllegalArgumentException("La date de fin doit être après la date de début");

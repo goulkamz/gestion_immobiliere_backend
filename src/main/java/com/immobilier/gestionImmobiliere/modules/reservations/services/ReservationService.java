@@ -2,6 +2,9 @@ package com.immobilier.gestionImmobiliere.modules.reservations.services;
 
 import com.immobilier.gestionImmobiliere.donnees.biens.model.Maison;
 import com.immobilier.gestionImmobiliere.donnees.biens.model.StatutMaison;
+import com.immobilier.gestionImmobiliere.donnees.contrats.model.StatutMandat;
+import com.immobilier.gestionImmobiliere.donnees.contrats.model.TypeMandat;
+import com.immobilier.gestionImmobiliere.donnees.contrats.repository.ContratMandatRepository;
 import com.immobilier.gestionImmobiliere.donnees.biens.repository.MaisonRepository;
 import com.immobilier.gestionImmobiliere.donnees.reservations.model.ReservationMaison;
 import com.immobilier.gestionImmobiliere.donnees.reservations.model.StatutReservation;
@@ -37,15 +40,17 @@ public class ReservationService {
     private final UserRepository userRepository;
     private final ContratLocationService contratLocationService;
     private final ParametreService parametreService;
+    private final ContratMandatRepository mandatRepository;
 
     public ReservationService(ReservationMaisonRepository reservationRepository, MaisonRepository maisonRepository,
                               UserRepository userRepository, ContratLocationService contratLocationService,
-                              ParametreService parametreService) {
+                              ParametreService parametreService, ContratMandatRepository mandatRepository) {
         this.reservationRepository = reservationRepository;
         this.maisonRepository = maisonRepository;
         this.userRepository = userRepository;
         this.contratLocationService = contratLocationService;
         this.parametreService = parametreService;
+        this.mandatRepository = mandatRepository;
     }
 
     public ResponseEntity<?> getAllForCurrentUser(Integer idMaison, Integer currentUserId,
@@ -171,6 +176,13 @@ public class ReservationService {
 
         if (reservation.getStatut() != StatutReservation.CONFIRMEE) {
             throw new InvalidStatutTransitionException(reservation.getStatut().name(), StatutReservation.CONVERTIE.name());
+        }
+
+        // Un mandat ACTIF de type GESTION ou LOCATION doit couvrir la cour de la maison (pas VENTE)
+        Integer idCour = reservation.getMaison().getCour().getIdCour();
+        if (!mandatRepository.existsByCour_IdCourAndStatutAndTypeMandatIn(
+                idCour, StatutMandat.ACTIF, List.of(TypeMandat.GESTION, TypeMandat.LOCATION))) {
+            throw new MandatInsuffisantException(idCour);
         }
 
         CreateContratLocationDTO contratDto = new CreateContratLocationDTO();

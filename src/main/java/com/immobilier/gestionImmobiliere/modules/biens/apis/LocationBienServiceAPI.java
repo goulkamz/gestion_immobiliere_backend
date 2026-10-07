@@ -21,8 +21,8 @@ public interface LocationBienServiceAPI {
     @GetMapping("/{id}")
     ResponseEntity<?> getById(@PathVariable Integer id, @AuthenticationPrincipal UserDetailsImpl currentUser);
 
-    // Étape 1 : le client dépose sa demande, sans paiement
-    @PreAuthorize("hasRole('CLIENT')")
+    // Étape 1 : le client (ou un agent/admin pour son compte) dépose la demande, sans paiement
+    @PreAuthorize("hasAnyRole('CLIENT','AGENT','ADMIN')")
     @PostMapping
     ResponseEntity<?> create(@Valid @RequestBody CreateLocationBienServiceDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser);
 
