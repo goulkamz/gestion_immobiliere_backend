@@ -11,9 +11,21 @@ import org.springframework.data.repository.query.Param;
 import java.math.BigDecimal;
 import java.util.List;
 
-public interface MaisonRepository extends JpaRepository<Maison, Integer> {
+public interface MaisonRepository extends JpaRepository<Maison, Integer>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<Maison> {
     Page<Maison> findByCour_IdCour(Integer idCour, Pageable pageable);
     Page<Maison> findByStatut(StatutMaison statut, Pageable pageable);
+
+    // Catalogue public : maison DISPONIBLE dont la cour a un mandat ACTIF de type GESTION ou LOCATION
+    @Query("SELECT m FROM Maison m WHERE m.statut = com.immobilier.gestionImmobiliere.donnees.biens.model.StatutMaison.DISPONIBLE " +
+            "AND (:idCour IS NULL OR m.cour.idCour = :idCour) " +
+            "AND (LOWER(m.nomCommunMaison) LIKE :motif OR LOWER(m.typeMaison) LIKE :motif " +
+            "OR LOWER(m.cour.referenceCour) LIKE :motif) " +
+            "AND EXISTS (SELECT 1 FROM ContratMandat c WHERE c.cour = m.cour " +
+            "AND c.statut = com.immobilier.gestionImmobiliere.donnees.contrats.model.StatutMandat.ACTIF " +
+            "AND c.typeMandat IN (com.immobilier.gestionImmobiliere.donnees.contrats.model.TypeMandat.GESTION, " +
+            "com.immobilier.gestionImmobiliere.donnees.contrats.model.TypeMandat.LOCATION))")
+    Page<Maison> findCataloguePublic(@Param("idCour") Integer idCour, @Param("motif") String motif, Pageable pageable);
+
     @Query("SELECT COALESCE(SUM(m.loyer), 0) FROM Maison m WHERE m.cour.idCour = :idCour AND m.statut = 'LOUEE'")
     Double sumLoyerMaisonsLoueesByCour(@Param("idCour") Integer idCour);
 

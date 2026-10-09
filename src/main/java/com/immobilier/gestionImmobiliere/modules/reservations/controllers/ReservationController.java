@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.reservations.controllers;
 
+import com.immobilier.gestionImmobiliere.donnees.reservations.model.StatutReservation;
 import com.immobilier.gestionImmobiliere.modules.reservations.apis.ReservationAPI;
 import com.immobilier.gestionImmobiliere.modules.reservations.dto.requests.CreateReservationDTO;
 import com.immobilier.gestionImmobiliere.modules.reservations.services.ReservationService;
@@ -25,10 +26,11 @@ public class ReservationController implements ReservationAPI {
 
     // Lecture : ouverte à tous les rôles, filtrage par ownership fait dans le service
     @Override
-    public ResponseEntity<?> getAll(Integer idMaison, Pageable pageable, @AuthenticationPrincipal UserDetailsImpl currentUser) {
+    public ResponseEntity<?> getAll(Integer idMaison, StatutReservation statut, String recherche, Pageable pageable,
+                                    @AuthenticationPrincipal UserDetailsImpl currentUser) {
         boolean isAdminOrAgent = currentUser.hasAnyRole("ADMIN", "AGENT");
         boolean isBailleur = currentUser.hasRole("BAILLEUR");
-        return reservationService.getAllForCurrentUser(idMaison, currentUser.getIdUser(), isAdminOrAgent, isBailleur, pageable);
+        return reservationService.getAllForCurrentUser(idMaison, statut, recherche, currentUser.getIdUser(), isAdminOrAgent, isBailleur, pageable);
     }
 
     @Override

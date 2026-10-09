@@ -13,6 +13,7 @@ public class ContratMandatResponseDTO {
     private Integer idMandat;
     private Integer idCour;
     private String referenceCour;
+    private String nomProprietaire;
     private Integer idAgent;
     private String nomAgent;
     private LocalDateTime dateDebut;

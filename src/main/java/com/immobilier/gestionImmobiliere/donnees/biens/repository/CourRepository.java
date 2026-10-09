@@ -9,7 +9,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
-public interface CourRepository extends JpaRepository<Cour, Integer> {
+public interface CourRepository extends JpaRepository<Cour, Integer>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<Cour> {
     Page<Cour> findBySecteur_IdSecteur(Integer idSecteur, Pageable pageable);
     Page<Cour> findByProprietaire_IdUser(Integer idUser, Pageable pageable);
     Page<Cour> findBySecteur_IdSecteurAndProprietaire_IdUser(Integer idSecteur, Integer idUser, Pageable pageable);

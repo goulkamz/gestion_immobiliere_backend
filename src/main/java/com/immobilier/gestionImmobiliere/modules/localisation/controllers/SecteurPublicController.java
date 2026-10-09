@@ -17,8 +17,8 @@ public class SecteurPublicController implements SecteurPublicAPI {
 
 
     @Override
-    public ResponseEntity<?> getAll(Integer idVille, Pageable pageable) {
-        return secteurService.getAll(idVille, pageable);
+    public ResponseEntity<?> getAll(Integer idVille, String recherche, Pageable pageable) {
+        return secteurService.getAll(idVille, recherche, pageable);
     }
 
     @Override

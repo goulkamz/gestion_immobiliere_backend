@@ -2,6 +2,7 @@ package com.immobilier.gestionImmobiliere.modules.paiements.services;
 
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.ContratLocation;
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.ContratMandat;
+import com.immobilier.gestionImmobiliere.donnees.contrats.model.StatutMandat;
 import com.immobilier.gestionImmobiliere.donnees.contrats.repository.ContratLocationRepository;
 import com.immobilier.gestionImmobiliere.donnees.contrats.repository.ContratMandatRepository;
 import com.immobilier.gestionImmobiliere.donnees.paiements.model.EcheanceLoyer;
@@ -17,9 +18,14 @@ import com.immobilier.gestionImmobiliere.modules.paiements.dto.responses.Echeanc
 import com.immobilier.gestionImmobiliere.modules.parametres.services.ParametreService;
 import com.immobilier.gestionImmobiliere.utils.DateUtils;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -29,8 +35,13 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.text.Normalizer;
 import java.time.LocalDateTime;
+import java.time.YearMonth;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
 
@@ -53,12 +64,14 @@ public class EcheanceService {
 
     // Remplace getAll() par une version filtrée par rôle
     public ResponseEntity<?> getAllForCurrentUser(TypeEcheance type, Integer entiteId, StatutEcheance statut,
+                                                  String recherche, String referenceCour, String periode,
                                                   Integer currentUserId, boolean isAdminOrAgent, boolean isBailleur,
                                                   Pageable pageable) {
         Page<EcheanceLoyer> page;
 
         if (isAdminOrAgent) {
-            page = echeanceRepository.findAllFiltered(type, entiteId, statut, pageable);
+            // recherche, referenceCour et periode sont reserves a l'agent/admin et appliques avant la pagination
+            page = echeanceRepository.findAll(filtrerAgent(type, entiteId, statut, recherche, referenceCour, periode), pageable);
         } else if (isBailleur) {
             List<Integer> locationIds = contratLocationRepository.findIdsByProprietaire(currentUserId);
             List<Integer> mandatIds = contratMandatRepository.findIdsByProprietaire(currentUserId);
@@ -75,7 +88,108 @@ public class EcheanceService {
                     locationIds.isEmpty() ? List.of(-1) : locationIds, statut, pageable);
         }
 
-        return buildSuccessResponse(HttpStatus.OK, "Liste des échéances", "ECHEANCE_LIST", page.map(this::toDto));
+        return buildSuccessResponse(HttpStatus.OK, "Liste des échéances", "ECHEANCE_LIST", page.map(this::toDtoEnrichi));
+    }
+
+    private static final int[] MOIS = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
+
+    /**
+     * Filtres de la liste agent. La recherche couvre le libelle du mois ("mars 2026"), la maison et le locataire
+     * (echeances LOCATION) ou la cour et le proprietaire (echeances MANDAT), sans jointure cote navigateur.
+     */
+    private Specification<EcheanceLoyer> filtrerAgent(TypeEcheance type, Integer entiteId, StatutEcheance statut,
+                                                      String recherche, String referenceCour, String periode) {
+        return (root, query, cb) -> {
+            List<Predicate> predicats = new ArrayList<>();
+            if (type != null) {
+                predicats.add(cb.equal(root.get("entiteEcheanceType"), type));
+            }
+            if (entiteId != null) {
+                predicats.add(cb.equal(root.get("entiteEcheanceId"), entiteId));
+            }
+            if (statut != null) {
+                predicats.add(cb.equal(root.get("statut"), statut));
+            }
+            if (periode != null && !periode.isBlank()) {
+                YearMonth mois = YearMonth.parse(periode.trim());
+                predicats.add(cb.between(root.<LocalDate>get("dateEcheance"), mois.atDay(1), mois.atEndOfMonth()));
+            }
+            if (referenceCour != null && !referenceCour.isBlank()) {
+                Subquery<Integer> sub = query.subquery(Integer.class);
+                Root<ContratMandat> m = sub.from(ContratMandat.class);
+                sub.select(m.get("idMandat")).where(
+                        cb.equal(m.get("idMandat"), root.get("entiteEcheanceId")),
+                        cb.equal(m.get("cour").get("referenceCour"), referenceCour.trim()));
+                predicats.add(cb.and(cb.equal(root.get("entiteEcheanceType"), TypeEcheance.MANDAT), cb.exists(sub)));
+            }
+            if (recherche != null && !recherche.isBlank()) {
+                String terme = recherche.trim().toLowerCase();
+                String motif = "%" + terme + "%";
+                List<Predicate> alternatives = new ArrayList<>();
+
+                // Echeances LOCATION : maison ou locataire
+                Subquery<Integer> subLoc = query.subquery(Integer.class);
+                Root<ContratLocation> cl = subLoc.from(ContratLocation.class);
+                subLoc.select(cl.get("idContratLocation")).where(
+                        cb.equal(cl.get("idContratLocation"), root.get("entiteEcheanceId")),
+                        cb.or(
+                                cb.like(cb.lower(cl.get("maison").<String>get("nomCommunMaison")), motif),
+                                cb.like(cb.lower(cb.concat(cb.concat(cl.get("locataire").<String>get("nom"), " "), cl.get("locataire").<String>get("prenom"))), motif)));
+                alternatives.add(cb.and(cb.equal(root.get("entiteEcheanceType"), TypeEcheance.LOCATION), cb.exists(subLoc)));
+
+                // Echeances MANDAT : cour ou proprietaire
+                Subquery<Integer> subMandat = query.subquery(Integer.class);
+                Root<ContratMandat> cm = subMandat.from(ContratMandat.class);
+                subMandat.select(cm.get("idMandat")).where(
+                        cb.equal(cm.get("idMandat"), root.get("entiteEcheanceId")),
+                        cb.or(
+                                cb.like(cb.lower(cm.get("cour").<String>get("referenceCour")), motif),
+                                cb.like(cb.lower(cb.concat(cb.concat(cm.get("cour").get("proprietaire").<String>get("nom"), " "), cm.get("cour").get("proprietaire").<String>get("prenom"))), motif)));
+                alternatives.add(cb.and(cb.equal(root.get("entiteEcheanceType"), TypeEcheance.MANDAT), cb.exists(subMandat)));
+
+                // Libelle du mois : "mars", "mars 2026" ou "2026"
+                Predicate parMois = predicatMois(root, cb, terme);
+                if (parMois != null) {
+                    alternatives.add(parMois);
+                }
+                predicats.add(cb.or(alternatives.toArray(new Predicate[0])));
+            }
+            return cb.and(predicats.toArray(new Predicate[0]));
+        };
+    }
+
+    // "aout" doit retrouver "août"
+    private static String sansAccents(String texte) {
+        return Normalizer.normalize(texte, Normalizer.Form.NFD).replaceAll("\\p{M}", "");
+    }
+
+    // Le libelle du mois (nom francais + annee) n'est pas stocke : on retrouve les mois dont le nom contient le terme
+    private Predicate predicatMois(Root<EcheanceLoyer> root, CriteriaBuilder cb, String terme) {
+        String nom = terme;
+        Integer annee = null;
+        Matcher m = Pattern.compile("^(.*?)\\s*(\\d{4})$").matcher(terme);
+        if (m.matches()) {
+            nom = m.group(1).trim();
+            annee = Integer.valueOf(m.group(2));
+        }
+        List<Predicate> conditions = new ArrayList<>();
+        if (!nom.isEmpty()) {
+            // date_part (PostgreSQL) renvoie un double : on compare donc avec des Double
+            List<Double> mois = new ArrayList<>();
+            for (int numero : MOIS) {
+                if (sansAccents(DateUtils.nomMoisFrancais(LocalDate.of(2000, numero, 1)).toLowerCase()).contains(sansAccents(nom))) {
+                    mois.add((double) numero);
+                }
+            }
+            if (mois.isEmpty()) {
+                return null;
+            }
+            conditions.add(cb.function("date_part", Double.class, cb.literal("month"), root.<LocalDate>get("dateEcheance")).in(mois));
+        }
+        if (annee != null) {
+            conditions.add(cb.equal(cb.function("date_part", Double.class, cb.literal("year"), root.<LocalDate>get("dateEcheance")), annee.doubleValue()));
+        }
+        return conditions.isEmpty() ? null : cb.and(conditions.toArray(new Predicate[0]));
     }
 
 
@@ -224,6 +338,34 @@ public class EcheanceService {
     }
 
     /**
+     * Calcul groupé : parcourt tous les mandats ACTIF côté serveur (aucun plafond de pagination).
+     * Chaque mandat est calculé isolément ; ceux déjà calculés ou sans maison en location sur la
+     * période sont ignorés, avec le motif regroupé dans la réponse.
+     */
+    public ResponseEntity<?> calculerReversementsTousMandats(LocalDate periode, Integer currentAgentId) {
+        List<ContratMandat> mandats = contratMandatRepository.findByStatut(StatutMandat.ACTIF);
+        int succes = 0;
+        java.util.Map<String, Integer> raisons = new java.util.LinkedHashMap<>();
+        for (ContratMandat mandat : mandats) {
+            try {
+                calculerReversementMandat(mandat.getIdMandat(), periode, currentAgentId);
+                succes++;
+            } catch (IllegalStateException | ResourceNotFoundException e) {
+                raisons.merge(e.getMessage(), 1, Integer::sum);
+            }
+        }
+        List<java.util.Map<String, Object>> detail = raisons.entrySet().stream()
+                .<java.util.Map<String, Object>>map(e -> java.util.Map.of("message", e.getKey(), "nombre", e.getValue()))
+                .toList();
+        java.util.Map<String, Object> resultat = new java.util.LinkedHashMap<>();
+        resultat.put("total", mandats.size());
+        resultat.put("succes", succes);
+        resultat.put("ignores", mandats.size() - succes);
+        resultat.put("raisons", detail);
+        return buildSuccessResponse(HttpStatus.OK, "Calcul groupé terminé", "ECHEANCES_MANDAT_CALCULEES", resultat);
+    }
+
+    /**
      * Confirme le virement réel au bailleur — déclenché quand l'agence le décide,
      * jamais automatique. Tout ou rien : le montant est celui de l'échéance,
      * aucun ajustement possible. Réutilise le moteur générique de PaiementService
@@ -278,6 +420,24 @@ public class EcheanceService {
         return echeanceRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("échéance", id));
     }
 
+    // toDto + libelles de l'entite liee (maison/locataire ou cour/proprietaire)
+    private EcheanceResponseDTO toDtoEnrichi(EcheanceLoyer e) {
+        EcheanceResponseDTO dto = toDto(e);
+        if (e.getEntiteEcheanceType() == TypeEcheance.LOCATION) {
+            contratLocationRepository.findById(e.getEntiteEcheanceId()).ifPresent(c -> {
+                dto.setNomCommunMaison(c.getMaison().getNomCommunMaison());
+                dto.setNomLocataire(c.getLocataire().getNom() + " " + c.getLocataire().getPrenom());
+            });
+        } else {
+            contratMandatRepository.findById(e.getEntiteEcheanceId()).ifPresent(c -> {
+                dto.setReferenceCour(c.getCour().getReferenceCour());
+                dto.setNomProprietaire(c.getCour().getProprietaire().getNom() + " " + c.getCour().getProprietaire().getPrenom());
+                dto.setCommissionMandat(c.getCommission());
+            });
+        }
+        return dto;
+    }
+
     private EcheanceResponseDTO toDto(EcheanceLoyer e) {
         String moisLibelle = e.getDateEcheance() != null
                 ? DateUtils.nomMoisFrancais(e.getDateEcheance()) + " " + e.getDateEcheance().getYear()
@@ -301,6 +461,8 @@ public class EcheanceService {
         return EcheanceMandatResponseDTO.builder()
                 .idEcheance(e.getIdEcheance())
                 .idMandat(e.getEntiteEcheanceId())
+                .referenceCour(contratMandatRepository.findById(e.getEntiteEcheanceId())
+                        .map(c -> c.getCour().getReferenceCour()).orElse(null))
                 .periodeMois(e.getDateEcheance())
                 .montantLoyersDus(loyersDus)
                 .commissionDeduite(e.getCommissionDeduite())

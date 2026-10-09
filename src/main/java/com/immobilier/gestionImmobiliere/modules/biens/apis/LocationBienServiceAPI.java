@@ -2,6 +2,7 @@ package com.immobilier.gestionImmobiliere.modules.biens.apis;
 
 import com.immobilier.gestionImmobiliere.modules.biens.dto.requests.*;
 import com.immobilier.gestionImmobiliere.modules.user.jwtService.UserDetailsImpl;
+import com.immobilier.gestionImmobiliere.donnees.biens.model.StatutLocationBienService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -15,7 +16,9 @@ public interface LocationBienServiceAPI {
     // AGENT/ADMIN : vue globale. CLIENT : le service filtre sur ses propres locations
     @PreAuthorize("hasAnyRole('AGENT','ADMIN','CLIENT')")
     @GetMapping
-    ResponseEntity<?> getAll(Pageable pageable, @AuthenticationPrincipal UserDetailsImpl currentUser);
+    ResponseEntity<?> getAll(@RequestParam(required = false) StatutLocationBienService statut,
+                             @RequestParam(required = false) String recherche,
+                             Pageable pageable, @AuthenticationPrincipal UserDetailsImpl currentUser);
 
     @PreAuthorize("hasAnyRole('AGENT','ADMIN','CLIENT')")
     @GetMapping("/{id}")
@@ -45,7 +48,7 @@ public interface LocationBienServiceAPI {
 
     @PreAuthorize("hasAnyRole('AGENT','ADMIN','CLIENT')")
     @GetMapping("/{id}/remboursements")
-    ResponseEntity<?> getRemboursements(@PathVariable Integer id);
+    ResponseEntity<?> getRemboursements(@PathVariable Integer id, @AuthenticationPrincipal UserDetailsImpl currentUser);
 
     @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
     @PatchMapping("/{id}/statut")

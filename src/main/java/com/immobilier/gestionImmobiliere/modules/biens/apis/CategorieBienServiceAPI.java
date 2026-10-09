@@ -13,7 +13,7 @@ public interface CategorieBienServiceAPI {
 
     // Lecture ouverte à tous les rôles authentifiés (catalogue consultable)
     @GetMapping
-    ResponseEntity<?> getAll(Pageable pageable);
+    ResponseEntity<?> getAll(@RequestParam(required = false) String recherche, Pageable pageable);
 
     @GetMapping("/{id}")
     ResponseEntity<?> getById(@PathVariable Integer id);

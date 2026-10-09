@@ -18,8 +18,8 @@ public class AnnoncePublicController implements AnnoncePublicAPI {
 
 
     @Override
-    public ResponseEntity<?> getAll(StatutAnnonce statut, Pageable pageable) {
-        return annonceService.getAll(statut, pageable);
+    public ResponseEntity<?> getAll(StatutAnnonce statut, String recherche, Pageable pageable) {
+        return annonceService.getAll(statut, recherche, pageable);
     }
 
     @Override

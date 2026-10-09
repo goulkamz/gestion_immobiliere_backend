@@ -21,6 +21,7 @@ public interface ContratLocationAPI {
     @GetMapping
     ResponseEntity<?> getAll(@RequestParam(required = false) Integer idMaison,
                              @RequestParam(required = false) Integer idLocataire,
+                             @RequestParam(required = false) String recherche,
                              Pageable pageable,
                              @AuthenticationPrincipal UserDetailsImpl currentUser);
 

@@ -11,6 +11,8 @@ public class ReservationResponseDTO {
     private Integer idReservation;
     private Integer idUser;
     private String nomUser;
+    private String emailUser;
+    private String telephoneUser;
     private Integer idMaison;
     private String nomCommunMaison;
     private LocalDateTime dateDebut;

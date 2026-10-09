@@ -5,8 +5,9 @@ import com.immobilier.gestionImmobiliere.donnees.annonces.model.StatutContact;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
-public interface ContactRepository extends JpaRepository<Contact, Integer> {
+public interface ContactRepository extends JpaRepository<Contact, Integer>, JpaSpecificationExecutor<Contact> {
     Page<Contact> findByStatut(StatutContact statut, Pageable pageable);
 
     // Statistiques ContactRepository

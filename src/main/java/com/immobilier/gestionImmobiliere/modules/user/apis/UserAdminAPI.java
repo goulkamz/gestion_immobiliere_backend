@@ -13,7 +13,8 @@ import org.springframework.web.bind.annotation.*;
 public interface UserAdminAPI {
 
     @GetMapping
-    ResponseEntity<?> getAll(@RequestParam(required = false) ERole role, Pageable pageable);
+    ResponseEntity<?> getAll(@RequestParam(required = false) ERole role,
+                             @RequestParam(required = false) String recherche, Pageable pageable);
 
     @GetMapping("/{id}")
     ResponseEntity<?> getById(@PathVariable Integer id);

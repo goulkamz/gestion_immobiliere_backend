@@ -14,7 +14,8 @@ import org.springframework.web.bind.annotation.*;
 @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
 public interface DemandeAdminAPI {
     @GetMapping
-    ResponseEntity<?> getAll(@RequestParam(required = false) StatutDemande statut, Pageable pageable);
+    ResponseEntity<?> getAll(@RequestParam(required = false) StatutDemande statut,
+                             @RequestParam(required = false) String recherche, Pageable pageable);
 
     @GetMapping("/{id}")
     ResponseEntity<?> getById(@PathVariable Integer id);

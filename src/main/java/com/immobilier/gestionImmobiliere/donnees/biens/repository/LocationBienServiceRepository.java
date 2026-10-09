@@ -5,12 +5,24 @@ import com.immobilier.gestionImmobiliere.donnees.biens.model.StatutLocationBienS
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.time.LocalDateTime;
 
 import java.util.List;
 
-public interface LocationBienServiceRepository extends JpaRepository<LocationBienService,Integer> {
+public interface LocationBienServiceRepository extends JpaRepository<LocationBienService,Integer>, JpaSpecificationExecutor<LocationBienService> {
     Page<LocationBienService> findByClient_IdUser(Integer idUser, Pageable pageable);
+
+    // Nombre de locations ACTIF du meme bien qui chevauchent la periode [debut, fin[ (hors la location exclue)
+    @Query("SELECT COUNT(l) FROM LocationBienService l WHERE l.bienService.idBienService = :idBien " +
+            "AND l.statut = :statut AND l.idLocationBienService <> :idExclue " +
+            "AND l.dateDebut < :fin AND l.dateFin > :debut")
+    long countChevauchements(@Param("idBien") Integer idBien, @Param("statut") StatutLocationBienService statut,
+                             @Param("idExclue") Integer idExclue, @Param("debut") LocalDateTime debut,
+                             @Param("fin") LocalDateTime fin);
 
     // Statistiques LocationBienServiceRepository
 

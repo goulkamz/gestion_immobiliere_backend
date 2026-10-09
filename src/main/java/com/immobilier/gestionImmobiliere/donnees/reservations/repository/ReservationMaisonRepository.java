@@ -5,13 +5,14 @@ import com.immobilier.gestionImmobiliere.donnees.reservations.model.StatutReserv
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
-public interface ReservationMaisonRepository extends JpaRepository<ReservationMaison, Integer> {
+public interface ReservationMaisonRepository extends JpaRepository<ReservationMaison, Integer>, JpaSpecificationExecutor<ReservationMaison> {
 
     Page<ReservationMaison> findByUser_IdUser(Integer idUser, Pageable pageable);
     Page<ReservationMaison> findByMaison_IdMaison(Integer idMaison, Pageable pageable);

@@ -18,8 +18,11 @@ import com.immobilier.gestionImmobiliere.modules.biens.dto.responses.ModifierDur
 import com.immobilier.gestionImmobiliere.modules.biens.dto.responses.PaiementLocationBienServiceResponseDTO;
 import com.immobilier.gestionImmobiliere.modules.biens.dto.responses.RemboursementResponseDTO;
 import com.immobilier.gestionImmobiliere.modules.user.jwtService.UserDetailsImpl;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -30,6 +33,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 
 import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
@@ -55,16 +59,39 @@ public class LocationBienServiceService {
         this.remboursementRepository = remboursementRepository;
     }
 
-    public ResponseEntity<?> getAll(Pageable pageable, UserDetailsImpl currentUser) {
+    public ResponseEntity<?> getAll(StatutLocationBienService statut, String recherche, Pageable pageable, UserDetailsImpl currentUser) {
         boolean isClient = currentUser.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_CLIENT"));
 
-        Page<LocationBienServiceResponseDTO> result = (isClient
-                ? locationBienServiceRepository.findByClient_IdUser(currentUser.getIdUser(), pageable)
-                : locationBienServiceRepository.findAll(pageable)
-        ).map(this::toDto);
+        // Filtres (statut, recherche) appliques cote base avant la pagination ; optionnels pour ne pas casser les autres espaces
+        Page<LocationBienServiceResponseDTO> result = locationBienServiceRepository
+                .findAll(filtrer(isClient ? currentUser.getIdUser() : null, statut, recherche), pageable)
+                .map(this::toDto);
 
         return buildSuccessResponse(HttpStatus.OK, "Liste des locations", "LOCATION_BIEN_SERVICE_LIST", result);
+    }
+
+    // Recherche insensible a la casse sur le libelle du bien, le nom/prenom du client ou la destination
+    private Specification<LocationBienService> filtrer(Integer idClient, StatutLocationBienService statut, String recherche) {
+        return (root, query, cb) -> {
+            List<Predicate> predicats = new ArrayList<>();
+            if (idClient != null) {
+                predicats.add(cb.equal(root.get("client").get("idUser"), idClient));
+            }
+            if (statut != null) {
+                predicats.add(cb.equal(root.get("statut"), statut));
+            }
+            if (recherche != null && !recherche.isBlank()) {
+                String motif = "%" + recherche.trim().toLowerCase() + "%";
+                Join<Object, Object> bien = root.join("bienService");
+                Join<Object, Object> client = root.join("client");
+                predicats.add(cb.or(
+                        cb.like(cb.lower(bien.<String>get("libelle")), motif),
+                        cb.like(cb.lower(cb.concat(cb.concat(client.<String>get("nom"), " "), client.<String>get("prenom"))), motif),
+                        cb.like(cb.lower(cb.coalesce(root.<String>get("destination"), "")), motif)));
+            }
+            return cb.and(predicats.toArray(new Predicate[0]));
+        };
     }
 
     public ResponseEntity<?> getById(Integer id, UserDetailsImpl currentUser) {
@@ -154,6 +181,7 @@ public class LocationBienServiceService {
         if (location.getStatut() != StatutLocationBienService.EN_ATTENTE) {
             throw new IllegalStateException("Seule une location EN_ATTENTE peut être confirmée");
         }
+        verifierBienLibre(location, dateDebut, dateFin);
         // Création du paiement réceptionné par l'agent
         Paiement paiement = Paiement.builder()
                 .datePaiement(LocalDateTime.now())
@@ -190,6 +218,12 @@ public class LocationBienServiceService {
     @Transactional
     public ResponseEntity<?> updateStatut(Integer id, UpdateStatutLocationBienServiceDTO dto) {
         LocationBienService location = findOrThrow(id);
+        // Les autres transitions ont leur propre endpoint (confirmer, annuler) ou n'ont pas de sens (retour en arriere)
+        boolean cloture = location.getStatut() == StatutLocationBienService.ACTIF && dto.getStatut() == StatutLocationBienService.TERMINE;
+        boolean annulation = location.getStatut() == StatutLocationBienService.EN_ATTENTE && dto.getStatut() == StatutLocationBienService.ANNULE;
+        if (!cloture && !annulation) {
+            throw new IllegalStateException("Transition de statut non autorisée : " + location.getStatut() + " vers " + dto.getStatut());
+        }
         location.setStatut(dto.getStatut());
         location.setUpdatedAt(LocalDateTime.now());
         locationBienServiceRepository.save(location);
@@ -227,6 +261,9 @@ public class LocationBienServiceService {
         }
 
         boolean estProlongation = dto.getNouvelleDateFin().isAfter(location.getDateFin());
+        if (estProlongation) {
+            verifierBienLibre(location, location.getDateDebut(), dto.getNouvelleDateFin());
+        }
 
         long nouvelleDuree =  ChronoUnit.DAYS.between(location.getDateDebut().toLocalDate(), dto.getNouvelleDateFin().toLocalDate());
 
@@ -360,8 +397,13 @@ public class LocationBienServiceService {
     /**
      * Historique des remboursements d'une location.
      */
-    public ResponseEntity<?> getRemboursements(Integer id) {
-        findOrThrow(id); // vérifie l'existence de la location
+    public ResponseEntity<?> getRemboursements(Integer id, UserDetailsImpl currentUser) {
+        LocationBienService location = findOrThrow(id); // vérifie l'existence de la location
+        boolean isClient = currentUser.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_CLIENT"));
+        if (isClient && !location.getClient().getIdUser().equals(currentUser.getIdUser())) {
+            throw new AccessDeniedException("Vous n'avez pas accès à cette location");
+        }
         List<RemboursementResponseDTO> result = remboursementRepository.findByEntiteTypeAndEntiteIdAndIsDeletedFalse(TypeEntiteRemboursement.LOCATION_BIEN_SERVICE,id)
                 .stream()
                 .map(r -> RemboursementResponseDTO.builder()
@@ -405,6 +447,16 @@ public class LocationBienServiceService {
         return buildSuccessResponse(HttpStatus.OK, "Demande annulée", "LOCATION_BIEN_SERVICE_CANCELLED", null);
     }
 
+    // Refuse si une autre location ACTIF du meme bien chevauche la periode demandee
+    private void verifierBienLibre(LocationBienService location, LocalDateTime debut, LocalDateTime fin) {
+        long conflits = locationBienServiceRepository.countChevauchements(
+                location.getBienService().getIdBienService(), StatutLocationBienService.ACTIF,
+                location.getIdLocationBienService(), debut, fin);
+        if (conflits > 0) {
+            throw new IllegalStateException("Ce bien est déjà loué sur tout ou partie de cette période");
+        }
+    }
+
     private LocationBienService findOrThrow(Integer id) {
         return locationBienServiceRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("locationBienService", id));
@@ -424,6 +476,8 @@ public class LocationBienServiceService {
                         .build())
                 .toList();
 
+        BigDecimal[] chiffres = calculerEncaisseRembourseSolde(l);
+
         return LocationBienServiceResponseDTO.builder()
                 .idLocationBienService(l.getIdLocationBienService())
                 .idClient(l.getClient().getIdUser())
@@ -437,6 +491,9 @@ public class LocationBienServiceService {
                 .montantTotal(l.getMontantTotal())
                 .statut(l.getStatut())
                 .historiquePaiements(historique)
+                .totalEncaisse(chiffres[0])
+                .totalRembourse(chiffres[1])
+                .solde(chiffres[2])
                 .build();
     }
 }

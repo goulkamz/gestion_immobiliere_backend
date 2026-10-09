@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.biens.controllers;
 
+import com.immobilier.gestionImmobiliere.donnees.biens.model.StatutLocationBienService;
 import com.immobilier.gestionImmobiliere.modules.biens.apis.LocationBienServiceAPI;
 import com.immobilier.gestionImmobiliere.modules.biens.dto.requests.*;
 import com.immobilier.gestionImmobiliere.modules.biens.services.LocationBienServiceService;
@@ -18,8 +19,8 @@ public class LocationBienServiceController implements LocationBienServiceAPI {
     }
 
     @Override
-    public ResponseEntity<?> getAll(Pageable pageable, UserDetailsImpl currentUser) {
-        return locationService.getAll(pageable, currentUser);
+    public ResponseEntity<?> getAll(StatutLocationBienService statut, String recherche, Pageable pageable, UserDetailsImpl currentUser) {
+        return locationService.getAll(statut, recherche, pageable, currentUser);
     }
 
     @Override
@@ -80,7 +81,7 @@ public class LocationBienServiceController implements LocationBienServiceAPI {
      * @return
      */
     @Override
-    public ResponseEntity<?> getRemboursements(Integer id) {
-        return locationService.getRemboursements(id);
+    public ResponseEntity<?> getRemboursements(Integer id, UserDetailsImpl currentUser) {
+        return locationService.getRemboursements(id, currentUser);
     }
 }

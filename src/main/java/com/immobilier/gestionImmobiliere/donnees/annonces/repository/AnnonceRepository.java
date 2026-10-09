@@ -5,12 +5,13 @@ import com.immobilier.gestionImmobiliere.donnees.annonces.model.StatutAnnonce;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
-public interface AnnonceRepository extends JpaRepository<Annonce, Integer> {
+public interface AnnonceRepository extends JpaRepository<Annonce, Integer>, JpaSpecificationExecutor<Annonce> {
     Page<Annonce> findByStatut(StatutAnnonce statut, Pageable pageable);
     List<Annonce> findByStatutAndDateExpirationBefore(StatutAnnonce statut, LocalDateTime date);
 

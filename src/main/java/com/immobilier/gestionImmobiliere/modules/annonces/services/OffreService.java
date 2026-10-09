@@ -14,6 +14,7 @@ import com.immobilier.gestionImmobiliere.modules.user.jwt.RateLimitService;
 import com.immobilier.gestionImmobiliere.utils.ClientIpResolver;
 import jakarta.servlet.http.HttpServletRequest;
 import com.immobilier.gestionImmobiliere.donnees.medias.model.TypeEntiteMedia;
+import com.immobilier.gestionImmobiliere.utils.RechercheSpecification;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -49,10 +50,9 @@ public class OffreService {
         this.mediaService = mediaService;
     }
 
-    public ResponseEntity<?> getAll(StatutOffre statut, Pageable pageable) {
-        Page<Offre> offres = statut != null
-                ? offreRepository.findByStatut(statut, pageable)
-                : offreRepository.findAll(pageable);
+    public ResponseEntity<?> getAll(StatutOffre statut, String recherche, Pageable pageable) {
+        Page<Offre> offres = offreRepository.findAll(
+                RechercheSpecification.<Offre>statutEtTexte(statut, recherche, "nomComplet", "email", "titre", "adresse", "typeOffre"), pageable);
         Page<OffreResponseDTO> page = offres.map(this::toDto);
         return buildSuccessResponse(HttpStatus.OK, "Liste des offres", "OFFRE_LIST", page);
     }

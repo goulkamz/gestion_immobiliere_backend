@@ -21,8 +21,8 @@ public class OffreAdminController implements OffreAdminAPI {
 
     @Override
     @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
-    public ResponseEntity<?> getAll(StatutOffre statut,Pageable pageable) {
-        return offreService.getAll( statut,pageable);
+    public ResponseEntity<?> getAll(StatutOffre statut, String recherche, Pageable pageable) {
+        return offreService.getAll(statut, recherche, pageable);
     }
 
     @Override

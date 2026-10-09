@@ -14,7 +14,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
-public interface ContratMandatRepository extends JpaRepository<ContratMandat, Integer> {
+public interface ContratMandatRepository extends JpaRepository<ContratMandat, Integer>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<ContratMandat> {
     Page<ContratMandat> findByCour_IdCour(Integer idCour, Pageable pageable);
     Page<ContratMandat> findByStatut(StatutMandat statut, Pageable pageable);
     boolean existsByCour_IdCourAndStatut(Integer idCour, StatutMandat statut);

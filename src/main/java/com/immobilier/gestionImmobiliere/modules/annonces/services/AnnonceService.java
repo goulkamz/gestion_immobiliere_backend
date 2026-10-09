@@ -10,6 +10,7 @@ import com.immobilier.gestionImmobiliere.modules.annonces.dto.requests.UpdateAnn
 import com.immobilier.gestionImmobiliere.modules.annonces.dto.requests.UpdateStatutAnnonceDTO;
 import com.immobilier.gestionImmobiliere.modules.annonces.dto.responses.AnnonceResponseDTO;
 import com.immobilier.gestionImmobiliere.modules.journal.services.JournalService;
+import com.immobilier.gestionImmobiliere.utils.RechercheSpecification;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -32,8 +33,10 @@ public class AnnonceService {
         this.annonceRepository = annonceRepository;
     }
 
-    public ResponseEntity<?> getAll(StatutAnnonce statut, Pageable pageable) {
-        Page<Annonce> page = statut != null ? annonceRepository.findByStatut(statut, pageable) : annonceRepository.findAll(pageable);
+    public ResponseEntity<?> getAll(StatutAnnonce statut, String recherche, Pageable pageable) {
+        // Statut et recherche (titre, type, localisation) appliques cote base avant la pagination ; optionnels pour le site public
+        Page<Annonce> page = annonceRepository.findAll(
+                RechercheSpecification.<Annonce>statutEtTexte(statut, recherche, "titre", "typeAnnonce", "localisation"), pageable);
         return buildSuccessResponse(HttpStatus.OK, "Liste des annonces", "ANNONCE_LIST", page.map(this::toDto));
     }
 

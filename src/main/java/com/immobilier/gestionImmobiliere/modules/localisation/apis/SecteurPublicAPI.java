@@ -9,7 +9,9 @@ import org.springframework.web.bind.annotation.*;
 public interface SecteurPublicAPI {
 
     @GetMapping
-    ResponseEntity<?> getAll(@RequestParam(required = false) Integer idVille, Pageable pageable);
+    ResponseEntity<?> getAll(@RequestParam(required = false) Integer idVille,
+                             @RequestParam(required = false) String recherche,
+                             Pageable pageable);
 
     @GetMapping("/{id}")
     ResponseEntity<?> getById(@PathVariable Integer id);

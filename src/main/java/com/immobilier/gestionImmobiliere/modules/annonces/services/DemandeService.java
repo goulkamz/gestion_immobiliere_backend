@@ -11,6 +11,7 @@ import com.immobilier.gestionImmobiliere.modules.annonces.dto.responses.DemandeR
 import com.immobilier.gestionImmobiliere.modules.user.jwt.RateLimitService;
 import com.immobilier.gestionImmobiliere.utils.ClientIpResolver;
 import jakarta.servlet.http.HttpServletRequest;
+import com.immobilier.gestionImmobiliere.utils.RechercheSpecification;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -35,8 +36,9 @@ public class DemandeService {
         this.clientIpResolver = clientIpResolver;
     }
 
-    public ResponseEntity<?> getAll(StatutDemande statut, Pageable pageable) {
-        Page<Demande> page = statut != null ? demandeRepository.findByStatut(statut, pageable) : demandeRepository.findAll(pageable);
+    public ResponseEntity<?> getAll(StatutDemande statut, String recherche, Pageable pageable) {
+        Page<Demande> page = demandeRepository.findAll(
+                RechercheSpecification.<Demande>statutEtTexte(statut, recherche, "nomComplet", "email", "typeBien", "localisationSouhaite", "description"), pageable);
         return buildSuccessResponse(HttpStatus.OK, "Liste des demandes", "DEMANDE_LIST", page.map(this::toDto));
     }
 

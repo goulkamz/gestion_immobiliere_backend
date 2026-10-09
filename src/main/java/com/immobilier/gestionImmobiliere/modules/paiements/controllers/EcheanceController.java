@@ -25,11 +25,13 @@ public class EcheanceController implements EcheanceAPI {
     }
 
     @Override
-    public ResponseEntity<?> getAll(TypeEcheance type, Integer entiteId, StatutEcheance statut, Pageable pageable,
+    public ResponseEntity<?> getAll(TypeEcheance type, Integer entiteId, StatutEcheance statut, String recherche,
+                                    String referenceCour, String periode, Pageable pageable,
                                     @AuthenticationPrincipal UserDetailsImpl currentUser) {
         boolean isAdminOrAgent = currentUser.hasAnyRole("ADMIN", "AGENT");
         boolean isBailleur = currentUser.hasRole("BAILLEUR");
-        return echeanceService.getAllForCurrentUser(type, entiteId, statut, currentUser.getIdUser(), isAdminOrAgent, isBailleur, pageable);
+        return echeanceService.getAllForCurrentUser(type, entiteId, statut, recherche, referenceCour, periode,
+                currentUser.getIdUser(), isAdminOrAgent, isBailleur, pageable);
     }
 
     @Override
@@ -61,6 +63,12 @@ public class EcheanceController implements EcheanceAPI {
     @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
     public ResponseEntity<?> calculerReversementMandat(Integer idMandat, LocalDate periode, UserDetailsImpl currentUser) {
         return echeanceService.calculerReversementMandat(idMandat,periode,currentUser.getIdUser());
+    }
+
+    @Override
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
+    public ResponseEntity<?> calculerReversementsTousMandats(LocalDate periode, UserDetailsImpl currentUser) {
+        return echeanceService.calculerReversementsTousMandats(periode, currentUser.getIdUser());
     }
 
     /**

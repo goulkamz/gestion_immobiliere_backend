@@ -20,14 +20,19 @@ import com.immobilier.gestionImmobiliere.modules.reservations.dto.requests.Creat
 import com.immobilier.gestionImmobiliere.modules.reservations.dto.responses.ReservationResponseDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PostAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.Predicate;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
@@ -53,13 +58,13 @@ public class ReservationService {
         this.mandatRepository = mandatRepository;
     }
 
-    public ResponseEntity<?> getAllForCurrentUser(Integer idMaison, Integer currentUserId,
-                                                  boolean isAdminOrAgent, boolean isBailleur, Pageable pageable) {
+    public ResponseEntity<?> getAllForCurrentUser(Integer idMaison, StatutReservation statut, String recherche,
+                                                  Integer currentUserId, boolean isAdminOrAgent, boolean isBailleur,
+                                                  Pageable pageable) {
         Page<ReservationMaison> page;
         if (isAdminOrAgent) {
-            page = (idMaison != null)
-                    ? reservationRepository.findByMaison_IdMaison(idMaison, pageable)
-                    : reservationRepository.findAll(pageable);
+            // Filtres appliqués côté serveur pour que la pagination reste cohérente
+            page = reservationRepository.findAll(filtrer(idMaison, statut, recherche), pageable);
         } else if (isBailleur) {
             page = reservationRepository.findByMaison_Cour_Proprietaire_IdUser(currentUserId, pageable);
         } else {
@@ -67,6 +72,28 @@ public class ReservationService {
             page = reservationRepository.findByUser_IdUser(currentUserId, pageable);
         }
         return buildSuccessResponse(HttpStatus.OK, "Liste réservations", "RESERVATION_LIST", page.map(this::toDto));
+    }
+
+    // Recherche insensible à la casse sur le nom de la maison ou le nom/prénom du client
+    private Specification<ReservationMaison> filtrer(Integer idMaison, StatutReservation statut, String recherche) {
+        return (root, query, cb) -> {
+            List<Predicate> predicats = new ArrayList<>();
+            if (idMaison != null) {
+                predicats.add(cb.equal(root.get("maison").get("idMaison"), idMaison));
+            }
+            if (statut != null) {
+                predicats.add(cb.equal(root.get("statut"), statut));
+            }
+            if (recherche != null && !recherche.isBlank()) {
+                String motif = "%" + recherche.trim().toLowerCase() + "%";
+                Join<Object, Object> maison = root.join("maison");
+                Join<Object, Object> user = root.join("user");
+                predicats.add(cb.or(
+                        cb.like(cb.lower(maison.get("nomCommunMaison")), motif),
+                        cb.like(cb.lower(cb.concat(cb.concat(user.get("nom"), " "), user.get("prenom"))), motif)));
+            }
+            return cb.and(predicats.toArray(new Predicate[0]));
+        };
     }
 
     public ResponseEntity<?> getByIdForCurrentUser(Integer id, Integer currentUserId, boolean isAdminOrAgent) {
@@ -84,6 +111,13 @@ public class ReservationService {
         // RG — maison doit être disponible
         if (maison.getStatut() != StatutMaison.DISPONIBLE) {
             throw new MaisonIndisponibleException(maison.getIdMaison());
+        }
+
+        // RG — la maison n'est proposée au public que si sa cour a un mandat ACTIF GESTION ou LOCATION
+        Integer idCourMaison = maison.getCour().getIdCour();
+        if (!mandatRepository.existsByCour_IdCourAndStatutAndTypeMandatIn(
+                idCourMaison, StatutMandat.ACTIF, List.of(TypeMandat.GESTION, TypeMandat.LOCATION))) {
+            throw new MandatInsuffisantException(idCourMaison, "Cette maison n'est plus proposée à la réservation.");
         }
 
         // dateFin n'est qu'un marqueur technique d'expiration du blocage (pas la durée
@@ -212,6 +246,8 @@ public class ReservationService {
                 .idReservation(r.getIdReservation())
                 .idUser(r.getUser().getIdUser())
                 .nomUser(r.getUser().getNom() + " " + r.getUser().getPrenom())
+                .emailUser(r.getUser().getEmail())
+                .telephoneUser(r.getUser().getTelephone())
                 .idMaison(r.getMaison().getIdMaison())
                 .nomCommunMaison(r.getMaison().getNomCommunMaison())
                 .dateDebut(r.getDateDebut())

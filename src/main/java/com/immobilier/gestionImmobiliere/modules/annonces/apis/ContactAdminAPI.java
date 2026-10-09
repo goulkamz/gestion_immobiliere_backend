@@ -14,7 +14,8 @@ import org.springframework.web.bind.annotation.*;
 public interface ContactAdminAPI {
 
     @GetMapping
-    ResponseEntity<?> getAll(@RequestParam(required = false) StatutContact statut, Pageable pageable);
+    ResponseEntity<?> getAll(@RequestParam(required = false) StatutContact statut,
+                             @RequestParam(required = false) String recherche, Pageable pageable);
 
     @PatchMapping("/{id}/statut")
     ResponseEntity<?> updateStatut(@PathVariable Integer id, @Valid @RequestBody UpdateStatutContactDTO dto);

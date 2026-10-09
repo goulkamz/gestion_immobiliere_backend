@@ -1,10 +1,19 @@
 package com.immobilier.gestionImmobiliere.modules.biens.services;
 
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.Predicate;
+import org.springframework.data.jpa.domain.Specification;
+import java.util.ArrayList;
+import java.util.List;
+
 import com.immobilier.gestionImmobiliere.donnees.biens.model.Cour;
 import com.immobilier.gestionImmobiliere.donnees.biens.model.Maison;
 import com.immobilier.gestionImmobiliere.donnees.biens.model.StatutMaison;
 import com.immobilier.gestionImmobiliere.donnees.biens.repository.CourRepository;
 import com.immobilier.gestionImmobiliere.donnees.biens.repository.MaisonRepository;
+import com.immobilier.gestionImmobiliere.donnees.contrats.model.StatutMandat;
+import com.immobilier.gestionImmobiliere.donnees.contrats.model.TypeMandat;
+import com.immobilier.gestionImmobiliere.donnees.contrats.repository.ContratMandatRepository;
 import com.immobilier.gestionImmobiliere.exceptions.InvalidStatutTransitionException;
 import com.immobilier.gestionImmobiliere.exceptions.ResourceNotFoundException;
 import com.immobilier.gestionImmobiliere.modules.biens.dto.requests.CreateMaisonDTO;
@@ -12,16 +21,19 @@ import com.immobilier.gestionImmobiliere.modules.biens.dto.requests.UpdateMaison
 import com.immobilier.gestionImmobiliere.modules.biens.dto.requests.UpdateStatutMaisonDTO;
 import com.immobilier.gestionImmobiliere.modules.biens.dto.responses.MaisonResponseDTO;
 import com.immobilier.gestionImmobiliere.modules.journal.services.JournalService;
+import com.immobilier.gestionImmobiliere.modules.user.jwtService.UserDetailsImpl;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.EnumMap;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 
 import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
@@ -40,21 +52,80 @@ public class MaisonService {
 
     private final MaisonRepository maisonRepository;
     private final CourRepository courRepository;
+    private final ContratMandatRepository mandatRepository;
 
-    public MaisonService(MaisonRepository maisonRepository, CourRepository courRepository) {
+    public MaisonService(MaisonRepository maisonRepository, CourRepository courRepository,
+                         ContratMandatRepository mandatRepository) {
         this.maisonRepository = maisonRepository;
         this.courRepository = courRepository;
+        this.mandatRepository = mandatRepository;
     }
 
-    public ResponseEntity<?> getAll(Integer idCour, StatutMaison statut, Pageable pageable) {
-        Page<Maison> page = idCour != null
-                ? maisonRepository.findByCour_IdCour(idCour, pageable)
-                : (statut != null ? maisonRepository.findByStatut(statut, pageable) : maisonRepository.findAll(pageable));
+    // Catalogue public : uniquement les maisons DISPONIBLES dont la cour a un mandat ACTIF GESTION ou LOCATION
+    public ResponseEntity<?> getAllPublic(Integer idCour, String recherche, Pageable pageable) {
+        String motif = recherche == null || recherche.isBlank() ? "%" : "%" + recherche.trim().toLowerCase() + "%";
+        Page<Maison> page = maisonRepository.findCataloguePublic(idCour, motif, pageable);
         return buildSuccessResponse(HttpStatus.OK, "Liste des maisons", "MAISON_LIST", page.map(this::toDto));
     }
 
-    public ResponseEntity<?> getById(Integer id) {
-        return buildSuccessResponse(HttpStatus.OK, "Maison trouvée", "MAISON_FOUND", toDto(findOrThrow(id)));
+    // Une maison DISPONIBLE sans mandat valide n'existe pas pour le public ; les autres statuts
+    // (réservée, louée...) restent consultables par ceux qui ont une réservation ou un contrat dessus.
+    public ResponseEntity<?> getByIdPublic(Integer id) {
+        Maison maison = findOrThrow(id);
+        if (maison.getStatut() == StatutMaison.DISPONIBLE && !aMandatLocatif(maison)) {
+            throw new ResourceNotFoundException("maison", id);
+        }
+        return buildSuccessResponse(HttpStatus.OK, "Maison trouvée", "MAISON_FOUND", toDto(maison));
+    }
+
+    // Vue authentifiée : agent/admin voient toutes les maisons, un bailleur seulement celles de ses cours
+    public ResponseEntity<?> getAllPourUtilisateur(Integer idCour, StatutMaison statut, String recherche, Pageable pageable,
+                                                   UserDetailsImpl currentUser) {
+        Integer idProprietaire = estBailleur(currentUser) ? currentUser.getIdUser() : null;
+        Page<Maison> page = maisonRepository.findAll(filtrer(idCour, statut, idProprietaire, recherche), pageable);
+        return buildSuccessResponse(HttpStatus.OK, "Liste des maisons", "MAISON_LIST", page.map(this::toDto));
+    }
+
+    // Recherche insensible à la casse sur le nom, le type de la maison ou la référence de sa cour
+    private Specification<Maison> filtrer(Integer idCour, StatutMaison statut, Integer idProprietaire, String recherche) {
+        return (root, query, cb) -> {
+            List<Predicate> predicats = new ArrayList<>();
+            if (idCour != null) {
+                predicats.add(cb.equal(root.get("cour").get("idCour"), idCour));
+            }
+            if (statut != null) {
+                predicats.add(cb.equal(root.get("statut"), statut));
+            }
+            if (idProprietaire != null) {
+                predicats.add(cb.equal(root.get("cour").get("proprietaire").get("idUser"), idProprietaire));
+            }
+            if (recherche != null && !recherche.isBlank()) {
+                String motif = "%" + recherche.trim().toLowerCase() + "%";
+                Join<Object, Object> cour = root.join("cour");
+                predicats.add(cb.or(
+                        cb.like(cb.lower(root.<String>get("nomCommunMaison")), motif),
+                        cb.like(cb.lower(root.<String>get("typeMaison")), motif),
+                        cb.like(cb.lower(cour.<String>get("referenceCour")), motif)));
+            }
+            return cb.and(predicats.toArray(new Predicate[0]));
+        };
+    }
+
+    public ResponseEntity<?> getByIdPourUtilisateur(Integer id, UserDetailsImpl currentUser) {
+        Maison maison = findOrThrow(id);
+        if (estBailleur(currentUser) && !maison.getCour().getProprietaire().getIdUser().equals(currentUser.getIdUser())) {
+            throw new AccessDeniedException("Vous n'avez pas accès à ce bien");
+        }
+        return buildSuccessResponse(HttpStatus.OK, "Maison trouvée", "MAISON_FOUND", toDto(maison));
+    }
+
+    private boolean aMandatLocatif(Maison maison) {
+        return mandatRepository.existsByCour_IdCourAndStatutAndTypeMandatIn(
+                maison.getCour().getIdCour(), StatutMandat.ACTIF, List.of(TypeMandat.GESTION, TypeMandat.LOCATION));
+    }
+
+    private boolean estBailleur(UserDetailsImpl currentUser) {
+        return currentUser.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_BAILLEUR"));
     }
 
     @Transactional

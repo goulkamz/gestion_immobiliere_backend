@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import com.immobilier.gestionImmobiliere.donnees.biens.model.StatutBienService;
 
 @RequestMapping("/api/public/biens-services")
 public interface BienServicePublicAPI {
@@ -13,6 +14,8 @@ public interface BienServicePublicAPI {
     @GetMapping
     ResponseEntity<?> getAll(@RequestParam(required = false) Integer idSecteur,
                              @RequestParam(required = false) Integer idCategorie,
+                             @RequestParam(required = false) String recherche,
+                             @RequestParam(required = false) StatutBienService disponibilite,
                              Pageable pageable);
 
     @GetMapping("/{id}")

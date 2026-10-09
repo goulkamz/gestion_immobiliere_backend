@@ -11,6 +11,7 @@ import com.immobilier.gestionImmobiliere.modules.annonces.dto.responses.ContactR
 import com.immobilier.gestionImmobiliere.modules.user.jwt.RateLimitService;
 import com.immobilier.gestionImmobiliere.utils.ClientIpResolver;
 import jakarta.servlet.http.HttpServletRequest;
+import com.immobilier.gestionImmobiliere.utils.RechercheSpecification;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -35,8 +36,9 @@ public class ContactService {
         this.clientIpResolver = clientIpResolver;
     }
 
-    public ResponseEntity<?> getAll(StatutContact statut, Pageable pageable) {
-        Page<Contact> page = statut != null ? contactRepository.findByStatut(statut, pageable) : contactRepository.findAll(pageable);
+    public ResponseEntity<?> getAll(StatutContact statut, String recherche, Pageable pageable) {
+        Page<Contact> page = contactRepository.findAll(
+                RechercheSpecification.<Contact>statutEtTexte(statut, recherche, "nomComplet", "email", "sujet", "message"), pageable);
         return buildSuccessResponse(HttpStatus.OK, "Liste des contacts", "CONTACT_LIST", page.map(this::toDto));
     }
 

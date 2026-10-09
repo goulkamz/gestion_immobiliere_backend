@@ -23,6 +23,18 @@ public class MaisonController implements MaisonAPI {
     }
 
     @Override
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN','BAILLEUR')")
+    public ResponseEntity<?> getAll(Integer idCour, StatutMaison statut, String recherche, Pageable pageable, @AuthenticationPrincipal UserDetailsImpl currentUser) {
+        return maisonService.getAllPourUtilisateur(idCour, statut, recherche, pageable, currentUser);
+    }
+
+    @Override
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN','BAILLEUR')")
+    public ResponseEntity<?> getById(Integer id, @AuthenticationPrincipal UserDetailsImpl currentUser) {
+        return maisonService.getByIdPourUtilisateur(id, currentUser);
+    }
+
+    @Override
     @PreAuthorize("hasRole('AGENT')")
     public ResponseEntity<?> create(CreateMaisonDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser) {
         return maisonService.create(dto, currentUser.getIdUser());

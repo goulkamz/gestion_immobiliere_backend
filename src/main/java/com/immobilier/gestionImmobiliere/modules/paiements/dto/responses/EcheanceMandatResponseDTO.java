@@ -11,6 +11,7 @@ import java.time.LocalDate;
 public class EcheanceMandatResponseDTO {
     private Integer idEcheance;
     private Integer idMandat;
+    private String referenceCour;
     private LocalDate periodeMois;
     private BigDecimal montantLoyersDus;   // null si non recalculé (ex: liste getEnAttente)
     private BigDecimal commissionDeduite;

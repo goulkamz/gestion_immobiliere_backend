@@ -17,6 +17,7 @@ public interface ContratMandatAPI {
     @GetMapping
     ResponseEntity<?> getAll(@RequestParam(required = false) Integer idCour,
                              @RequestParam(required = false) StatutMandat statut,
+                             @RequestParam(required = false) String recherche,
                              Pageable pageable,@AuthenticationPrincipal UserDetailsImpl currentUser);
 
     @GetMapping("/{id}")

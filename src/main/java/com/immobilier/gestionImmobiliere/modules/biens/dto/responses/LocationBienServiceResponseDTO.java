@@ -22,5 +22,9 @@ public class LocationBienServiceResponseDTO {
     private BigDecimal montantTotal;
     private StatutLocationBienService statut;
     private List<PaiementLocationBienServiceResponseDTO> historiquePaiements;
+    // Soldes : montantTotal - totalEncaisse + totalRembourse (negatif = trop-percu a rembourser)
+    private BigDecimal totalEncaisse;
+    private BigDecimal totalRembourse;
+    private BigDecimal solde;
 
 }

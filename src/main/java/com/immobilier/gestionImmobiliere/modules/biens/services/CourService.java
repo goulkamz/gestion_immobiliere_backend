@@ -1,7 +1,16 @@
 package com.immobilier.gestionImmobiliere.modules.biens.services;
 
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.Predicate;
+import org.springframework.data.jpa.domain.Specification;
+import java.util.ArrayList;
+import java.util.List;
+
 import com.immobilier.gestionImmobiliere.donnees.biens.model.Cour;
 import com.immobilier.gestionImmobiliere.donnees.biens.model.Maison;
+import com.immobilier.gestionImmobiliere.donnees.contrats.model.ContratMandat;
+import com.immobilier.gestionImmobiliere.donnees.contrats.model.StatutMandat;
+import jakarta.persistence.criteria.Subquery;
 import com.immobilier.gestionImmobiliere.donnees.biens.model.StatutMaison;
 import com.immobilier.gestionImmobiliere.donnees.biens.repository.CourRepository;
 import com.immobilier.gestionImmobiliere.donnees.biens.repository.MaisonRepository;
@@ -43,26 +52,48 @@ public class CourService {
     }
 
 
-    public ResponseEntity<?> getAll(Integer idSecteur, Pageable pageable, UserDetailsImpl currentUser) {
+    // Recherche insensible à la casse sur la référence, le lot, le secteur ou le nom du bailleur
+    private Specification<Cour> filtrer(Integer idSecteur, String recherche, Integer idProprietaire, boolean sansMandatActif) {
+        return (root, query, cb) -> {
+            List<Predicate> predicats = new ArrayList<>();
+            if (idSecteur != null) {
+                predicats.add(cb.equal(root.get("secteur").get("idSecteur"), idSecteur));
+            }
+            if (idProprietaire != null) {
+                predicats.add(cb.equal(root.get("proprietaire").get("idUser"), idProprietaire));
+            }
+            if (sansMandatActif) {
+                // Cours n'ayant aucun mandat ACTIF (une cour ne peut en avoir qu'un à la fois)
+                Subquery<Integer> actifs = query.subquery(Integer.class);
+                var mandat = actifs.from(ContratMandat.class);
+                actifs.select(mandat.get("cour").get("idCour"))
+                        .where(cb.equal(mandat.get("statut"), StatutMandat.ACTIF));
+                predicats.add(cb.not(root.get("idCour").in(actifs)));
+            }
+            if (recherche != null && !recherche.isBlank()) {
+                String motif = "%" + recherche.trim().toLowerCase() + "%";
+                Join<Object, Object> secteur = root.join("secteur");
+                Join<Object, Object> proprietaire = root.join("proprietaire");
+                predicats.add(cb.or(
+                        cb.like(cb.lower(root.<String>get("referenceCour")), motif),
+                        cb.like(cb.lower(root.<String>get("lotCour")), motif),
+                        cb.like(cb.lower(secteur.<String>get("nomSecteur")), motif),
+                        cb.like(cb.lower(cb.concat(cb.concat(proprietaire.<String>get("nom"), " "), proprietaire.<String>get("prenom"))), motif)));
+            }
+            return cb.and(predicats.toArray(new Predicate[0]));
+        };
+    }
 
-        Page<CourResponseDTO> result;
+    public ResponseEntity<?> getAll(Integer idSecteur, String recherche, Boolean sansMandatActif, Pageable pageable, UserDetailsImpl currentUser) {
 
         boolean isBailleur = currentUser.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_BAILLEUR"));
 
-        if (isBailleur) {
-            // Un bailleur ne voit QUE ses propres cours, quel que soit idSecteur demandé
-            result = (idSecteur != null
-                    ? courRepository.findBySecteur_IdSecteurAndProprietaire_IdUser(idSecteur, currentUser.getIdUser(), pageable)
-                    : courRepository.findByProprietaire_IdUser(currentUser.getIdUser(), pageable)
-            ).map(this::toDto);
-        } else {
-            // Agent / Admin : vue globale, filtrée seulement par secteur si fourni
-            result = (idSecteur != null
-                    ? courRepository.findBySecteur_IdSecteur(idSecteur, pageable)
-                    : courRepository.findAll(pageable)
-            ).map(this::toDto);
-        }
+        // Un bailleur ne voit QUE ses propres cours ; agent / admin : vue globale.
+        // Secteur et recherche sont appliqués côté base avant la pagination.
+        Page<CourResponseDTO> result = courRepository
+                .findAll(filtrer(idSecteur, recherche, isBailleur ? currentUser.getIdUser() : null, Boolean.TRUE.equals(sansMandatActif)), pageable)
+                .map(this::toDto);
 
         return buildSuccessResponse(HttpStatus.OK, "Liste des cours", "COUR_LIST", result);
     }

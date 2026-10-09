@@ -15,14 +15,19 @@ import com.immobilier.gestionImmobiliere.modules.biens.dto.requests.CreateBienSe
 import com.immobilier.gestionImmobiliere.modules.biens.dto.requests.UpdateBienServiceDTO;
 import com.immobilier.gestionImmobiliere.modules.biens.dto.requests.UpdateDisponibiliteBienServiceDTO;
 import com.immobilier.gestionImmobiliere.modules.biens.dto.responses.BienServiceResponseDTO;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
 
@@ -42,18 +47,38 @@ public class BienServiceService {
         this.userRepository = userRepository;
     }
 
-    public ResponseEntity<?> getAll(Integer idSecteur, Integer idCategorie, Pageable pageable) {
-        Page<BienServiceResponseDTO> result;
-        if (idSecteur != null && idCategorie != null) {
-            result = bienServiceRepository.findBySecteur_IdSecteurAndCategorie_IdCategorie(idSecteur, idCategorie, pageable).map(this::toDto);
-        } else if (idSecteur != null) {
-            result = bienServiceRepository.findBySecteur_IdSecteur(idSecteur, pageable).map(this::toDto);
-        } else if (idCategorie != null) {
-            result = bienServiceRepository.findByCategorie_IdCategorie(idCategorie, pageable).map(this::toDto);
-        } else {
-            result = bienServiceRepository.findAll(pageable).map(this::toDto);
-        }
+    public ResponseEntity<?> getAll(Integer idSecteur, Integer idCategorie, String recherche, StatutBienService disponibilite, Pageable pageable) {
+        // Filtres (secteur, categorie, recherche) appliques cote base avant la pagination ; tous optionnels
+        Page<BienServiceResponseDTO> result = bienServiceRepository
+                .findAll(filtrer(idSecteur, idCategorie, recherche, disponibilite), pageable)
+                .map(this::toDto);
         return buildSuccessResponse(HttpStatus.OK, "Liste des biens/services", "BIEN_SERVICE_LIST", result);
+    }
+
+    // Recherche insensible a la casse sur le libelle du bien, sa categorie ou son secteur
+    private Specification<BienService> filtrer(Integer idSecteur, Integer idCategorie, String recherche, StatutBienService disponibilite) {
+        return (root, query, cb) -> {
+            List<Predicate> predicats = new ArrayList<>();
+            if (idSecteur != null) {
+                predicats.add(cb.equal(root.get("secteur").get("idSecteur"), idSecteur));
+            }
+            if (idCategorie != null) {
+                predicats.add(cb.equal(root.get("categorie").get("idCategorie"), idCategorie));
+            }
+            if (disponibilite != null) {
+                predicats.add(cb.equal(root.get("disponibilite"), disponibilite));
+            }
+            if (recherche != null && !recherche.isBlank()) {
+                String motif = "%" + recherche.trim().toLowerCase() + "%";
+                Join<Object, Object> categorie = root.join("categorie");
+                Join<Object, Object> secteur = root.join("secteur");
+                predicats.add(cb.or(
+                        cb.like(cb.lower(root.<String>get("libelle")), motif),
+                        cb.like(cb.lower(categorie.<String>get("libelle")), motif),
+                        cb.like(cb.lower(secteur.<String>get("nomSecteur")), motif)));
+            }
+            return cb.and(predicats.toArray(new Predicate[0]));
+        };
     }
 
     public ResponseEntity<?> getById(Integer id) {

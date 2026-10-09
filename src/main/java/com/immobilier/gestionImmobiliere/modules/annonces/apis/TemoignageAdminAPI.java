@@ -17,6 +17,7 @@ public interface TemoignageAdminAPI {
     // Moderation : tous statuts confondus ; ?statut=EN_ATTENTE = file d'attente de validation
     @GetMapping
     ResponseEntity<?> getAll(@RequestParam(required = false) StatutTemoignage statut,
+                             @RequestParam(required = false) String recherche,
                              @PageableDefault(sort = "idTemoignage", direction = Sort.Direction.DESC) Pageable pageable);
 
     // Saisie par l'agence

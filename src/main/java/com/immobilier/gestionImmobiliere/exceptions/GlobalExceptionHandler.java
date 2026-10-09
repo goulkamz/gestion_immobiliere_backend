@@ -189,6 +189,11 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage(), "MANDAT_ACTIF_EXISTANT", ex);
     }
 
+    @ExceptionHandler(CategorieUtiliseeException.class)
+    public ResponseEntity<?> handleCategorieUtilisee(CategorieUtiliseeException ex) {
+        return buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage(), "CATEGORIE_UTILISEE", ex);
+    }
+
     @ExceptionHandler(MandatInsuffisantException.class)
     public ResponseEntity<?> handleMandatInsuffisant(MandatInsuffisantException ex) {
         return buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage(), "MANDAT_INSUFFISANT", ex);

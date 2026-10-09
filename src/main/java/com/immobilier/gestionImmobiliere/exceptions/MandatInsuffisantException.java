@@ -5,4 +5,8 @@ public class MandatInsuffisantException extends RuntimeException {
         super("Aucun mandat actif de type GESTION ou LOCATION pour la cour id : " + idCour
                 + ". Créez ou activez un mandat avant de convertir la réservation.");
     }
+
+    public MandatInsuffisantException(Integer idCour, String consequence) {
+        super("Aucun mandat actif de type GESTION ou LOCATION pour la cour id : " + idCour + ". " + consequence);
+    }
 }

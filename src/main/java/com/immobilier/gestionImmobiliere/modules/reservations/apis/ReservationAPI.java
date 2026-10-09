@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.reservations.apis;
 
+import com.immobilier.gestionImmobiliere.donnees.reservations.model.StatutReservation;
 import com.immobilier.gestionImmobiliere.modules.reservations.dto.requests.CreateReservationDTO;
 import com.immobilier.gestionImmobiliere.modules.user.jwtService.UserDetailsImpl;
 import jakarta.validation.Valid;
@@ -16,7 +17,10 @@ import java.time.LocalDateTime;
 public interface ReservationAPI {
 
     @GetMapping
-    ResponseEntity<?> getAll(@RequestParam(required = false) Integer idMaison, Pageable pageable,
+    ResponseEntity<?> getAll(@RequestParam(required = false) Integer idMaison,
+                             @RequestParam(required = false) StatutReservation statut,
+                             @RequestParam(required = false) String recherche,
+                             Pageable pageable,
                              @AuthenticationPrincipal UserDetailsImpl currentUser);
 
     @GetMapping("/{id}")

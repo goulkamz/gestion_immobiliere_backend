@@ -29,11 +29,11 @@ public class ContratLocationController implements ContratLocationAPI {
 
     @Override
     @PreAuthorize("hasAnyRole('AGENT','ADMIN','CLIENT','BAILLEUR')")
-    public ResponseEntity<?> getAll(Integer idMaison, Integer idLocataire, Pageable pageable,
+    public ResponseEntity<?> getAll(Integer idMaison, Integer idLocataire, String recherche, Pageable pageable,
                                     @AuthenticationPrincipal UserDetailsImpl currentUser) {
         boolean isAdminOrAgent = currentUser.hasAnyRole("ADMIN", "AGENT");
         boolean isBailleur = currentUser.hasRole("BAILLEUR");
-        return locationService.getAllForCurrentUser(idMaison, idLocataire, currentUser.getIdUser(), isAdminOrAgent, isBailleur, pageable);
+        return locationService.getAllForCurrentUser(idMaison, idLocataire, recherche, currentUser.getIdUser(), isAdminOrAgent, isBailleur, pageable);
     }
 
 

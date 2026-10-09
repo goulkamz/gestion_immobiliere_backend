@@ -1,5 +1,11 @@
 package com.immobilier.gestionImmobiliere.modules.contrats.services;
 
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.Predicate;
+import org.springframework.data.jpa.domain.Specification;
+import java.util.ArrayList;
+import java.util.List;
+
 import com.immobilier.gestionImmobiliere.donnees.biens.model.Cour;
 import com.immobilier.gestionImmobiliere.donnees.biens.model.Maison;
 import com.immobilier.gestionImmobiliere.donnees.biens.model.StatutMaison;
@@ -51,21 +57,40 @@ public class ContratMandatService {
         this.echeanceService = echeanceService;
     }
 
-    public ResponseEntity<?> getAllForCurrentUser(Integer idCour, StatutMandat statut,
+    public ResponseEntity<?> getAllForCurrentUser(Integer idCour, StatutMandat statut, String recherche,
                                                   Integer currentUserId, boolean isAdminOrAgent,
                                                   Pageable pageable) {
-        Page<ContratMandat> page;
-
-        if (isAdminOrAgent) {
-            page = idCour != null
-                    ? mandatRepository.findByCour_IdCour(idCour, pageable)
-                    : (statut != null ? mandatRepository.findByStatut(statut, pageable) : mandatRepository.findAll(pageable));
-        } else {
-            // BAILLEUR : uniquement les mandats sur ses propres cours
-            page = mandatRepository.findByCour_Proprietaire_IdUser(currentUserId, pageable);
-        }
+        // BAILLEUR : uniquement les mandats sur ses propres cours
+        Page<ContratMandat> page = mandatRepository.findAll(
+                filtrer(idCour, statut, recherche, isAdminOrAgent ? null : currentUserId), pageable);
 
         return buildSuccessResponse(HttpStatus.OK, "Liste des mandats", "MANDAT_LIST", page.map(this::toDto));
+    }
+
+    // Recherche insensible à la casse sur la référence ou le lot de la cour, ou le nom du bailleur
+    private Specification<ContratMandat> filtrer(Integer idCour, StatutMandat statut, String recherche, Integer idProprietaire) {
+        return (root, query, cb) -> {
+            List<Predicate> predicats = new ArrayList<>();
+            if (idCour != null) {
+                predicats.add(cb.equal(root.get("cour").get("idCour"), idCour));
+            }
+            if (statut != null) {
+                predicats.add(cb.equal(root.get("statut"), statut));
+            }
+            if (idProprietaire != null) {
+                predicats.add(cb.equal(root.get("cour").get("proprietaire").get("idUser"), idProprietaire));
+            }
+            if (recherche != null && !recherche.isBlank()) {
+                String motif = "%" + recherche.trim().toLowerCase() + "%";
+                Join<Object, Object> cour = root.join("cour");
+                Join<Object, Object> proprietaire = cour.join("proprietaire");
+                predicats.add(cb.or(
+                        cb.like(cb.lower(cour.<String>get("referenceCour")), motif),
+                        cb.like(cb.lower(cour.<String>get("lotCour")), motif),
+                        cb.like(cb.lower(cb.concat(cb.concat(proprietaire.<String>get("nom"), " "), proprietaire.<String>get("prenom"))), motif)));
+            }
+            return cb.and(predicats.toArray(new Predicate[0]));
+        };
     }
 
     public ResponseEntity<?> getByIdForCurrentUser(Integer id, Integer currentUserId, boolean isAdminOrAgent) {
@@ -188,6 +213,7 @@ public class ContratMandatService {
                 .idMandat(m.getIdMandat())
                 .idCour(m.getCour().getIdCour())
                 .referenceCour(m.getCour().getReferenceCour())
+                .nomProprietaire(m.getCour().getProprietaire().getNom() + " " + m.getCour().getProprietaire().getPrenom())
                 .idAgent(m.getAgent().getIdUser())
                 .nomAgent(m.getAgent().getNom() + " " + m.getAgent().getPrenom())
                 .dateDebut(m.getDateDebut())

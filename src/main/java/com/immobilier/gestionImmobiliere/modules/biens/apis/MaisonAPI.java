@@ -16,6 +16,18 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/maisons")
 @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
 public interface MaisonAPI {
+    // Lecture sans règle de mandat : agent/admin voient tout, un bailleur uniquement ses propres cours
+    @GetMapping
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN','BAILLEUR')")
+    ResponseEntity<?> getAll(@RequestParam(required = false) Integer idCour,
+                             @RequestParam(required = false) StatutMaison statut,
+                             @RequestParam(required = false) String recherche,
+                             Pageable pageable, @AuthenticationPrincipal UserDetailsImpl currentUser);
+
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN','BAILLEUR')")
+    ResponseEntity<?> getById(@PathVariable Integer id, @AuthenticationPrincipal UserDetailsImpl currentUser);
+
     @PostMapping
     ResponseEntity<?> create(@Valid @RequestBody CreateMaisonDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser);
 

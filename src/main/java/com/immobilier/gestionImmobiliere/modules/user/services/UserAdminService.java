@@ -1,5 +1,11 @@
 package com.immobilier.gestionImmobiliere.modules.user.services;
 
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.Predicate;
+import org.springframework.data.jpa.domain.Specification;
+import java.util.ArrayList;
+import java.util.List;
+
 import com.immobilier.gestionImmobiliere.donnees.user.model.ERole;
 import com.immobilier.gestionImmobiliere.donnees.user.model.Role;
 import com.immobilier.gestionImmobiliere.donnees.user.repository.RoleRepository;
@@ -45,9 +51,29 @@ public class UserAdminService {
         this.jwtUtils = jwtUtils;
     }
 
-    public ResponseEntity<?> getAll(ERole role, Pageable pageable) {
-        Page<User> page = role != null ? userRepository.findByRole_LibelleRoleAndIsDeletedFalse(role, pageable) : userRepository.findByIsDeletedFalse(pageable);
+    public ResponseEntity<?> getAll(ERole role, String recherche, Pageable pageable) {
+        // Rôle et recherche (nom, prénom, email, téléphone) appliqués côté base avant la pagination
+        Page<User> page = userRepository.findAll(filtrer(role, recherche), pageable);
         return buildSuccessResponse(HttpStatus.OK, "Liste des utilisateurs", "USER_LIST", page.map(this::toDto));
+    }
+
+    private Specification<User> filtrer(ERole role, String recherche) {
+        return (root, query, cb) -> {
+            List<Predicate> predicats = new ArrayList<>();
+            predicats.add(cb.isFalse(root.<Boolean>get("isDeleted")));
+            if (role != null) {
+                predicats.add(cb.equal(root.get("role").get("libelleRole"), role));
+            }
+            if (recherche != null && !recherche.isBlank()) {
+                String motif = "%" + recherche.trim().toLowerCase() + "%";
+                predicats.add(cb.or(
+                        cb.like(cb.lower(cb.concat(cb.concat(root.<String>get("nom"), " "), root.<String>get("prenom"))), motif),
+                        cb.like(cb.lower(cb.concat(cb.concat(root.<String>get("prenom"), " "), root.<String>get("nom"))), motif),
+                        cb.like(cb.lower(root.<String>get("email")), motif),
+                        cb.like(cb.coalesce(root.<String>get("telephone"), ""), motif)));
+            }
+            return cb.and(predicats.toArray(new Predicate[0]));
+        };
     }
 
     public ResponseEntity<?> getById(Integer id) {

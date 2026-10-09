@@ -21,8 +21,8 @@ public class ContactAdminController implements ContactAdminAPI {
 
     @Override
     @PreAuthorize("hasAnyRole('ADMIN','AGENT')")
-    public ResponseEntity<?> getAll(StatutContact statut, Pageable pageable) {
-        return contactService.getAll(statut, pageable);
+    public ResponseEntity<?> getAll(StatutContact statut, String recherche, Pageable pageable) {
+        return contactService.getAll(statut, recherche, pageable);
     }
 
     @Override

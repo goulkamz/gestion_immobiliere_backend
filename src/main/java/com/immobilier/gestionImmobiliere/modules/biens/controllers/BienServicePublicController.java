@@ -2,6 +2,7 @@ package com.immobilier.gestionImmobiliere.modules.biens.controllers;
 
 import com.immobilier.gestionImmobiliere.modules.biens.apis.BienServicePublicAPI;
 import com.immobilier.gestionImmobiliere.modules.biens.services.BienServiceService;
+import com.immobilier.gestionImmobiliere.donnees.biens.model.StatutBienService;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
@@ -17,12 +18,13 @@ public class BienServicePublicController implements BienServicePublicAPI {
     /**
      * @param idSecteur
      * @param idCategorie
+     * @param recherche
      * @param pageable
      * @return
      */
     @Override
-    public ResponseEntity<?> getAll(Integer idSecteur, Integer idCategorie, Pageable pageable) {
-        return bienServiceService.getAll(idSecteur, idCategorie, pageable);
+    public ResponseEntity<?> getAll(Integer idSecteur, Integer idCategorie, String recherche, StatutBienService disponibilite, Pageable pageable) {
+        return bienServiceService.getAll(idSecteur, idCategorie, recherche, disponibilite, pageable);
     }
 
 

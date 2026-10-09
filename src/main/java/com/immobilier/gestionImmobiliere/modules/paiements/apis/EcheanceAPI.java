@@ -20,6 +20,9 @@ public interface EcheanceAPI {
     ResponseEntity<?> getAll(@RequestParam(required = false) TypeEcheance type,
                              @RequestParam(required = false) Integer entiteId,
                              @RequestParam(required = false) StatutEcheance statut,
+                             @RequestParam(required = false) String recherche,
+                             @RequestParam(required = false) String referenceCour,
+                             @RequestParam(required = false) String periode,
                              Pageable pageable,
                              @AuthenticationPrincipal UserDetailsImpl currentUser);
 
@@ -36,6 +39,9 @@ public interface EcheanceAPI {
 
     @PostMapping("/mandats/{idMandat}/calculer")
     ResponseEntity<?> calculerReversementMandat(@PathVariable Integer idMandat, @RequestParam LocalDate periode, @AuthenticationPrincipal UserDetailsImpl currentUser);
+
+    @PostMapping("/mandats/calculer")
+    ResponseEntity<?> calculerReversementsTousMandats(@RequestParam LocalDate periode, @AuthenticationPrincipal UserDetailsImpl currentUser);
 
     @PatchMapping("/{idEcheance}/confirmer-virement")
     ResponseEntity<?> confirmerVirementMandat(@PathVariable Integer idEcheance, @Valid @RequestBody ConfirmerVirementDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser);

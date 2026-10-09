@@ -21,8 +21,8 @@ public class DemandeAdminController implements DemandeAdminAPI {
 
     @Override
     @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
-    public ResponseEntity<?> getAll(StatutDemande statut, Pageable pageable) {
-        return demandeService.getAll(statut, pageable);
+    public ResponseEntity<?> getAll(StatutDemande statut, String recherche, Pageable pageable) {
+        return demandeService.getAll(statut, recherche, pageable);
     }
 
     @Override

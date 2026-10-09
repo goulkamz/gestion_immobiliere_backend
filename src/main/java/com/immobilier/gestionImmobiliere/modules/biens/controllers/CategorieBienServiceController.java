@@ -18,8 +18,8 @@ public class CategorieBienServiceController implements CategorieBienServiceAPI {
     }
 
     @Override
-    public ResponseEntity<?> getAll(Pageable pageable) {
-        return categorieService.getAll(pageable);
+    public ResponseEntity<?> getAll(String recherche, Pageable pageable) {
+        return categorieService.getAll(recherche, pageable);
     }
 
     @Override

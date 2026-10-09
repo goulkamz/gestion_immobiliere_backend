@@ -21,8 +21,8 @@ public class TemoignageAdminController implements TemoignageAdminAPI {
 
     @Override
     @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
-    public ResponseEntity<?> getAll(StatutTemoignage statut, Pageable pageable) {
-        return temoignageService.getAll(statut, pageable);
+    public ResponseEntity<?> getAll(StatutTemoignage statut, String recherche, Pageable pageable) {
+        return temoignageService.getAll(statut, recherche, pageable);
     }
 
     @Override

@@ -33,6 +33,9 @@ import com.immobilier.gestionImmobiliere.modules.paiements.services.EcheanceGene
 import com.immobilier.gestionImmobiliere.modules.paiements.services.EcheanceService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.Predicate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PostAuthorize;
@@ -42,6 +45,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
@@ -89,17 +93,36 @@ public class ContratLocationService {
      * - CLIENT : uniquement ses propres contrats (idLocataire forcé)
      * - BAILLEUR : uniquement les contrats sur ses cours
      */
-    public ResponseEntity<?> getAllForCurrentUser(Integer idMaison, Integer idLocataire,
+    // Recherche insensible à la casse sur le nom de la maison ou le nom/prénom du locataire
+    private Specification<ContratLocation> filtrer(Integer idMaison, Integer idLocataire, String recherche) {
+        return (root, query, cb) -> {
+            List<Predicate> predicats = new ArrayList<>();
+            if (idMaison != null) {
+                predicats.add(cb.equal(root.get("maison").get("idMaison"), idMaison));
+            }
+            if (idLocataire != null) {
+                predicats.add(cb.equal(root.get("locataire").get("idUser"), idLocataire));
+            }
+            if (recherche != null && !recherche.isBlank()) {
+                String motif = "%" + recherche.trim().toLowerCase() + "%";
+                Join<Object, Object> maison = root.join("maison");
+                Join<Object, Object> locataire = root.join("locataire");
+                predicats.add(cb.or(
+                        cb.like(cb.lower(maison.get("nomCommunMaison")), motif),
+                        cb.like(cb.lower(cb.concat(cb.concat(locataire.get("nom"), " "), locataire.get("prenom"))), motif)));
+            }
+            return cb.and(predicats.toArray(new Predicate[0]));
+        };
+    }
+
+    public ResponseEntity<?> getAllForCurrentUser(Integer idMaison, Integer idLocataire, String recherche,
                                                   Integer currentUserId, boolean isAdminOrAgent,
                                                   boolean isBailleur, Pageable pageable) {
         Page<ContratLocation> page;
 
         if (isAdminOrAgent) {
-            page = idMaison != null
-                    ? locationRepository.findByMaison_IdMaison(idMaison, pageable)
-                    : (idLocataire != null
-                    ? locationRepository.findByLocataire_IdUser(idLocataire, pageable)
-                    : locationRepository.findAll(pageable));
+            // Filtres appliqués côté serveur pour que la pagination reste cohérente
+            page = locationRepository.findAll(filtrer(idMaison, idLocataire, recherche), pageable);
         } else if (isBailleur) {
             page = locationRepository.findByMaison_Cour_Proprietaire_IdUser(currentUserId, pageable);
         } else {

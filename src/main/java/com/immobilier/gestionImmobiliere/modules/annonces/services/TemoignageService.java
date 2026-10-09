@@ -12,6 +12,7 @@ import com.immobilier.gestionImmobiliere.modules.annonces.dto.responses.Temoigna
 import com.immobilier.gestionImmobiliere.modules.user.jwt.RateLimitService;
 import com.immobilier.gestionImmobiliere.utils.ClientIpResolver;
 import jakarta.servlet.http.HttpServletRequest;
+import com.immobilier.gestionImmobiliere.utils.RechercheSpecification;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -51,10 +52,9 @@ public class TemoignageService {
     }
 
     // Moderation : tous les temoignages quel que soit leur statut (filtre optionnel)
-    public ResponseEntity<?> getAll(StatutTemoignage statut, Pageable pageable) {
-        Page<Temoignage> page = statut != null
-                ? temoignageRepository.findByStatut(statut, pageable)
-                : temoignageRepository.findAll(pageable);
+    public ResponseEntity<?> getAll(StatutTemoignage statut, String recherche, Pageable pageable) {
+        Page<Temoignage> page = temoignageRepository.findAll(
+                RechercheSpecification.<Temoignage>statutEtTexte(statut, recherche, "nomAuteur", "texte"), pageable);
         return buildSuccessResponse(HttpStatus.OK, "Liste des témoignages", "TEMOIGNAGE_ADMIN_LIST",
                 page.map(this::toAdminDto));
     }

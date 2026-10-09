@@ -16,7 +16,7 @@ public interface CourAPI {
     // Ouvert à AGENT/ADMIN/BAILLEUR : le service DOIT filtrer par id_user si role = BAILLEUR
     @PreAuthorize("hasAnyRole('AGENT','ADMIN','BAILLEUR')")
     @GetMapping
-    ResponseEntity<?> getAll(@RequestParam(required = false) Integer idSecteur, Pageable pageable, @AuthenticationPrincipal UserDetailsImpl currentUser);
+    ResponseEntity<?> getAll(@RequestParam(required = false) Integer idSecteur, @RequestParam(required = false) String recherche, @RequestParam(required = false) Boolean sansMandatActif, Pageable pageable, @AuthenticationPrincipal UserDetailsImpl currentUser);
 
     @PreAuthorize("hasAnyRole('AGENT','ADMIN','BAILLEUR')")
     @GetMapping("/{id}")

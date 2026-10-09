@@ -10,7 +10,9 @@ import org.springframework.web.bind.annotation.*;
 public interface AnnoncePublicAPI {
 
     @GetMapping
-    ResponseEntity<?> getAll(@RequestParam(required = false) StatutAnnonce statut, Pageable pageable);
+    ResponseEntity<?> getAll(@RequestParam(required = false) StatutAnnonce statut,
+                             @RequestParam(required = false) String recherche,
+                             Pageable pageable);
 
     @GetMapping("/{id}")
     ResponseEntity<?> getById(@PathVariable Integer id);

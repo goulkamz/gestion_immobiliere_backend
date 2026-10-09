@@ -14,7 +14,8 @@ import org.springframework.web.bind.annotation.*;
 public interface OffreAdminAPI {
 
     @GetMapping
-    ResponseEntity<?> getAll(@RequestParam( required = false) StatutOffre statut, Pageable pageable);
+    ResponseEntity<?> getAll(@RequestParam(required = false) StatutOffre statut,
+                             @RequestParam(required = false) String recherche, Pageable pageable);
 
     @GetMapping("/{id}")
     ResponseEntity<?> getById(@PathVariable Integer id);

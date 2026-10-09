@@ -31,11 +31,10 @@ public class SecteurService {
         this.villeRepository = villeRepository;
     }
 
-    public ResponseEntity<?> getAll(Integer idVille, Pageable pageable) {
-        Page<SecteurResponseDTO> result = (idVille != null
-                ? secteurRepository.findByVille_IdVille(idVille, pageable)
-                : secteurRepository.findAll(pageable))
-                .map(this::toDto);
+    public ResponseEntity<?> getAll(Integer idVille, String recherche, Pageable pageable) {
+        String texte = recherche == null ? "" : recherche.trim().toLowerCase();
+        String motif = "%" + texte.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+        Page<SecteurResponseDTO> result = secteurRepository.rechercher(idVille, motif, pageable).map(this::toDto);
         return buildSuccessResponse(HttpStatus.OK, "Liste des secteurs", "SECTEUR_LIST", result);
     }
 
