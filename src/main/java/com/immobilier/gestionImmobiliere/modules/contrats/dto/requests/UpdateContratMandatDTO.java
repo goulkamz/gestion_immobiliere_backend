@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.contrats.dto.requests;
 
+import com.immobilier.gestionImmobiliere.donnees.contrats.model.ModeFacturation;
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.TypeMandat;
 import lombok.Data;
 
@@ -10,6 +11,6 @@ import java.time.LocalDateTime;
 public class UpdateContratMandatDTO {
     private LocalDateTime dateFin;
     private BigDecimal commission;
-    private String modeFacturation;
+    private ModeFacturation modeFacturation;
     private TypeMandat typeMandat;
 }

@@ -605,6 +605,10 @@ Contrôleur : `@PreAuthorize("hasAnyRole('AGENT','ADMIN','BAILLEUR')")` par déf
 #### GET /api/contrats-mandat
 Rôle requis : ROLE_AGENT, ROLE_ADMIN, ROLE_BAILLEUR (filtré par ownership pour bailleur). Query : `idCour?`, `statut?` (`StatutMandat`), pagination.
 Réponse (data) : `PagedResponse<ContratMandatResponse>`.
+#### GET /api/contrats-mandat/modes-facturation
+Modes de facturation autorisés par type de mandat (ajouté le 2026-10-12). Tous rôles authentifiés du contrôleur.
+Réponse `data` : `{ GESTION: ['MENSUEL','CUMUL'] }` (seul le type GESTION est disponible pour l'instant : LOCATION et VENTE sont traités hors système via les annonces, et refusés à la création et à la modification avec un 400). Les réponses de mandat exposent désormais `modeFacturation`.
+
 #### GET /api/contrats-mandat/{id}
 Rôle requis : ROLE_ADMIN, ROLE_AGENT, ou le bailleur propriétaire de la cour du mandat (`@contratMandatSecurity.isProprietaireCour`). Réponse : `ContratMandatResponse`. Codes : 404, 403.
 #### POST /api/contrats-mandat
@@ -618,7 +622,7 @@ interface CreateContratMandatRequest {
   dateFin?: string;
   typeMandat: 'GESTION' | 'LOCATION' | 'VENTE'; // requis
   commission?: number;
-  modeFacturation?: string;
+  modeFacturation: 'MENSUEL'|'CUMUL'|'COMMISSION'; // obligatoire, doit être autorisé pour le typeMandat (400 sinon)
 }
 ```
 Codes : 409 `MANDAT_ACTIF_EXISTANT` (RG3).
@@ -629,7 +633,7 @@ Résilie le mandat. Rôle requis : ROLE_AGENT.
 Body : `{ motifResiliation: string }` (requis).
 #### PATCH /api/contrats-mandat/{id}/modifier
 Modifie dateFin/commission/modeFacturation/typeMandat sans changer le statut (ajouté le 2026-10-02). Rôle requis : ROLE_AGENT uniquement (pas ADMIN, même restriction que create/activer/resilier sur ce contrôleur). Réservé aux mandats EN_ATTENTE/ACTIF.
-Body : `{ dateFin?: string; commission?: number; modeFacturation?: string; typeMandat?: 'GESTION'|'LOCATION'|'VENTE' }` (tous optionnels, seuls les champs fournis sont modifiés).
+Body : `{ dateFin?: string; commission?: number; modeFacturation?: 'MENSUEL'|'CUMUL'|'COMMISSION'; typeMandat?: 'GESTION'|'LOCATION'|'VENTE' }` (tous optionnels, seuls les champs fournis sont modifiés). Le couple type/mode final est revalidé : changer le type vers un type qui n'accepte pas le mode actuel exige d'envoyer aussi un mode valide (400 sinon).
 Codes : 409 `INVALID_STATUT_TRANSITION` (mandat RESILIE/EXPIRE).
 #### DELETE /api/contrats-mandat/{id}
 Rôle requis : ROLE_ADMIN uniquement.
@@ -746,8 +750,20 @@ Rôle requis : ROLE_ADMIN, ROLE_AGENT. Réponse (data) : `EcheanceResponse[]`.
 #### GET /api/echeances/en-retard-mandat
 Rôle requis : ROLE_ADMIN, ROLE_AGENT. Réponse (data) : `EcheanceMandatResponse[]`.
 #### POST /api/echeances/mandats/{idMandat}/calculer
-Calcule le reversement dû au bailleur pour une période (loyers encaissés − commission). Rôle requis : ROLE_AGENT, ROLE_ADMIN.
-Query : `periode` (LocalDate, requis). Réponse (data) : `EcheanceMandatResponse`.
+Calcule le reversement dû au bailleur pour un mois : loyers dus du mois (`montant_du` des échéances LOCATION de la cour, que le locataire ait payé ou non) − commission de l'agence = net à reverser. Rôle requis : ROLE_AGENT, ROLE_ADMIN.
+Réservé aux mandats de type `GESTION` en mode `MENSUEL` (409 sinon, avec un message qui indique le bon calcul). Une échéance MANDAT par mois (409 si déjà calculé).
+Query : `periode` (LocalDate, requis ; seul le mois compte). Réponse (data) : `EcheanceMandatResponse`.
+#### POST /api/echeances/mandats/calculer
+Calcul groupé mensuel : traite tous les mandats `ACTIF` de type `GESTION` en mode `MENSUEL` (les autres ne sont pas concernés). Rôle requis : ROLE_AGENT, ROLE_ADMIN. Query : `periode` (LocalDate, requis).
+Réponse (data) : `{ total: number; succes: number; ignores: number; raisons: { message: string; nombre: number }[] }` (les mandats ignorés, déjà calculés ou sans maison en location, sont regroupés par motif).
+#### POST /api/echeances/mandats/{idMandat}/calculer-cumul
+Calcul cumulé pour un mandat `GESTION` en mode `CUMUL` (le bailleur ne veut pas un versement mensuel : l'agent verse plusieurs mois d'un coup, annuel, trimestriel ou semestriel selon le mois choisi). Rôle requis : ROLE_AGENT, ROLE_ADMIN.
+Refait le calcul mensuel, mois par mois, du début du mandat jusqu'au mois de `jusquA` inclus (borné à la date de résiliation si le mandat est résilié), et crée **une échéance MANDAT par mois** (loyers dus − commission = net). Les mois déjà calculés ou sans maison en location sont sautés : un second calcul ne couvre que les mois restants. Jusqu'au premier mois seulement, le résultat est identique au calcul mensuel. Le « mois M » désigne les échéances datées du 1er M (le loyer d'un mois d'occupation tombe le 1er du mois suivant), donc « jusqu'en décembre » s'arrête à l'échéance du 1er décembre.
+Réservé aux mandats `ACTIF` ou `RESILIE` (409 sinon, ou si le mandat n'est pas en mode `CUMUL`, ou si aucun mois n'est à calculer, ou si la période dépasse 60 mois).
+Query : `jusquA` (LocalDate, requis ; seul le mois compte). Le virement se confirme ensuite échéance par échéance (`confirmer-virement`).
+Réponse (data) : `{ idMandat: number; nombreMois: number; montantLoyersDus: number; commissionDeduite: number; montantNetAReverser: number; echeances: EcheanceMandatResponse[] }`.
+#### POST /api/echeances/mandats/calculer-cumul
+Calcul groupé cumulé : même principe pour tous les mandats `ACTIF` de type `GESTION` en mode `CUMUL`. Rôle requis : ROLE_AGENT, ROLE_ADMIN. Query : `jusquA` (LocalDate, requis). Réponse (data) : même forme que le calcul groupé mensuel.
 #### PATCH /api/echeances/{idEcheance}/confirmer-virement
 Confirme le virement du reversement au bailleur. Rôle requis : ROLE_AGENT, ROLE_ADMIN.
 Body : `{ modeVersement: string; reference?: string }` (`modeVersement` requis).

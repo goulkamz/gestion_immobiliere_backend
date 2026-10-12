@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.paiements.apis;
 
+import com.immobilier.gestionImmobiliere.donnees.contrats.model.ModeFacturation;
 import com.immobilier.gestionImmobiliere.donnees.paiements.model.StatutEcheance;
 import com.immobilier.gestionImmobiliere.donnees.paiements.model.TypeEcheance;
 import com.immobilier.gestionImmobiliere.modules.paiements.dto.requests.ConfirmerVirementDTO;
@@ -23,6 +24,7 @@ public interface EcheanceAPI {
                              @RequestParam(required = false) String recherche,
                              @RequestParam(required = false) String referenceCour,
                              @RequestParam(required = false) String periode,
+                             @RequestParam(required = false) ModeFacturation modeFacturation,
                              Pageable pageable,
                              @AuthenticationPrincipal UserDetailsImpl currentUser);
 
@@ -42,6 +44,12 @@ public interface EcheanceAPI {
 
     @PostMapping("/mandats/calculer")
     ResponseEntity<?> calculerReversementsTousMandats(@RequestParam LocalDate periode, @AuthenticationPrincipal UserDetailsImpl currentUser);
+
+    @PostMapping("/mandats/{idMandat}/calculer-cumul")
+    ResponseEntity<?> calculerReversementCumulMandat(@PathVariable Integer idMandat, @RequestParam LocalDate jusquA, @AuthenticationPrincipal UserDetailsImpl currentUser);
+
+    @PostMapping("/mandats/calculer-cumul")
+    ResponseEntity<?> calculerReversementsCumulTousMandats(@RequestParam LocalDate jusquA, @AuthenticationPrincipal UserDetailsImpl currentUser);
 
     @PatchMapping("/{idEcheance}/confirmer-virement")
     ResponseEntity<?> confirmerVirementMandat(@PathVariable Integer idEcheance, @Valid @RequestBody ConfirmerVirementDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser);

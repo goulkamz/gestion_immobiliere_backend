@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.paiements.controllers;
 
+import com.immobilier.gestionImmobiliere.donnees.contrats.model.ModeFacturation;
 import com.immobilier.gestionImmobiliere.donnees.paiements.model.StatutEcheance;
 import com.immobilier.gestionImmobiliere.donnees.paiements.model.TypeEcheance;
 import com.immobilier.gestionImmobiliere.modules.paiements.apis.EcheanceAPI;
@@ -26,11 +27,12 @@ public class EcheanceController implements EcheanceAPI {
 
     @Override
     public ResponseEntity<?> getAll(TypeEcheance type, Integer entiteId, StatutEcheance statut, String recherche,
-                                    String referenceCour, String periode, Pageable pageable,
+                                    String referenceCour, String periode, ModeFacturation modeFacturation,
+                                    Pageable pageable,
                                     @AuthenticationPrincipal UserDetailsImpl currentUser) {
         boolean isAdminOrAgent = currentUser.hasAnyRole("ADMIN", "AGENT");
         boolean isBailleur = currentUser.hasRole("BAILLEUR");
-        return echeanceService.getAllForCurrentUser(type, entiteId, statut, recherche, referenceCour, periode,
+        return echeanceService.getAllForCurrentUser(type, entiteId, statut, recherche, referenceCour, periode, modeFacturation,
                 currentUser.getIdUser(), isAdminOrAgent, isBailleur, pageable);
     }
 
@@ -69,6 +71,18 @@ public class EcheanceController implements EcheanceAPI {
     @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
     public ResponseEntity<?> calculerReversementsTousMandats(LocalDate periode, UserDetailsImpl currentUser) {
         return echeanceService.calculerReversementsTousMandats(periode, currentUser.getIdUser());
+    }
+
+    @Override
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
+    public ResponseEntity<?> calculerReversementCumulMandat(Integer idMandat, LocalDate jusquA, UserDetailsImpl currentUser) {
+        return echeanceService.calculerReversementCumulMandat(idMandat, jusquA, currentUser.getIdUser());
+    }
+
+    @Override
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
+    public ResponseEntity<?> calculerReversementsCumulTousMandats(LocalDate jusquA, UserDetailsImpl currentUser) {
+        return echeanceService.calculerReversementsCumulTousMandats(jusquA, currentUser.getIdUser());
     }
 
     /**

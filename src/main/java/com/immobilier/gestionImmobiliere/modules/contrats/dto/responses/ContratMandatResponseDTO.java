@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.contrats.dto.responses;
 
+import com.immobilier.gestionImmobiliere.donnees.contrats.model.ModeFacturation;
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.StatutMandat;
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.TypeMandat;
 import lombok.Builder;
@@ -20,6 +21,7 @@ public class ContratMandatResponseDTO {
     private LocalDateTime dateFin;
     private TypeMandat typeMandat;
     private BigDecimal commission;
+    private ModeFacturation modeFacturation;
     private StatutMandat statut;
     private String motifResiliation;
 }

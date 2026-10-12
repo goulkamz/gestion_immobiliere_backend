@@ -20,6 +20,10 @@ public interface ContratMandatAPI {
                              @RequestParam(required = false) String recherche,
                              Pageable pageable,@AuthenticationPrincipal UserDetailsImpl currentUser);
 
+    // Modes de facturation autorisés, regroupés par type de mandat (GESTION, LOCATION, VENTE).
+    @GetMapping("/modes-facturation")
+    ResponseEntity<?> getModesFacturation();
+
     @GetMapping("/{id}")
     ResponseEntity<?> getById(@PathVariable Integer id,@AuthenticationPrincipal UserDetailsImpl currentUser);
 

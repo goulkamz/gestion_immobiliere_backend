@@ -2,7 +2,9 @@ package com.immobilier.gestionImmobiliere.modules.paiements.services;
 
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.ContratLocation;
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.ContratMandat;
+import com.immobilier.gestionImmobiliere.donnees.contrats.model.ModeFacturation;
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.StatutMandat;
+import com.immobilier.gestionImmobiliere.donnees.contrats.model.TypeMandat;
 import com.immobilier.gestionImmobiliere.donnees.contrats.repository.ContratLocationRepository;
 import com.immobilier.gestionImmobiliere.donnees.contrats.repository.ContratMandatRepository;
 import com.immobilier.gestionImmobiliere.donnees.paiements.model.EcheanceLoyer;
@@ -65,13 +67,14 @@ public class EcheanceService {
     // Remplace getAll() par une version filtrée par rôle
     public ResponseEntity<?> getAllForCurrentUser(TypeEcheance type, Integer entiteId, StatutEcheance statut,
                                                   String recherche, String referenceCour, String periode,
+                                                  ModeFacturation modeFacturation,
                                                   Integer currentUserId, boolean isAdminOrAgent, boolean isBailleur,
                                                   Pageable pageable) {
         Page<EcheanceLoyer> page;
 
         if (isAdminOrAgent) {
             // recherche, referenceCour et periode sont reserves a l'agent/admin et appliques avant la pagination
-            page = echeanceRepository.findAll(filtrerAgent(type, entiteId, statut, recherche, referenceCour, periode), pageable);
+            page = echeanceRepository.findAll(filtrerAgent(type, entiteId, statut, recherche, referenceCour, periode, modeFacturation), pageable);
         } else if (isBailleur) {
             List<Integer> locationIds = contratLocationRepository.findIdsByProprietaire(currentUserId);
             List<Integer> mandatIds = contratMandatRepository.findIdsByProprietaire(currentUserId);
@@ -98,7 +101,8 @@ public class EcheanceService {
      * (echeances LOCATION) ou la cour et le proprietaire (echeances MANDAT), sans jointure cote navigateur.
      */
     private Specification<EcheanceLoyer> filtrerAgent(TypeEcheance type, Integer entiteId, StatutEcheance statut,
-                                                      String recherche, String referenceCour, String periode) {
+                                                      String recherche, String referenceCour, String periode,
+                                                      ModeFacturation modeFacturation) {
         return (root, query, cb) -> {
             List<Predicate> predicats = new ArrayList<>();
             if (type != null) {
@@ -113,6 +117,14 @@ public class EcheanceService {
             if (periode != null && !periode.isBlank()) {
                 YearMonth mois = YearMonth.parse(periode.trim());
                 predicats.add(cb.between(root.<LocalDate>get("dateEcheance"), mois.atDay(1), mois.atEndOfMonth()));
+            }
+            if (modeFacturation != null) {
+                Subquery<Integer> sub = query.subquery(Integer.class);
+                Root<ContratMandat> m = sub.from(ContratMandat.class);
+                sub.select(m.get("idMandat")).where(
+                        cb.equal(m.get("idMandat"), root.get("entiteEcheanceId")),
+                        cb.equal(m.get("modeFacturation"), modeFacturation));
+                predicats.add(cb.and(cb.equal(root.get("entiteEcheanceType"), TypeEcheance.MANDAT), cb.exists(sub)));
             }
             if (referenceCour != null && !referenceCour.isBlank()) {
                 Subquery<Integer> sub = query.subquery(Integer.class);
@@ -280,30 +292,36 @@ public class EcheanceService {
     // MANDAT — calcul du reversement au bailleur
     // ==================================================================
 
+    /** Résultat d'un calcul de reversement pour un mois : l'échéance créée et le total des loyers dus. */
+    private record CalculMois(EcheanceLoyer echeance, BigDecimal loyersDus) {}
+
     /**
-     * À la demande de l'agent (jamais automatique) — calcule pour un mandat/mois donné :
-     * - les loyers réellement encaissés ce mois (montant_paye des échéances LOCATION
-     *   des maisons de la cour, pas le loyer théorique) ;
+     * À la demande de l'agent (jamais automatique) — calcule pour un mandat GESTION en mode
+     * MENSUEL et pour un mois donné :
+     * - les loyers dus ce mois (montant_du des échéances LOCATION des maisons de la cour, que le
+     *   locataire ait payé ou non : le bailleur est dû tant que la maison est louée) ;
      * - la commission de l'agence, déduite selon le pourcentage du mandat ;
      * - le net à reverser au bailleur.
      * Crée une échéance MANDAT unique pour ce mandat/mois (anti-doublon).
      * montantDu = net à reverser au bailleur | commissionDeduite = gain de l'agence.
+     * Un mandat en mode CUMUL passe par {@link #calculerReversementCumulMandat}.
      */
     @Transactional
     public ResponseEntity<?> calculerReversementMandat(Integer idMandat, LocalDate periode, Integer currentAgentId) {
+        ContratMandat mandat = chargerMandatGestion(idMandat, ModeFacturation.MENSUEL);
         LocalDate debutMois = periode.withDayOfMonth(1);
-        LocalDate finMois = periode.withDayOfMonth(periode.lengthOfMonth());
 
-        boolean dejaCalcule = !echeanceRepository
-                .findByEntiteEcheanceTypeAndEntiteEcheanceIdAndDateEcheanceBetween(TypeEcheance.MANDAT, idMandat, debutMois, finMois)
-                .isEmpty();
-        if (dejaCalcule) {
+        // Même règle que le calcul cumulé : un mandat résilié reste redevable jusqu'à sa résiliation, jamais au-delà
+        if (mandat.getStatut() != StatutMandat.ACTIF && mandat.getStatut() != StatutMandat.RESILIE) {
+            throw new IllegalStateException("Le reversement ne peut être calculé que pour un mandat actif ou résilié");
+        }
+        if (mandat.getDateResiliation() != null
+                && debutMois.isAfter(mandat.getDateResiliation().toLocalDate().withDayOfMonth(1))) {
+            throw new IllegalStateException("La période demandée est postérieure à la résiliation du mandat");
+        }
+        if (!echeancesMandatDuMois(idMandat, debutMois).isEmpty()) {
             throw new IllegalStateException("Le montant a déjà été calculé pour ce mandat sur cette période");
         }
-
-        ContratMandat mandat = contratMandatRepository.findById(idMandat)
-                .orElseThrow(() -> new ResourceNotFoundException("mandat", idMandat));
-
         if (mandat.getDateDebut() != null && debutMois.isBefore(mandat.getDateDebut().toLocalDate().withDayOfMonth(1))) {
             throw new IllegalStateException("La période demandée est antérieure au début du mandat");
         }
@@ -311,44 +329,101 @@ public class EcheanceService {
             throw new IllegalStateException("Aucune maison de ce mandat n'est en location sur cette période");
         }
 
-        BigDecimal loyersDus = echeanceRepository.sumMontantDuLocationParCourEtMois(mandat.getCour().getIdCour(), debutMois);
-        loyersDus = loyersDus != null ? loyersDus : BigDecimal.ZERO;
-
-        BigDecimal pourcentage = mandat.getCommission() != null ? mandat.getCommission() : BigDecimal.ZERO;
-        BigDecimal commission = loyersDus
-                .multiply(pourcentage)
-                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-
-        BigDecimal montantNetAReverser = loyersDus.subtract(commission);
-
-        EcheanceLoyer echeance = EcheanceLoyer.builder()
-                .entiteEcheanceType(TypeEcheance.MANDAT)
-                .entiteEcheanceId(idMandat)
-                .dateEcheance(debutMois)
-                .montantDu(montantNetAReverser)
-                .montantPaye(BigDecimal.ZERO)
-                .commissionDeduite(commission)
-                .statut(StatutEcheance.EN_ATTENTE)
-                .userCreate(currentAgentId)
-                .build();
-        echeanceRepository.save(echeance);
-
+        CalculMois calcul = creerEcheanceMandat(mandat, debutMois, currentAgentId);
         return buildSuccessResponse(HttpStatus.CREATED, "Montant à reverser calculé", "ECHEANCE_MANDAT_CALCULEE",
-                toMandatDto(echeance, loyersDus));
+                toMandatDto(calcul.echeance(), calcul.loyersDus()));
     }
 
     /**
-     * Calcul groupé : parcourt tous les mandats ACTIF côté serveur (aucun plafond de pagination).
-     * Chaque mandat est calculé isolément ; ceux déjà calculés ou sans maison en location sur la
-     * période sont ignorés, avec le motif regroupé dans la réponse.
+     * Calcul cumulé pour un mandat GESTION en mode CUMUL : l'agent verse au bailleur plusieurs
+     * mois d'un coup (annuel, trimestriel, semestriel : c'est lui qui choisit jusqu'à quel mois).
+     * Refait le calcul mensuel, mois par mois, depuis le début du mandat jusqu'au mois de
+     * {@code jusquA} inclus (borné à la résiliation), et crée une échéance MANDAT par mois.
+     * Les mois déjà calculés ou sans maison en location sont sautés : un second calcul ne couvre
+     * donc que les mois restants. Jusqu'au premier mois seulement, le résultat est identique à
+     * celui du calcul mensuel.
+     */
+    @Transactional
+    public ResponseEntity<?> calculerReversementCumulMandat(Integer idMandat, LocalDate jusquA, Integer currentAgentId) {
+        ContratMandat mandat = chargerMandatGestion(idMandat, ModeFacturation.CUMUL);
+        if (mandat.getStatut() != StatutMandat.ACTIF && mandat.getStatut() != StatutMandat.RESILIE) {
+            throw new IllegalStateException("Le calcul n'est possible que pour un mandat actif ou résilié");
+        }
+
+        LocalDate dernierMois = jusquA.withDayOfMonth(1);
+        if (mandat.getDateResiliation() != null) {
+            LocalDate moisResiliation = mandat.getDateResiliation().toLocalDate().withDayOfMonth(1);
+            if (moisResiliation.isBefore(dernierMois)) {
+                dernierMois = moisResiliation;
+            }
+        }
+        LocalDate premierMois = mandat.getDateDebut() != null
+                ? mandat.getDateDebut().toLocalDate().withDayOfMonth(1)
+                : dernierMois;
+        if (java.time.temporal.ChronoUnit.MONTHS.between(premierMois, dernierMois) > 60) {
+            throw new IllegalStateException("La période demandée est trop étendue (60 mois maximum)");
+        }
+
+        Integer idCour = mandat.getCour().getIdCour();
+        List<CalculMois> calculs = new java.util.ArrayList<>();
+        for (LocalDate mois = premierMois; !mois.isAfter(dernierMois); mois = mois.plusMonths(1)) {
+            if (!echeancesMandatDuMois(idMandat, mois).isEmpty()) {
+                continue;
+            }
+            if (echeanceRepository.countLocationParCourEtMois(idCour, mois) == 0) {
+                continue;
+            }
+            calculs.add(creerEcheanceMandat(mandat, mois, currentAgentId));
+        }
+        if (calculs.isEmpty()) {
+            throw new IllegalStateException("Aucun mois à calculer pour ce mandat jusqu'à cette période");
+        }
+
+        BigDecimal totalLoyers = calculs.stream().map(CalculMois::loyersDus).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalCommission = calculs.stream().map(c -> c.echeance().getCommissionDeduite()).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalNet = calculs.stream().map(c -> c.echeance().getMontantDu()).reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        java.util.Map<String, Object> resultat = new java.util.LinkedHashMap<>();
+        resultat.put("idMandat", idMandat);
+        resultat.put("nombreMois", calculs.size());
+        resultat.put("montantLoyersDus", totalLoyers);
+        resultat.put("commissionDeduite", totalCommission);
+        resultat.put("montantNetAReverser", totalNet);
+        resultat.put("echeances", calculs.stream().map(c -> toMandatDto(c.echeance(), c.loyersDus())).toList());
+        return buildSuccessResponse(HttpStatus.CREATED, "Montant cumulé à reverser calculé", "ECHEANCES_MANDAT_CUMUL_CALCULEES", resultat);
+    }
+
+    /**
+     * Calcul groupé mensuel : parcourt les mandats ACTIF GESTION en mode MENSUEL (les autres
+     * ne sont pas concernés). Chaque mandat est calculé isolément ; ceux déjà calculés ou sans
+     * maison en location sur la période sont ignorés, avec le motif regroupé dans la réponse.
      */
     public ResponseEntity<?> calculerReversementsTousMandats(LocalDate periode, Integer currentAgentId) {
-        List<ContratMandat> mandats = contratMandatRepository.findByStatut(StatutMandat.ACTIF);
+        List<ContratMandat> mandats = mandatsActifsGestion(ModeFacturation.MENSUEL);
+        return calculerEnGroupe(mandats, m -> calculerReversementMandat(m.getIdMandat(), periode, currentAgentId));
+    }
+
+    /**
+     * Calcul groupé cumulé : même principe, pour les mandats ACTIF GESTION en mode CUMUL,
+     * jusqu'au mois de {@code jusquA} inclus.
+     */
+    public ResponseEntity<?> calculerReversementsCumulTousMandats(LocalDate jusquA, Integer currentAgentId) {
+        List<ContratMandat> mandats = mandatsActifsGestion(ModeFacturation.CUMUL);
+        return calculerEnGroupe(mandats, m -> calculerReversementCumulMandat(m.getIdMandat(), jusquA, currentAgentId));
+    }
+
+    private List<ContratMandat> mandatsActifsGestion(ModeFacturation mode) {
+        return contratMandatRepository.findByStatut(StatutMandat.ACTIF).stream()
+                .filter(m -> m.getTypeMandat() == TypeMandat.GESTION && m.getModeFacturation() == mode)
+                .toList();
+    }
+
+    private ResponseEntity<?> calculerEnGroupe(List<ContratMandat> mandats, java.util.function.Consumer<ContratMandat> calcul) {
         int succes = 0;
         java.util.Map<String, Integer> raisons = new java.util.LinkedHashMap<>();
         for (ContratMandat mandat : mandats) {
             try {
-                calculerReversementMandat(mandat.getIdMandat(), periode, currentAgentId);
+                calcul.accept(mandat);
                 succes++;
             } catch (IllegalStateException | ResourceNotFoundException e) {
                 raisons.merge(e.getMessage(), 1, Integer::sum);
@@ -363,6 +438,50 @@ public class EcheanceService {
         resultat.put("ignores", mandats.size() - succes);
         resultat.put("raisons", detail);
         return buildSuccessResponse(HttpStatus.OK, "Calcul groupé terminé", "ECHEANCES_MANDAT_CALCULEES", resultat);
+    }
+
+    /** Charge un mandat et vérifie qu'il est de type GESTION avec le mode de facturation attendu. */
+    private ContratMandat chargerMandatGestion(Integer idMandat, ModeFacturation modeAttendu) {
+        ContratMandat mandat = contratMandatRepository.findById(idMandat)
+                .orElseThrow(() -> new ResourceNotFoundException("mandat", idMandat));
+        if (mandat.getTypeMandat() != TypeMandat.GESTION) {
+            throw new IllegalStateException("Le calcul du reversement n'est disponible que pour les mandats de gestion");
+        }
+        if (mandat.getModeFacturation() != modeAttendu) {
+            throw new IllegalStateException(modeAttendu == ModeFacturation.MENSUEL
+                    ? "Ce mandat est en facturation cumulée : utilisez le calcul cumulé"
+                    : "Ce mandat est en facturation mensuelle : utilisez le calcul mensuel");
+        }
+        return mandat;
+    }
+
+    private List<EcheanceLoyer> echeancesMandatDuMois(Integer idMandat, LocalDate debutMois) {
+        return echeanceRepository.findByEntiteEcheanceTypeAndEntiteEcheanceIdAndDateEcheanceBetween(
+                TypeEcheance.MANDAT, idMandat, debutMois, debutMois.withDayOfMonth(debutMois.lengthOfMonth()));
+    }
+
+    /** Calcule et enregistre l'échéance MANDAT d'un mois : loyers dus, commission de l'agence, net au bailleur. */
+    private CalculMois creerEcheanceMandat(ContratMandat mandat, LocalDate debutMois, Integer currentAgentId) {
+        BigDecimal loyersDus = echeanceRepository.sumMontantDuLocationParCourEtMois(mandat.getCour().getIdCour(), debutMois);
+        loyersDus = loyersDus != null ? loyersDus : BigDecimal.ZERO;
+
+        BigDecimal pourcentage = mandat.getCommission() != null ? mandat.getCommission() : BigDecimal.ZERO;
+        BigDecimal commission = loyersDus
+                .multiply(pourcentage)
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+
+        EcheanceLoyer echeance = EcheanceLoyer.builder()
+                .entiteEcheanceType(TypeEcheance.MANDAT)
+                .entiteEcheanceId(mandat.getIdMandat())
+                .dateEcheance(debutMois)
+                .montantDu(loyersDus.subtract(commission))
+                .montantPaye(BigDecimal.ZERO)
+                .commissionDeduite(commission)
+                .statut(StatutEcheance.EN_ATTENTE)
+                .userCreate(currentAgentId)
+                .build();
+        echeanceRepository.save(echeance);
+        return new CalculMois(echeance, loyersDus);
     }
 
     /**

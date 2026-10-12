@@ -15,6 +15,7 @@ public interface ContratLocationRepository extends JpaRepository<ContratLocation
     Page<ContratLocation> findByLocataire_IdUser(Integer idUser, Pageable pageable);
     Page<ContratLocation> findByMaison_IdMaison(Integer idMaison, Pageable pageable);
     boolean existsByMaison_IdMaisonAndStatut(Integer idMaison, StatutLocation statut);
+    boolean existsByMaison_Cour_IdCourAndStatut(Integer idCour, StatutLocation statut);
 
     List<ContratLocation> findByStatut(StatutLocation statut);
 

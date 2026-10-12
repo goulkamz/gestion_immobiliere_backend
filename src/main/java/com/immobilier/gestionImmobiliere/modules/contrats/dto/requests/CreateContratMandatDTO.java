@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.contrats.dto.requests;
 
+import com.immobilier.gestionImmobiliere.donnees.contrats.model.ModeFacturation;
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.TypeMandat;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -15,5 +16,5 @@ public class CreateContratMandatDTO {
     private LocalDateTime dateFin;
     @NotNull private TypeMandat typeMandat;
     private BigDecimal commission;
-    private String modeFacturation;
+    @NotNull private ModeFacturation modeFacturation;
 }

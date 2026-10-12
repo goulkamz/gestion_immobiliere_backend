@@ -46,8 +46,9 @@ public class ContratMandat extends Model {
     @Column(name = "commission")
     private BigDecimal commission;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "mode_facturation")
-    private String modeFacturation;
+    private ModeFacturation modeFacturation;
 
     @Column(name = "date_resiliation")
     private LocalDateTime dateResiliation;

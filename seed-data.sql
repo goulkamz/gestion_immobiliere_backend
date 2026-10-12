@@ -34,19 +34,25 @@ DECLARE
     id_cour1 INTEGER; -- Ouagadougou, bailleur1
     id_cour2 INTEGER; -- Bobo-Dioulasso, bailleur2
     id_cour3 INTEGER; -- Ouagadougou (secteur 15), bailleur2 — bailleur2 a donc 2 cours (filtre multi-cours)
+    id_cour4 INTEGER; -- Ouagadougou (secteur 12), bailleur1 — mandat en facturation CUMUL
 
     id_maison_a INTEGER; -- LOUEE (client1) - cour1
     id_maison_b INTEGER; -- DISPONIBLE - cour1
     id_maison_e INTEGER; -- LOUEE puis RESILIEE mi-mois - cour1
     id_maison_c INTEGER; -- LOUEE (client2) - cour2
+    id_maison_g INTEGER; -- LOUEE (client2) - cour4 (mandat CUMUL)
     id_maison_d INTEGER; -- DISPONIBLE - cour2
 
     id_mandat1 INTEGER; -- cour1, commission 10%
     id_mandat2 INTEGER; -- cour2, commission 12%
+    id_mandat3 INTEGER; -- cour4, commission 10%, facturation CUMUL
 
     id_contrat1 INTEGER; -- client1 / maison A, ACTIF
     id_contrat2 INTEGER; -- client2 / maison C, ACTIF
     id_contrat3 INTEGER; -- client1 / maison E, RESILIE mi-mois
+    id_contrat4 INTEGER; -- client2 / maison G, ACTIF (cour4, mandat CUMUL)
+    r RECORD;
+    id_paiement_auto INTEGER;
 
     id_categorie_vehicule INTEGER;
     id_categorie_equipement INTEGER;
@@ -137,16 +143,20 @@ VALUES
     (id_secteur_s03, id_bailleur2, 'COUR-2026-002', 'Lot 8', 3, NOW()),
     -- bailleur2 possède une 2e cour (secteur 15, Ouagadougou) pour tester
     -- le filtre multi-cours côté frontend (masqué si un seul bailleur n'a qu'une cour)
-    (id_secteur_s15, id_bailleur2, 'COUR-2026-003', 'Lot 22', 7, NOW());
+    (id_secteur_s15, id_bailleur2, 'COUR-2026-003', 'Lot 22', 7, NOW()),
+    -- 2e cour de bailleur1, confiée en facturation CUMUL (versement groupé à la demande de l'agent)
+    (id_secteur_s12, id_bailleur1, 'COUR-2026-004', 'Lot 50', 15, NOW());
 
 SELECT id_cour INTO id_cour1 FROM cour WHERE reference_cour = 'COUR-2026-001';
 SELECT id_cour INTO id_cour2 FROM cour WHERE reference_cour = 'COUR-2026-002';
 SELECT id_cour INTO id_cour3 FROM cour WHERE reference_cour = 'COUR-2026-003';
+SELECT id_cour INTO id_cour4 FROM cour WHERE reference_cour = 'COUR-2026-004';
 
 -- ==============================================================
 -- Maisons — cour1 : A (louée), B (disponible), E (louée puis résiliée)
 --            cour2 : C (louée), D (disponible)
 --            cour3 : F (disponible) — 2e cour de bailleur2
+--            cour4 : G (louée) — 2e cour de bailleur1, mandat CUMUL
 -- ==============================================================
 INSERT INTO maison (id_cour, type_maison, nom_commun_maison, nombre_piece, loyer, caution, nombre_mois_caution, statut, created_at)
 VALUES
@@ -155,56 +165,76 @@ VALUES
     (id_cour1, 'Studio', 'Maison E - Studio annexe', 1, 70000, 140000, 2, 'DISPONIBLE', NOW()), -- redevenue disponible après résiliation
     (id_cour2, 'Villa', 'Maison C - Villa 2 pièces', 2, 100000, 200000, 2, 'LOUEE', NOW()),
     (id_cour2, 'Studio', 'Maison D - Studio', 1, 55000, 110000, 2, 'DISPONIBLE', NOW()),
-    (id_cour3, 'Studio', 'Maison F - Studio annexe', 1, 65000, 130000, 2, 'DISPONIBLE', NOW());
+    (id_cour3, 'Studio', 'Maison F - Studio annexe', 1, 65000, 130000, 2, 'DISPONIBLE', NOW()),
+    (id_cour4, 'Studio', 'Maison G - Studio meublé', 1, 50000, 100000, 2, 'LOUEE', NOW());
 
 SELECT id_maison INTO id_maison_a FROM maison WHERE nom_commun_maison = 'Maison A - Villa 3 pièces';
 SELECT id_maison INTO id_maison_b FROM maison WHERE nom_commun_maison = 'Maison B - Studio';
 SELECT id_maison INTO id_maison_e FROM maison WHERE nom_commun_maison = 'Maison E - Studio annexe';
 SELECT id_maison INTO id_maison_c FROM maison WHERE nom_commun_maison = 'Maison C - Villa 2 pièces';
 SELECT id_maison INTO id_maison_d FROM maison WHERE nom_commun_maison = 'Maison D - Studio';
+SELECT id_maison INTO id_maison_g FROM maison WHERE nom_commun_maison = 'Maison G - Studio meublé';
 
 -- ==============================================================
--- Contrats de mandat — 2 mandats ACTIF, même agent, commissions différentes
+-- Contrats de mandat — 3 mandats GESTION ACTIF, même agent : 2 en facturation MENSUEL, 1 en CUMUL
+-- (aucun mandat résilié : un mandat ne peut pas être résilié tant qu'une maison de sa cour a une location ACTIF)
 -- ==============================================================
 INSERT INTO contrat_mandat (id_cour, id_user, date_debut, date_fin, type_mandat, commission, mode_facturation, statut)
 VALUES
     (id_cour1, id_agent, mois_avant_precedent - INTERVAL '2 months', mois_avant_precedent - INTERVAL '2 months' + INTERVAL '1 year', 'GESTION', 10, 'MENSUEL', 'ACTIF'),
-    (id_cour2, id_agent, mois_avant_precedent - INTERVAL '1 month', mois_avant_precedent - INTERVAL '1 month' + INTERVAL '1 year', 'GESTION', 12, 'MENSUEL', 'ACTIF');
+    (id_cour2, id_agent, mois_avant_precedent - INTERVAL '1 month', mois_avant_precedent - INTERVAL '1 month' + INTERVAL '1 year', 'GESTION', 12, 'MENSUEL', 'ACTIF'),
+    (id_cour4, id_agent, mois_avant_precedent - INTERVAL '1 month', NULL, 'GESTION', 10, 'CUMUL', 'ACTIF');
 
 SELECT id_mandat INTO id_mandat1 FROM contrat_mandat WHERE id_cour = id_cour1;
 SELECT id_mandat INTO id_mandat2 FROM contrat_mandat WHERE id_cour = id_cour2;
+SELECT id_mandat INTO id_mandat3 FROM contrat_mandat WHERE id_cour = id_cour4;
 
 -- ==============================================================
 -- Contrats de location
 -- Contrat1 : client1 / Maison A, ACTIF, entré il y a 3 mois
 -- Contrat2 : client2 / Maison C, ACTIF, entré il y a 2 mois
 -- Contrat3 : client1 / Maison E, entré il y a 2 mois, RESILIE mi-mois courant
+-- Contrat4 : client2 / Maison G (cour4), ACTIF, entré il y a 3 mois
 -- ==============================================================
 INSERT INTO contra_location (id_user, id_maison, date_entree, date_sortie, montant_loyer, statut, type_contrat, depot_garantie, etat_des_lieux_entree, created_at)
 VALUES
     (id_client1, id_maison_a, mois_avant_precedent - INTERVAL '1 month', NULL, 150000, 'ACTIF', 'HABITATION', 300000, 'RAS - état correct à l''entrée', NOW()),
     (id_client2, id_maison_c, mois_avant_precedent, NULL, 100000, 'ACTIF', 'HABITATION', 200000, 'RAS - état correct à l''entrée', NOW()),
-    (id_client1, id_maison_e, mois_avant_precedent, mois_courant + INTERVAL '14 days', 70000, 'RESILIE', 'HABITATION', 140000, 'RAS - état correct à l''entrée', NOW());
+    (id_client1, id_maison_e, mois_avant_precedent, mois_courant + INTERVAL '14 days', 70000, 'RESILIE', 'HABITATION', 140000, 'RAS - état correct à l''entrée', NOW()),
+    (id_client2, id_maison_g, mois_avant_precedent - INTERVAL '1 month', NULL, 50000, 'ACTIF', 'HABITATION', 100000, 'RAS - état correct à l''entrée', NOW());
 
 SELECT id_contra_location INTO id_contrat1 FROM contra_location WHERE id_maison = id_maison_a;
 SELECT id_contra_location INTO id_contrat2 FROM contra_location WHERE id_maison = id_maison_c;
 SELECT id_contra_location INTO id_contrat3 FROM contra_location WHERE id_maison = id_maison_e;
+SELECT id_contra_location INTO id_contrat4 FROM contra_location WHERE id_maison = id_maison_g;
 
 -- ==============================================================
--- Échéances LOCATION — modèle CALENDAIRE (1er du mois, mois occupé + 1)
--- Contrat1 (Maison A) : 2 mois avant = EN_RETARD (jamais payé), mois précédent = PAYE, mois courant = EN_ATTENTE (pas encore due)
--- Contrat2 (Maison C) : mois précédent = PAYE, mois courant = EN_ATTENTE
--- Contrat3 (Maison E, résiliée mi-mois courant) : SEULE l'échéance du mois de résiliation existe (mois courant, EN_ATTENTE)
---   -> aucune échéance future au-delà, simulant le nettoyage de supprimerEcheancesFutures()
+-- Échéances LOCATION — modèle CALENDAIRE (échéance du 1er du mois M = occupation du mois M-1)
+-- Chaque contrat a une échéance pour CHAQUE mois depuis son entrée : le calcul du reversement d'un mandat
+-- somme les échéances LOCATION de sa cour pour le mois, elles doivent donc exister.
+-- Contrat1 (Maison A, entré il y a 3 mois) : 1er mois PAYE, mois précédent = EN_RETARD (jamais payé), mois courant = PAYE, mois suivant = EN_ATTENTE
+-- Contrat2 (Maison C, entré il y a 2 mois) : mois précédent et courant = PAYE, mois suivant = EN_ATTENTE
+-- Contrat3 (Maison E, entré il y a 2 mois, résiliée mi-mois courant) : mois précédent et courant = PAYE ;
+--   l'échéance du mois suivant (occupation du mois de résiliation) est la dernière, aucune au-delà
+--   (simule le nettoyage de supprimerEcheancesFutures())
+-- Contrat4 (Maison G, cour4 en CUMUL, entré il y a 3 mois) : 3 premiers mois PAYE, mois suivant = EN_ATTENTE
 -- ==============================================================
 INSERT INTO echeance_loyer (entite_echeance_type, entite_echeance_id, date_echeance, montant_du, montant_paye, statut, created_at)
 VALUES
+    ('LOCATION', id_contrat1, mois_avant_precedent, 150000, 150000, 'PAYE', NOW()),
     ('LOCATION', id_contrat1, mois_precedent, 150000, 0, 'EN_RETARD', NOW()),
     ('LOCATION', id_contrat1, mois_courant, 150000, 150000, 'PAYE', NOW()),
     ('LOCATION', id_contrat1, mois_suivant, 150000, 0, 'EN_ATTENTE', NOW()),
+    ('LOCATION', id_contrat2, mois_precedent, 100000, 100000, 'PAYE', NOW()),
     ('LOCATION', id_contrat2, mois_courant, 100000, 100000, 'PAYE', NOW()),
     ('LOCATION', id_contrat2, mois_suivant, 100000, 0, 'EN_ATTENTE', NOW()),
-    ('LOCATION', id_contrat3, mois_suivant, 70000, 0, 'EN_ATTENTE', NOW());
+    ('LOCATION', id_contrat3, mois_precedent, 70000, 70000, 'PAYE', NOW()),
+    ('LOCATION', id_contrat3, mois_courant, 70000, 70000, 'PAYE', NOW()),
+    ('LOCATION', id_contrat3, mois_suivant, 70000, 0, 'EN_ATTENTE', NOW()),
+    ('LOCATION', id_contrat4, mois_avant_precedent, 50000, 50000, 'PAYE', NOW()),
+    ('LOCATION', id_contrat4, mois_precedent, 50000, 50000, 'PAYE', NOW()),
+    ('LOCATION', id_contrat4, mois_courant, 50000, 50000, 'PAYE', NOW()),
+    ('LOCATION', id_contrat4, mois_suivant, 50000, 0, 'EN_ATTENTE', NOW());
 
 SELECT id_echeance INTO id_echeance_a_retard FROM echeance_loyer WHERE entite_echeance_id = id_contrat1 AND date_echeance = mois_precedent;
 SELECT id_echeance INTO id_echeance_a_payee FROM echeance_loyer WHERE entite_echeance_id = id_contrat1 AND date_echeance = mois_courant;
@@ -226,10 +256,26 @@ VALUES
     (id_echeance_a_payee, id_paiement_loyer_a_precedent),
     (id_echeance_c_payee, id_paiement_loyer_c_precedent);
 
+-- Toute autre échéance LOCATION PAYE reçoit son paiement ENTREE (jamais d'échéance payée sans paiement)
+FOR r IN
+    SELECT e.id_echeance, e.date_echeance, e.montant_paye, cl.id_user AS id_locataire
+    FROM echeance_loyer e
+    JOIN contra_location cl ON cl.id_contra_location = e.entite_echeance_id
+    WHERE e.entite_echeance_type = 'LOCATION' AND e.statut = 'PAYE'
+      AND NOT EXISTS (SELECT 1 FROM paiement_echeance pe WHERE pe.id_echeance = e.id_echeance)
+LOOP
+    INSERT INTO paiement (date_paiement, montant_paiement, mode_paiement, reference_paiement, sens, user_create)
+    VALUES (r.date_echeance, r.montant_paye, 'MOBILE_MONEY', 'PAY-AUTO-LOYER-' || r.id_echeance, 'ENTREE', r.id_locataire)
+    RETURNING id_paiement INTO id_paiement_auto;
+    INSERT INTO paiement_echeance (id_echeance, id_paiement) VALUES (r.id_echeance, id_paiement_auto);
+END LOOP;
+
 -- ==============================================================
 -- Échéances MANDAT — modèle reversement bailleur (montant_du = NET, commission_deduite = gain agence)
--- Mandat1 (cour1, 10%) : ancienne (2 mois avant, PAYE, déjà reversée) + actuelle (mois précédent, EN_ATTENTE)
--- Mandat2 (cour2, 12%) : actuelle (mois précédent, EN_ATTENTE)
+-- Mandat1 (cour1, 10%, MENSUEL) : ancienne (2 mois avant, PAYE, déjà reversée) + actuelle (mois précédent, EN_ATTENTE)
+-- Mandat2 (cour2, 12%, MENSUEL) : actuelle (mois précédent, EN_ATTENTE)
+-- Mandat3 (cour4, 10%, CUMUL) : aucune échéance, à calculer via le calcul cumulé
+-- Les montants sont ceux du calcul réel : loyers dus = somme des échéances LOCATION de la cour pour le mois.
 -- ==============================================================
 
 -- Ancienne échéance mandat1, déjà reversée : loyers encaissés 150000, commission 15000, net 135000
@@ -247,11 +293,11 @@ SELECT id_paiement INTO id_paiement_reversement_mandat1_ancien FROM paiement WHE
 INSERT INTO paiement_echeance (id_echeance, id_paiement)
 VALUES (id_echeance_mandat1_ancienne, id_paiement_reversement_mandat1_ancien);
 
--- Échéance actuelle mandat1, pas encore reversée : loyers encaissés mois précédent 150000, commission 15000, net 135000
+-- Échéance actuelle mandat1, pas encore reversée : loyers dus du mois précédent 220000 (maisons A + E), commission 22000, net 198000
 INSERT INTO echeance_loyer (entite_echeance_type, entite_echeance_id, date_echeance, montant_du, montant_paye, commission_deduite, statut, created_at)
-VALUES ('MANDAT', id_mandat1, mois_precedent, 135000, 0, 15000, 'EN_ATTENTE', NOW());
+VALUES ('MANDAT', id_mandat1, mois_precedent, 198000, 0, 22000, 'EN_ATTENTE', NOW());
 
--- Échéance actuelle mandat2, pas encore reversée : loyers encaissés mois précédent 100000, commission 12000, net 88000
+-- Échéance actuelle mandat2, pas encore reversée : loyers dus du mois précédent 100000, commission 12000, net 88000
 INSERT INTO echeance_loyer (entite_echeance_type, entite_echeance_id, date_echeance, montant_du, montant_paye, commission_deduite, statut, created_at)
 VALUES ('MANDAT', id_mandat2, mois_precedent, 88000, 0, 12000, 'EN_ATTENTE', NOW());
 

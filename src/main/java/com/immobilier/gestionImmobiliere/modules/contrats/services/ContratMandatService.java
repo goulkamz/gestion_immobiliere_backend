@@ -4,7 +4,9 @@ import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 
 import com.immobilier.gestionImmobiliere.donnees.biens.model.Cour;
 import com.immobilier.gestionImmobiliere.donnees.biens.model.Maison;
@@ -13,7 +15,10 @@ import com.immobilier.gestionImmobiliere.donnees.biens.repository.CourRepository
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.ContratLocation;
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.ContratMandat;
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.StatutLocation;
+import com.immobilier.gestionImmobiliere.donnees.contrats.model.ModeFacturation;
+import com.immobilier.gestionImmobiliere.donnees.contrats.repository.ContratLocationRepository;
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.StatutMandat;
+import com.immobilier.gestionImmobiliere.donnees.contrats.model.TypeMandat;
 import com.immobilier.gestionImmobiliere.donnees.contrats.repository.ContratMandatRepository;
 import com.immobilier.gestionImmobiliere.donnees.paiements.model.TypeEcheance;
 import com.immobilier.gestionImmobiliere.donnees.user.model.User;
@@ -48,13 +53,15 @@ public class ContratMandatService {
     private final CourRepository courRepository;
     private final UserRepository userRepository;
     private final EcheanceService echeanceService;
+    private final ContratLocationRepository contratLocationRepository;
 
 
-    public ContratMandatService(ContratMandatRepository mandatRepository, CourRepository courRepository, UserRepository userRepository, EcheanceService echeanceService) {
+    public ContratMandatService(ContratMandatRepository mandatRepository, CourRepository courRepository, UserRepository userRepository, EcheanceService echeanceService, ContratLocationRepository contratLocationRepository) {
         this.mandatRepository = mandatRepository;
         this.courRepository = courRepository;
         this.userRepository = userRepository;
         this.echeanceService = echeanceService;
+        this.contratLocationRepository = contratLocationRepository;
     }
 
     public ResponseEntity<?> getAllForCurrentUser(Integer idCour, StatutMandat statut, String recherche,
@@ -108,6 +115,7 @@ public class ContratMandatService {
         if (dto.getDateFin() != null && !dto.getDateFin().isAfter(dto.getDateDebut())) {
             throw new IllegalArgumentException("La date de fin doit être postérieure à la date de début");
         }
+        validerModeFacturation(dto.getTypeMandat(), dto.getModeFacturation());
         Cour cour = courRepository.findById(dto.getIdCour())
                 .orElseThrow(() -> new ResourceNotFoundException("cour", dto.getIdCour()));
         User agent = userRepository.findById(currentUserId)
@@ -157,6 +165,11 @@ public class ContratMandatService {
             throw new InvalidStatutTransitionException(mandat.getStatut().name(), StatutMandat.RESILIE.name());
         }
 
+        // Tant qu'une maison de la cour est louée, le mandat ne peut pas être résilié : on met d'abord fin aux locations
+        if (contratLocationRepository.existsByMaison_Cour_IdCourAndStatut(mandat.getCour().getIdCour(), StatutLocation.ACTIF)) {
+            throw new IllegalStateException("Ce mandat ne peut pas être résilié : au moins une maison de la cour a un contrat de location actif");
+        }
+
         User agent = userRepository.findById(currentUserId)
                 .orElseThrow(() -> new ResourceNotFoundException("agent", currentUserId));
 
@@ -190,12 +203,42 @@ public class ContratMandatService {
             }
             mandat.setDateFin(dto.getDateFin());
         }
+        TypeMandat type = dto.getTypeMandat() != null ? dto.getTypeMandat() : mandat.getTypeMandat();
+        ModeFacturation mode = dto.getModeFacturation() != null ? dto.getModeFacturation() : mandat.getModeFacturation();
+        if (dto.getTypeMandat() != null || dto.getModeFacturation() != null) {
+            validerModeFacturation(type, mode);
+        }
+
         if (dto.getCommission() != null) mandat.setCommission(dto.getCommission());
-        if (dto.getModeFacturation() != null) mandat.setModeFacturation(dto.getModeFacturation());
-        if (dto.getTypeMandat() != null) mandat.setTypeMandat(dto.getTypeMandat());
+        mandat.setModeFacturation(mode);
+        mandat.setTypeMandat(type);
 
         mandatRepository.save(mandat);
         return buildSuccessResponse(HttpStatus.OK, "Mandat modifié", "MANDAT_UPDATED", toDto(mandat));
+    }
+
+    /** Modes de facturation proposés pour chaque type de mandat. */
+    public ResponseEntity<?> getModesFacturation() {
+        Map<TypeMandat, List<ModeFacturation>> modes = new EnumMap<>(TypeMandat.class);
+        for (TypeMandat type : TypeMandat.values()) {
+            if (!type.isDisponible()) continue;
+            modes.put(type, type.getModesAutorises());
+        }
+        return buildSuccessResponse(HttpStatus.OK, "Modes de facturation par type de mandat", "MANDAT_MODES_FACTURATION", modes);
+    }
+
+    private void validerModeFacturation(TypeMandat type, ModeFacturation mode) {
+        if (!type.isDisponible()) {
+            throw new IllegalArgumentException("Les mandats de type " + type + " ne sont pas disponibles pour le moment");
+        }
+        if (mode == null) {
+            throw new IllegalArgumentException("Le mode de facturation est obligatoire pour un mandat " + type
+                    + " (modes possibles : " + type.getModesAutorises() + ")");
+        }
+        if (!type.accepte(mode)) {
+            throw new IllegalArgumentException("Le mode de facturation " + mode + " n'est pas autorisé pour un mandat "
+                    + type + " (modes possibles : " + type.getModesAutorises() + ")");
+        }
     }
 
     @Transactional
@@ -220,6 +263,7 @@ public class ContratMandatService {
                 .dateFin(m.getDateFin())
                 .typeMandat(m.getTypeMandat())
                 .commission(m.getCommission())
+                .modeFacturation(m.getModeFacturation())
                 .statut(m.getStatut())
                 .motifResiliation(m.getMotifResiliation())
                 .build();

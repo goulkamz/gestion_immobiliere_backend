@@ -169,7 +169,7 @@ public class ContratMandatDocumentService {
         utils.ajouterLigneTableau(tableau, "Date de fin",
                 mandat.getDateFin() != null ? mandat.getDateFin().format(FMT_DATE) : "Durée indéterminée", fontLabel, fontValeur);
         utils.ajouterLigneTableau(tableau, "Commission", FMT_MONTANT.format(mandat.getCommission()) + " %", fontLabel, fontValeur);
-        utils.ajouterLigneTableau(tableau, "Mode de facturation", mandat.getModeFacturation() != null ? mandat.getModeFacturation() : "—", fontLabel, fontValeur);
+        utils.ajouterLigneTableau(tableau, "Mode de facturation", mandat.getModeFacturation() != null ? mandat.getModeFacturation().name() : "—", fontLabel, fontValeur);
 
         document.add(tableau);
     }
