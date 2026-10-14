@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.contrats.apis;
 
+import com.immobilier.gestionImmobiliere.donnees.contrats.model.StatutLocation;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.CreateContratLocationDTO;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.ResilierLocationDTO;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.TerminerLocationDTO;
@@ -22,6 +23,8 @@ public interface ContratLocationAPI {
     ResponseEntity<?> getAll(@RequestParam(required = false) Integer idMaison,
                              @RequestParam(required = false) Integer idLocataire,
                              @RequestParam(required = false) String recherche,
+                             @RequestParam(required = false) StatutLocation statut,
+                             @RequestParam(required = false) String referenceCour,
                              Pageable pageable,
                              @AuthenticationPrincipal UserDetailsImpl currentUser);
 

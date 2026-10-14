@@ -9,6 +9,7 @@ public class CourResponseDTO {
     private String referenceCour;
     private String lotCour;
     private Integer numeroPorte;
+    private String description;
     private Integer idSecteur;
     private String nomSecteur;
     private Integer idProprietaire;

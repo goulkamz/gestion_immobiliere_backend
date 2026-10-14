@@ -2,6 +2,7 @@ package com.immobilier.gestionImmobiliere.modules.biens.services;
 
 import com.immobilier.gestionImmobiliere.donnees.biens.model.BienService;
 import com.immobilier.gestionImmobiliere.donnees.biens.model.LocationBienService;
+import com.immobilier.gestionImmobiliere.donnees.biens.model.StatutBienService;
 import com.immobilier.gestionImmobiliere.donnees.biens.model.StatutLocationBienService;
 import com.immobilier.gestionImmobiliere.donnees.biens.repository.BienServiceRepository;
 import com.immobilier.gestionImmobiliere.donnees.biens.repository.LocationBienServiceRepository;
@@ -17,6 +18,8 @@ import com.immobilier.gestionImmobiliere.modules.biens.dto.responses.LocationBie
 import com.immobilier.gestionImmobiliere.modules.biens.dto.responses.ModifierDureeLocationResponseDTO;
 import com.immobilier.gestionImmobiliere.modules.biens.dto.responses.PaiementLocationBienServiceResponseDTO;
 import com.immobilier.gestionImmobiliere.modules.biens.dto.responses.RemboursementResponseDTO;
+import com.immobilier.gestionImmobiliere.modules.notifications.services.AlerteAgentService;
+import com.immobilier.gestionImmobiliere.modules.notifications.services.AlerteUtilisateurService;
 import com.immobilier.gestionImmobiliere.modules.user.jwtService.UserDetailsImpl;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.Predicate;
@@ -31,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -47,10 +51,15 @@ public class LocationBienServiceService {
     private final UserRepository userRepository;
     private final PaiementLocationBienServiceRepository paiementLocationBienServiceRepository;
     private final RemboursementRepository remboursementRepository;
+    private final AlerteAgentService alerteAgentService;
+    private final AlerteUtilisateurService alerteUtilisateurService;
 
 
     public LocationBienServiceService(LocationBienServiceRepository locationRepository, LocationBienServiceRepository locationBienServiceRepository, BienServiceRepository bienServiceRepository,
-                                      PaiementRepository paiementRepository, UserRepository userRepository, PaiementLocationBienServiceRepository paiementLocationBienServiceRepository, RemboursementRepository remboursementRepository) {
+                                      PaiementRepository paiementRepository, UserRepository userRepository, PaiementLocationBienServiceRepository paiementLocationBienServiceRepository, RemboursementRepository remboursementRepository,
+                                      AlerteAgentService alerteAgentService, AlerteUtilisateurService alerteUtilisateurService) {
+        this.alerteUtilisateurService = alerteUtilisateurService;
+        this.alerteAgentService = alerteAgentService;
         this.locationBienServiceRepository = locationBienServiceRepository;
         this.bienServiceRepository = bienServiceRepository;
         this.paiementRepository = paiementRepository;
@@ -59,20 +68,23 @@ public class LocationBienServiceService {
         this.remboursementRepository = remboursementRepository;
     }
 
-    public ResponseEntity<?> getAll(StatutLocationBienService statut, String recherche, Pageable pageable, UserDetailsImpl currentUser) {
+    // Locations ACTIF dont la fin tombe dans les JOURS_PREAVIS_ECHEANCE prochains jours (ou est déjà dépassée)
+    public static final int JOURS_PREAVIS_ECHEANCE = 2;
+
+    public ResponseEntity<?> getAll(StatutLocationBienService statut, String recherche, Boolean aEcheance, Pageable pageable, UserDetailsImpl currentUser) {
         boolean isClient = currentUser.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_CLIENT"));
 
         // Filtres (statut, recherche) appliques cote base avant la pagination ; optionnels pour ne pas casser les autres espaces
         Page<LocationBienServiceResponseDTO> result = locationBienServiceRepository
-                .findAll(filtrer(isClient ? currentUser.getIdUser() : null, statut, recherche), pageable)
+                .findAll(filtrer(isClient ? currentUser.getIdUser() : null, statut, recherche, Boolean.TRUE.equals(aEcheance)), pageable)
                 .map(this::toDto);
 
         return buildSuccessResponse(HttpStatus.OK, "Liste des locations", "LOCATION_BIEN_SERVICE_LIST", result);
     }
 
     // Recherche insensible a la casse sur le libelle du bien, le nom/prenom du client ou la destination
-    private Specification<LocationBienService> filtrer(Integer idClient, StatutLocationBienService statut, String recherche) {
+    private Specification<LocationBienService> filtrer(Integer idClient, StatutLocationBienService statut, String recherche, boolean aEcheance) {
         return (root, query, cb) -> {
             List<Predicate> predicats = new ArrayList<>();
             if (idClient != null) {
@@ -80,6 +92,11 @@ public class LocationBienServiceService {
             }
             if (statut != null) {
                 predicats.add(cb.equal(root.get("statut"), statut));
+            }
+            if (aEcheance) {
+                predicats.add(cb.equal(root.get("statut"), StatutLocationBienService.ACTIF));
+                predicats.add(cb.lessThan(root.<LocalDateTime>get("dateFin"),
+                        LocalDate.now().plusDays(JOURS_PREAVIS_ECHEANCE + 1L).atStartOfDay()));
             }
             if (recherche != null && !recherche.isBlank()) {
                 String motif = "%" + recherche.trim().toLowerCase() + "%";
@@ -149,6 +166,8 @@ public class LocationBienServiceService {
                 .build();
 
         locationBienServiceRepository.save(location);
+        synchroniserDisponibilite(bien);
+        alerteAgentService.nouvelleDemandeLocation(location);
         return buildSuccessResponse(HttpStatus.CREATED, "Demande de location enregistrée, en attente de confirmation", "LOCATION_BIEN_SERVICE_CREATED", toDto(location));
     }
 
@@ -212,6 +231,8 @@ public class LocationBienServiceService {
         location.setUpdatedAt(LocalDateTime.now());
 
         locationBienServiceRepository.save(location);
+        synchroniserDisponibilite(location.getBienService());
+        alerteUtilisateurService.locationConfirmee(location);
         return buildSuccessResponse(HttpStatus.OK, "Location confirmée après réception du paiement", "LOCATION_BIEN_SERVICE_CONFIRMED", toDto(location));
     }
 
@@ -224,9 +245,34 @@ public class LocationBienServiceService {
         if (!cloture && !annulation) {
             throw new IllegalStateException("Transition de statut non autorisée : " + location.getStatut() + " vers " + dto.getStatut());
         }
+        if (cloture) {
+            // Clôture anticipée : uniquement si l'agent l'a demandé, la durée est ramenée à aujourd'hui
+            // et le montant recalculé au prorata (trop-perçu à rembourser, comme un raccourcissement).
+            if (Boolean.TRUE.equals(dto.getRaccourcir())) {
+                raccourcirJusquAujourdhui(location);
+            } else if (LocalDate.now().isBefore(location.getDateFin().toLocalDate())) {
+                // Sans raccourcissement, une location ne se termine pas avant sa date de fin : l'agent
+                // peut ajuster la durée lui-même (bouton Durée) puis rembourser avant de clôturer.
+                throw new IllegalStateException("La date de fin prévue n'est pas atteinte : ajustez d'abord la durée de la location (bouton Durée), ou clôturez en ramenant la fin à aujourd'hui");
+            }
+            // Pas de clôture tant qu'un trop-perçu n'a pas été remboursé au client : la location reste
+            // ACTIVE (durée déjà ramenée à aujourd'hui) en attendant le remboursement.
+            BigDecimal solde = calculerEncaisseRembourseSolde(location)[2];
+            if (solde.compareTo(BigDecimal.ZERO) < 0) {
+                location.setUpdatedAt(LocalDateTime.now());
+                locationBienServiceRepository.save(location);
+                return buildSuccessResponse(HttpStatus.OK,
+                        "Durée ramenée à aujourd'hui : un trop-perçu de " + solde.negate().stripTrailingZeros().toPlainString()
+                                + " doit être remboursé au client avant de terminer la location",
+                        "LOCATION_BIEN_SERVICE_REMBOURSEMENT_REQUIS", toDto(location));
+            }
+        }
         location.setStatut(dto.getStatut());
         location.setUpdatedAt(LocalDateTime.now());
         locationBienServiceRepository.save(location);
+        synchroniserDisponibilite(location.getBienService());
+        if (cloture) alerteUtilisateurService.locationTerminee(location);
+        else alerteUtilisateurService.locationAnnulee(location);
         return buildSuccessResponse(HttpStatus.OK, "Statut mis à jour", "LOCATION_BIEN_SERVICE_STATUT_UPDATED", toDto(location));
     }
 
@@ -280,6 +326,18 @@ public class LocationBienServiceService {
         BigDecimal nouveauMontant = prixJournalier.multiply(BigDecimal.valueOf(nouvelleDuree)).setScale(2, RoundingMode.HALF_UP);
 
         if (estProlongation && dto.getMontantComplement() != null && dto.getMontantComplement().compareTo(BigDecimal.ZERO) > 0) {
+            // Montant réellement dû = nouveau total - (déjà encaissé - déjà remboursé) : un trop-perçu
+            // issu d'un raccourcissement antérieur est réutilisé avant de demander un nouveau paiement.
+            BigDecimal dejaVerse = paiementLocationBienServiceRepository.sumMontantByLocation(location.getIdLocationBienService())
+                    .subtract(remboursementRepository.sumMontantByEntite(TypeEntiteRemboursement.LOCATION_BIEN_SERVICE, location.getIdLocationBienService()));
+            BigDecimal resteDu = nouveauMontant.subtract(dejaVerse);
+            if (resteDu.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalStateException("Aucun complément à encaisser : les sommes déjà versées couvrent la nouvelle durée");
+            }
+            if (dto.getMontantComplement().compareTo(resteDu) > 0) {
+                throw new IllegalArgumentException("Le complément (" + dto.getMontantComplement().stripTrailingZeros().toPlainString()
+                        + ") dépasse le reste dû (" + resteDu.stripTrailingZeros().toPlainString() + ")");
+            }
             Paiement complement = Paiement.builder()
                     .datePaiement(LocalDateTime.now())
                     .montantPaiement(dto.getMontantComplement())
@@ -391,6 +449,7 @@ public class LocationBienServiceService {
                 .dateRemboursement(paiement.getDatePaiement())
                 .build();
 
+        alerteUtilisateurService.remboursementEffectue(location, remboursement.getIdRemboursement(), paiement.getMontantPaiement());
         return buildSuccessResponse(HttpStatus.CREATED, "Remboursement enregistré", "REMBOURSEMENT_CREATED", reponse);
     }
 
@@ -443,8 +502,47 @@ public class LocationBienServiceService {
         location.setUserUpdate(currentUser.getIdUser());
         location.setUpdatedAt(LocalDateTime.now());
         locationBienServiceRepository.save(location);
+        synchroniserDisponibilite(location.getBienService());
+        // Le client qui annule lui-meme sa demande n'a pas besoin d'etre alerte
+        if (!isClient) alerteUtilisateurService.locationAnnulee(location);
 
         return buildSuccessResponse(HttpStatus.OK, "Demande annulée", "LOCATION_BIEN_SERVICE_CANCELLED", null);
+    }
+
+    // Si la date de fin prévue n'est pas encore atteinte, la ramène à aujourd'hui (au moins 1 jour de location)
+    private void raccourcirJusquAujourdhui(LocationBienService location) {
+        LocalDate debut = location.getDateDebut().toLocalDate();
+        LocalDate aujourdhui = LocalDate.now();
+        if (!aujourdhui.isBefore(location.getDateFin().toLocalDate())) return;
+        LocalDate nouvelleFin = aujourdhui.isAfter(debut) ? aujourdhui : debut.plusDays(1);
+        long duree = ChronoUnit.DAYS.between(debut, nouvelleFin);
+        BigDecimal prix = location.getBienService().getPrixJournalier();
+        if (prix == null) return;
+        location.setDateFin(nouvelleFin.atStartOfDay());
+        location.setDuree(duree);
+        location.setMontantTotal(prix.multiply(BigDecimal.valueOf(duree)).setScale(2, RoundingMode.HALF_UP));
+    }
+
+    /**
+     * La disponibilité du bien suit le processus de location (jamais saisie à la main pour RESERVEE / LOUEE) :
+     * une location ACTIF le rend LOUEE, une demande EN_ATTENTE le rend RESERVEE, sinon DISPONIBLE.
+     * Un bien EN_MAINTENANCE (décision manuelle) n'est pas touché.
+     */
+    private void synchroniserDisponibilite(BienService bien) {
+        if (bien.getDisponibilite() == StatutBienService.EN_MAINTENANCE) return;
+        Integer idBien = bien.getIdBienService();
+        StatutBienService cible;
+        if (locationBienServiceRepository.existsByBienService_IdBienServiceAndStatut(idBien, StatutLocationBienService.ACTIF)) {
+            cible = StatutBienService.LOUEE;
+        } else if (locationBienServiceRepository.existsByBienService_IdBienServiceAndStatut(idBien, StatutLocationBienService.EN_ATTENTE)) {
+            cible = StatutBienService.RESERVEE;
+        } else {
+            cible = StatutBienService.DISPONIBLE;
+        }
+        if (bien.getDisponibilite() != cible) {
+            bien.setDisponibilite(cible);
+            bienServiceRepository.save(bien);
+        }
     }
 
     // Refuse si une autre location ACTIF du meme bien chevauche la periode demandee
@@ -482,12 +580,15 @@ public class LocationBienServiceService {
                 .idLocationBienService(l.getIdLocationBienService())
                 .idClient(l.getClient().getIdUser())
                 .nomClient(l.getClient().getNom() + " " + l.getClient().getPrenom())
+                .emailClient(l.getClient().getEmail())
+                .telephoneClient(l.getClient().getTelephone())
                 .idBienService(l.getBienService().getIdBienService())
                 .libelleBienService(l.getBienService().getLibelle())
                 .destination(l.getDestination())
                 .dateDebut(l.getDateDebut())
                 .dateFin(l.getDateFin())
                 .duree(l.getDuree())
+                .prixJournalier(l.getBienService().getPrixJournalier())
                 .montantTotal(l.getMontantTotal())
                 .statut(l.getStatut())
                 .historiquePaiements(historique)

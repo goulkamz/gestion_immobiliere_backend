@@ -11,4 +11,5 @@ public class CreateCourDTO {
     @NotBlank private String referenceCour;
     private String lotCour;
     private Integer numeroPorte;
+    private String description;
 }

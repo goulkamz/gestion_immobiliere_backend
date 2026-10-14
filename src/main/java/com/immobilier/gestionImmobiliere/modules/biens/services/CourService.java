@@ -125,6 +125,7 @@ public class CourService {
                 .referenceCour(dto.getReferenceCour())
                 .lotCour(dto.getLotCour())
                 .numeroPorte(dto.getNumeroPorte())
+                .description(dto.getDescription())
                 .userCreate(currentUserId)
                 .build();
         courRepository.save(cour);
@@ -143,6 +144,7 @@ public class CourService {
         if (dto.getReferenceCour() != null) cour.setReferenceCour(dto.getReferenceCour());
         if (dto.getLotCour() != null) cour.setLotCour(dto.getLotCour());
         if (dto.getNumeroPorte() != null) cour.setNumeroPorte(dto.getNumeroPorte());
+        if (dto.getDescription() != null) cour.setDescription(dto.getDescription());
         cour.setUserUpdate(currentUserId);
         cour.setUpdatedAt(LocalDateTime.now());
 
@@ -166,6 +168,7 @@ public class CourService {
                 .referenceCour(c.getReferenceCour())
                 .lotCour(c.getLotCour())
                 .numeroPorte(c.getNumeroPorte())
+                .description(c.getDescription())
                 .idSecteur(c.getSecteur().getIdSecteur())
                 .nomSecteur(c.getSecteur().getNomSecteur())
                 .idProprietaire(c.getProprietaire().getIdUser())

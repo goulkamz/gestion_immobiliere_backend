@@ -17,6 +17,7 @@ public class UserAdminResponseDTO {
     private String telephone1;
     private LocalDate dateNaissance;
     private Boolean flagActif;
+    private Boolean supprime;
     private String role;
     private LocalDateTime dateCreate;
     private LocalDateTime dateLastLogin;

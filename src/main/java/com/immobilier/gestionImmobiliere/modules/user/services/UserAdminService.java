@@ -12,6 +12,7 @@ import com.immobilier.gestionImmobiliere.donnees.user.repository.RoleRepository;
 import com.immobilier.gestionImmobiliere.donnees.user.model.User;
 import com.immobilier.gestionImmobiliere.donnees.user.repository.UserRepository;
 import com.immobilier.gestionImmobiliere.exceptions.CannotDeactivateSelfException;
+import com.immobilier.gestionImmobiliere.exceptions.CompteSupprimeException;
 import com.immobilier.gestionImmobiliere.exceptions.EmailAlreadyExistsException;
 import com.immobilier.gestionImmobiliere.exceptions.ResourceNotFoundException;
 import com.immobilier.gestionImmobiliere.exceptions.RoleNotFoundException;
@@ -51,16 +52,20 @@ public class UserAdminService {
         this.jwtUtils = jwtUtils;
     }
 
-    public ResponseEntity<?> getAll(ERole role, String recherche, Pageable pageable) {
+    public ResponseEntity<?> getAll(ERole role, String recherche, boolean supprimes, boolean estAdmin, Pageable pageable) {
+        // La liste des comptes supprimés (pour réactivation) est réservée à l'admin
+        if (supprimes && !estAdmin) {
+            throw new AccessDeniedException("Seul un administrateur peut consulter les comptes supprimés");
+        }
         // Rôle et recherche (nom, prénom, email, téléphone) appliqués côté base avant la pagination
-        Page<User> page = userRepository.findAll(filtrer(role, recherche), pageable);
+        Page<User> page = userRepository.findAll(filtrer(role, recherche, supprimes), pageable);
         return buildSuccessResponse(HttpStatus.OK, "Liste des utilisateurs", "USER_LIST", page.map(this::toDto));
     }
 
-    private Specification<User> filtrer(ERole role, String recherche) {
+    private Specification<User> filtrer(ERole role, String recherche, boolean supprimes) {
         return (root, query, cb) -> {
             List<Predicate> predicats = new ArrayList<>();
-            predicats.add(cb.isFalse(root.<Boolean>get("isDeleted")));
+            predicats.add(supprimes ? cb.isTrue(root.<Boolean>get("isDeleted")) : cb.isFalse(root.<Boolean>get("isDeleted")));
             if (role != null) {
                 predicats.add(cb.equal(root.get("role").get("libelleRole"), role));
             }
@@ -89,11 +94,23 @@ public class UserAdminService {
         if (!estAdmin && !ROLES_CREABLES_PAR_AGENT.contains(dto.getRole())) {
             throw new AccessDeniedException("Vous ne pouvez créer que des comptes client ou bailleur");
         }
+        if (userRepository.existsByEmailAndIsDeletedTrue(dto.getEmail())) {
+            throw new CompteSupprimeException("cet e-mail");
+        }
+        if (dto.getTelephone() != null && userRepository.existsByTelephoneAndIsDeletedTrue(dto.getTelephone())) {
+            throw new CompteSupprimeException("ce numéro de téléphone");
+        }
+        if (dto.getTelephone1() != null && userRepository.existsByTelephone1AndIsDeletedTrue(dto.getTelephone1())) {
+            throw new CompteSupprimeException("ce numéro de téléphone secondaire");
+        }
         if (userRepository.existsByEmail(dto.getEmail())) {
             throw new EmailAlreadyExistsException(dto.getEmail());
         }
         if (dto.getTelephone() != null && userRepository.existsByTelephone(dto.getTelephone())) {
             throw new RuntimeException("Ce numéro de téléphone est déjà utilisé");
+        }
+        if (dto.getTelephone1() != null && userRepository.existsByTelephone1(dto.getTelephone1())) {
+            throw new RuntimeException("Ce numéro de téléphone secondaire est déjà utilisé");
         }
 
         Role role = roleRepository.findByLibelleRole(dto.getRole())
@@ -119,8 +136,17 @@ public class UserAdminService {
     public ResponseEntity<?> update(Integer id, UpdateUserByAdminDTO dto, Integer currentUserId) {
         User user = findOrThrow(id);
 
+        if (dto.getTelephone() != null && userRepository.existsByTelephoneAndIdUserNotAndIsDeletedTrue(dto.getTelephone(), id)) {
+            throw new CompteSupprimeException("ce numéro de téléphone");
+        }
         if (dto.getTelephone() != null && userRepository.existsByTelephoneAndIdUserNot(dto.getTelephone(), id)) {
             throw new RuntimeException("Ce numéro de téléphone est déjà utilisé par un autre compte");
+        }
+        if (dto.getTelephone1() != null && userRepository.existsByTelephone1AndIdUserNotAndIsDeletedTrue(dto.getTelephone1(), id)) {
+            throw new CompteSupprimeException("ce numéro de téléphone secondaire");
+        }
+        if (dto.getTelephone1() != null && userRepository.existsByTelephone1AndIdUserNot(dto.getTelephone1(), id)) {
+            throw new RuntimeException("Ce numéro de téléphone secondaire est déjà utilisé par un autre compte");
         }
 
         if (dto.getNom() != null) user.setNom(dto.getNom());
@@ -175,6 +201,19 @@ public class UserAdminService {
         return buildSuccessResponse(HttpStatus.OK, "Utilisateur supprimé", "USER_DELETED", null);
     }
 
+    // Réactive un compte supprimé logiquement : il redevient actif avec ses identifiants et son historique d'origine
+    @Transactional
+    public ResponseEntity<?> restaurer(Integer id) {
+        User user = findOrThrow(id);
+        if (!Boolean.TRUE.equals(user.getIsDeleted())) {
+            throw new IllegalStateException("Ce compte n'est pas supprimé");
+        }
+        user.setIsDeleted(false);
+        user.setFlagActif(true);
+        userRepository.save(user);
+        return buildSuccessResponse(HttpStatus.OK, "Compte réactivé", "USER_RESTORED", toDto(user));
+    }
+
     private User findOrThrow(Integer id) {
         return userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("utilisateur", id));
     }
@@ -190,6 +229,7 @@ public class UserAdminService {
                 .telephone1(u.getTelephone1())
                 .dateNaissance(u.getDateNaissance())
                 .flagActif(u.isFlagActif())
+                .supprime(Boolean.TRUE.equals(u.getIsDeleted()))
                 .role(u.getRole().getLibelleRole().name())
                 .dateCreate(u.getCreatedAt())
                 .dateLastLogin(u.getDateLastLogin())

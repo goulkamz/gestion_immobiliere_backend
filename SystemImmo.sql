@@ -24,6 +24,7 @@ DROP TABLE IF EXISTS cour CASCADE;
 DROP TABLE IF EXISTS bien_service CASCADE;
 DROP TABLE IF EXISTS demande CASCADE;
 DROP TABLE IF EXISTS offre CASCADE;
+DROP TABLE IF EXISTS notification CASCADE;
 DROP TABLE IF EXISTS temoignage CASCADE;
 DROP TABLE IF EXISTS contact CASCADE;
 DROP TABLE IF EXISTS annonce CASCADE;
@@ -55,6 +56,7 @@ DROP SEQUENCE IF EXISTS seq_location_service CASCADE;
 DROP SEQUENCE IF EXISTS seq_maison CASCADE;
 DROP SEQUENCE IF EXISTS seq_media CASCADE;
 DROP SEQUENCE IF EXISTS seq_offre CASCADE;
+DROP SEQUENCE IF EXISTS seq_notification CASCADE;
 DROP SEQUENCE IF EXISTS seq_temoignage CASCADE;
 DROP SEQUENCE IF EXISTS seq_paiement CASCADE;
 DROP SEQUENCE IF EXISTS seq_pays CASCADE;
@@ -89,6 +91,7 @@ CREATE SEQUENCE seq_maison START 1;
 CREATE SEQUENCE seq_media START 1;
 CREATE SEQUENCE seq_offre START 1;
 CREATE SEQUENCE seq_temoignage START 1;
+CREATE SEQUENCE seq_notification START 1;
 CREATE SEQUENCE seq_paiement START 1;
 CREATE SEQUENCE seq_pays START 1;
 CREATE SEQUENCE seq_reservation START 1;
@@ -271,6 +274,7 @@ CREATE TABLE cour (
     reference_cour VARCHAR(254),
     lot_cour VARCHAR(254),
     numero_porte INTEGER,
+    description TEXT,
     user_create INTEGER,
     user_update INTEGER,
     created_at TIMESTAMP(6) DEFAULT NOW(),
@@ -295,6 +299,7 @@ CREATE TABLE maison (
     avance DECIMAL(15,2),
     nombre_mois_caution INTEGER,
     statut VARCHAR(254),
+    description TEXT,
     user_create INTEGER,
     user_update INTEGER,
     created_at TIMESTAMP(6) DEFAULT NOW(),
@@ -445,6 +450,27 @@ CREATE TABLE temoignage (
     updated_at TIMESTAMP(6) DEFAULT NOW(),
     is_deleted BOOLEAN DEFAULT FALSE
 );
+
+-- ==============================================================
+-- Table: notification (notifications in-app ; une ligne par destinataire)
+-- cle_alerte unique par utilisateur = anti-doublons des alertes automatiques
+-- ==============================================================
+CREATE TABLE notification (
+    id_notification INTEGER PRIMARY KEY DEFAULT nextval('seq_notification'),
+    id_user INTEGER NOT NULL REFERENCES users(id_user),
+    type VARCHAR(50) NOT NULL,
+    titre VARCHAR(200) NOT NULL,
+    message TEXT,
+    lien VARCHAR(255),
+    cle_alerte VARCHAR(150),
+    lue BOOLEAN NOT NULL DEFAULT FALSE,
+    date_lecture TIMESTAMP(6),
+    created_at TIMESTAMP(6) DEFAULT NOW(),
+    updated_at TIMESTAMP(6) DEFAULT NOW(),
+    is_deleted BOOLEAN DEFAULT FALSE
+);
+CREATE INDEX idx_notification_user ON notification (id_user, lue, created_at DESC);
+CREATE UNIQUE INDEX uq_notification_cle ON notification (id_user, cle_alerte) WHERE cle_alerte IS NOT NULL;
 
 -- ==============================================================
 -- Table: paiement

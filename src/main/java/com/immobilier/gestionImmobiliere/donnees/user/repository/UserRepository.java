@@ -32,8 +32,18 @@ public interface UserRepository extends JpaRepository<User, Integer>, org.spring
 
     boolean existsByTelephone(String telephone);
 
+    // Comptes supprimes logiquement : leur email/telephone restent reserves (index uniques), un admin doit les reactiver
+    boolean existsByEmailAndIsDeletedTrue(String email);
+    boolean existsByTelephoneAndIsDeletedTrue(String telephone);
+    boolean existsByTelephone1(String telephone1);
+    boolean existsByTelephone1AndIsDeletedTrue(String telephone1);
+    boolean existsByTelephone1AndIdUserNot(String telephone1, Integer idUser);
+    boolean existsByTelephone1AndIdUserNotAndIsDeletedTrue(String telephone1, Integer idUser);
+    boolean existsByTelephoneAndIdUserNotAndIsDeletedTrue(String telephone, Integer idUser);
+
     Page<User> findByIsDeletedFalse(Pageable pageable);
     Page<User> findByRole_LibelleRoleAndIsDeletedFalse(ERole role, Pageable pageable);
+    List<User> findByRole_LibelleRoleInAndIsDeletedFalse(java.util.Collection<ERole> roles);
     boolean existsByTelephoneAndIdUserNot(String telephone, Integer idUser);
     boolean existsByEmailAndIdUserNot(String email, Integer idUser);
 

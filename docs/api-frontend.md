@@ -942,6 +942,20 @@ interface Temoignage {
 
 ---
 
+## 9 bis. Notifications in-app (`/api/notifications`) - `NotificationAPI`
+
+Tous rôles authentifiés. **Isolation stricte** : le destinataire est toujours l'utilisateur authentifié, aucun `userId` n'est accepté. Une notification d'un autre utilisateur répond **404** (`NOTIFICATION_NOT_FOUND`), jamais 403.
+Objet : `{ idNotification, type: "INFO"|"ECHEANCE"|"DEMANDE", titre, message?, lien?, lue, dateCreation }` (`lien` = route frontend).
+#### GET /api/notifications
+Paginé (défaut 20, plus récentes d'abord). Param `nonLuesSeulement` (défaut `false`). Code : `NOTIFICATION_LIST`.
+#### GET /api/notifications/non-lues/count
+`data: { count }` - compteur de la cloche. Code : `NOTIFICATION_UNREAD_COUNT`.
+#### PATCH /api/notifications/{id}/lue
+Marque une notification lue (idempotent). Code : `NOTIFICATION_READ`. 404 si elle n'est pas à l'utilisateur.
+#### PATCH /api/notifications/lues
+Marque toutes les notifications de l'utilisateur lues. `data: { count }`. Code : `NOTIFICATION_ALL_READ`.
+Purge : job quotidien 3h30, supprime les notifications **lues** depuis plus de 30 jours (`app.notifications.retention-lues-jours`) ; les non lues sont conservées.
+
 ## 10. Réservations (`/api/reservations`) — `ReservationAPI`
 
 Réservation d'une maison : un simple **blocage temporaire** le temps qu'un agent confirme, pas le bail réel. `dateFin` de la réservation **n'est pas saisie par le client** — elle est calculée côté serveur (`dateDebut + DELAI_EXPIRATION_RESERVATION_HEURES`, paramètre système, défaut 6h) et ne représente que l'échéance technique d'expiration du blocage (job planifié horaire, voir `Scheduler.expirerReservationsEnAttente`), pas la durée réelle du séjour souhaité (inconnue à ce stade — un locataire sait rarement à l'avance quand il repartira). **RG2 : pas de chevauchement de dates pour une même maison** s'applique donc à cette courte fenêtre de blocage, pas à un séjour long ; une fois convertie en contrat de location, c'est `StatutMaison` (LOUEE) qui empêche toute nouvelle réservation, plus les dates.

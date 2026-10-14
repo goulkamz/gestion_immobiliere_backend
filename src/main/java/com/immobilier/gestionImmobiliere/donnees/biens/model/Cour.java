@@ -41,6 +41,9 @@ public class Cour extends Model {
     @Column(name = "numero_porte")
     private Integer numeroPorte;
 
+    @Column(name = "description", columnDefinition = "TEXT")
+    private String description;
+
     @Column(name = "user_create")
     private Integer userCreate;
 

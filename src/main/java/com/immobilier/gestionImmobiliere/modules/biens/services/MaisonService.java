@@ -41,12 +41,11 @@ import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.build
 @Service
 public class MaisonService {
 
-    // RG3 — transitions autorisées
+    // RG3 — transitions MANUELLES autorisées. RESERVEE et LOUEE sont pilotés par les processus
+    // (réservation, contrat de location) : ni posés ni retirés à la main.
     private static final Map<StatutMaison, EnumSet<StatutMaison>> TRANSITIONS = new EnumMap<>(StatutMaison.class);
     static {
-        TRANSITIONS.put(StatutMaison.DISPONIBLE, EnumSet.of(StatutMaison.RESERVEE, StatutMaison.EN_MAINTENANCE));
-        TRANSITIONS.put(StatutMaison.RESERVEE, EnumSet.of(StatutMaison.LOUEE, StatutMaison.DISPONIBLE));
-        TRANSITIONS.put(StatutMaison.LOUEE, EnumSet.of(StatutMaison.DISPONIBLE));
+        TRANSITIONS.put(StatutMaison.DISPONIBLE, EnumSet.of(StatutMaison.EN_MAINTENANCE));
         TRANSITIONS.put(StatutMaison.EN_MAINTENANCE, EnumSet.of(StatutMaison.DISPONIBLE));
     }
 
@@ -141,6 +140,7 @@ public class MaisonService {
                 .loyer(dto.getLoyer())
                 .caution(dto.getCaution())
                 .nombreMoisCaution(dto.getNombreMoisCaution())
+                .description(dto.getDescription())
                 .avance(dto.getAvance())
                 .statut(StatutMaison.DISPONIBLE)
                 .userCreate(currentUserId)
@@ -160,6 +160,7 @@ public class MaisonService {
         if (dto.getCaution() != null) maison.setCaution(dto.getCaution());
         if (dto.getAvance() != null) maison.setAvance(dto.getAvance());
         if (dto.getNombreMoisCaution() != null) maison.setNombreMoisCaution(dto.getNombreMoisCaution());
+        if (dto.getDescription() != null) maison.setDescription(dto.getDescription());
         maison.setUserUpdate(currentUserId);
         maison.setUpdatedAt(LocalDateTime.now());
 
@@ -181,6 +182,7 @@ public class MaisonService {
                 .loyer(dto.getLoyer())
                 .caution(dto.getCaution())
                 .nombreMoisCaution(dto.getNombreMoisCaution())
+                .description(dto.getDescription())
                 .statut(StatutMaison.DISPONIBLE)
                 .build();
         maisonRepository.save(maison);
@@ -197,6 +199,7 @@ public class MaisonService {
         if (dto.getLoyer() != null) maison.setLoyer(dto.getLoyer());
         if (dto.getCaution() != null) maison.setCaution(dto.getCaution());
         if (dto.getNombreMoisCaution() != null) maison.setNombreMoisCaution(dto.getNombreMoisCaution());
+        if (dto.getDescription() != null) maison.setDescription(dto.getDescription());
         maison.setUpdatedAt(LocalDateTime.now());
         maisonRepository.save(maison);
         return buildSuccessResponse(HttpStatus.OK, "Maison mise à jour", "MAISON_UPDATED", toDto(maison));
@@ -254,6 +257,7 @@ public class MaisonService {
                 .caution(m.getCaution())
                 .avance(m.getAvance())
                 .nombreMoisCaution(m.getNombreMoisCaution())
+                .description(m.getDescription())
                 .statut(m.getStatut())
                 .idCour(m.getCour().getIdCour())
                 .referenceCour(m.getCour().getReferenceCour())

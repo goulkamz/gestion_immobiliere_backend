@@ -24,8 +24,15 @@ public class UserAdminController implements UserAdminAPI {
     // pour peupler les sélecteurs de création de cour/bien-service.
     @Override
     @PreAuthorize("hasAnyRole('ADMIN','AGENT')")
-    public ResponseEntity<?> getAll(ERole role, String recherche, Pageable pageable) {
-        return userAdminService.getAll(role, recherche, pageable);
+    public ResponseEntity<?> getAll(ERole role, String recherche, boolean supprimes,
+                                    @AuthenticationPrincipal UserDetailsImpl currentUser, Pageable pageable) {
+        return userAdminService.getAll(role, recherche, supprimes, currentUser.hasRole("ADMIN"), pageable);
+    }
+
+    @Override
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> restaurer(Integer id) {
+        return userAdminService.restaurer(id);
     }
 
     @Override

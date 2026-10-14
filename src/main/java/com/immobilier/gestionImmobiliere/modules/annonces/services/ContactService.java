@@ -8,6 +8,7 @@ import com.immobilier.gestionImmobiliere.exceptions.TooManyRequestsException;
 import com.immobilier.gestionImmobiliere.modules.annonces.dto.requests.CreateContactDTO;
 import com.immobilier.gestionImmobiliere.modules.annonces.dto.requests.UpdateStatutContactDTO;
 import com.immobilier.gestionImmobiliere.modules.annonces.dto.responses.ContactResponseDTO;
+import com.immobilier.gestionImmobiliere.modules.notifications.services.AlerteAgentService;
 import com.immobilier.gestionImmobiliere.modules.user.jwt.RateLimitService;
 import com.immobilier.gestionImmobiliere.utils.ClientIpResolver;
 import jakarta.servlet.http.HttpServletRequest;
@@ -29,8 +30,11 @@ public class ContactService {
     private final ContactRepository contactRepository;
     private final RateLimitService rateLimitService;
     private final ClientIpResolver clientIpResolver;
+    private final AlerteAgentService alerteAgentService;
 
-    public ContactService(ContactRepository contactRepository, RateLimitService rateLimitService, ClientIpResolver clientIpResolver) {
+    public ContactService(ContactRepository contactRepository, RateLimitService rateLimitService, ClientIpResolver clientIpResolver,
+                          AlerteAgentService alerteAgentService) {
+        this.alerteAgentService = alerteAgentService;
         this.contactRepository = contactRepository;
         this.rateLimitService = rateLimitService;
         this.clientIpResolver = clientIpResolver;
@@ -58,6 +62,7 @@ public class ContactService {
                 .statut(StatutContact.NON_LU)
                 .build();
         contactRepository.save(contact);
+        alerteAgentService.nouveauContact(contact);
         return buildSuccessResponse(HttpStatus.CREATED, "Message envoyé avec succès", "CONTACT_CREATED", toDto(contact));
     }
 

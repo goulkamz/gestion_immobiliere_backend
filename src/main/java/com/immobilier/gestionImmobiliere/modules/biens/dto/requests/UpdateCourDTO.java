@@ -8,4 +8,5 @@ public class UpdateCourDTO {
     private String referenceCour;
     private String lotCour;
     private Integer numeroPorte;
+    private String description;
 }

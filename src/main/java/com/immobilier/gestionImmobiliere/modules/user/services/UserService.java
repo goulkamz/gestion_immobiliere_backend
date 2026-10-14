@@ -7,6 +7,7 @@ import com.immobilier.gestionImmobiliere.donnees.user.model.PendingRegistration;
 import com.immobilier.gestionImmobiliere.donnees.user.model.User;
 import com.immobilier.gestionImmobiliere.donnees.user.repository.PendingRegistrationRepository;
 import com.immobilier.gestionImmobiliere.donnees.user.repository.UserRepository;
+import com.immobilier.gestionImmobiliere.exceptions.CompteSupprimeException;
 import com.immobilier.gestionImmobiliere.exceptions.EmailAlreadyExistsException;
 import com.immobilier.gestionImmobiliere.exceptions.InvalidEmailException;
 import com.immobilier.gestionImmobiliere.exceptions.InvalidPasswordException;
@@ -120,12 +121,25 @@ public class UserService {
             throw new InvalidEmailException(createUserDTO.getEmail());
         }
 
+        if (userRepository.existsByEmailAndIsDeletedTrue(createUserDTO.getEmail())) {
+            throw new CompteSupprimeException("cet e-mail");
+        }
+        if (createUserDTO.getTelephone() != null && userRepository.existsByTelephoneAndIsDeletedTrue(createUserDTO.getTelephone())) {
+            throw new CompteSupprimeException("ce numéro de téléphone");
+        }
+
         if(checkIfExistsByUsername(createUserDTO.getEmail())){
             throw new EmailAlreadyExistsException(createUserDTO.getEmail());
         }
 
         if (createUserDTO.getTelephone() != null && userRepository.existsByTelephone(createUserDTO.getTelephone())) {
             throw new RuntimeException("Ce numéro de téléphone est déjà utilisé");
+        }
+        if (createUserDTO.getTelephone1() != null && userRepository.existsByTelephone1AndIsDeletedTrue(createUserDTO.getTelephone1())) {
+            throw new CompteSupprimeException("ce numéro de téléphone secondaire");
+        }
+        if (createUserDTO.getTelephone1() != null && userRepository.existsByTelephone1(createUserDTO.getTelephone1())) {
+            throw new RuntimeException("Ce numéro de téléphone secondaire est déjà utilisé");
         }
 
         if (createUserDTO.getPassword() == null || createUserDTO.getPassword().isEmpty()) {
@@ -189,8 +203,15 @@ public class UserService {
             throw new RuntimeException("Votre code a expire");
         }
 
-        if (userRepository.existsByEmail(pending.getEmail()) || userRepository.existsByTelephone(pending.getTelephone())) {
+        if (userRepository.existsByEmail(pending.getEmail()) || userRepository.existsByTelephone(pending.getTelephone())
+                || (pending.getTelephone1() != null && userRepository.existsByTelephone1(pending.getTelephone1()))) {
             pendingRegistrationRepository.delete(pending);
+            if (userRepository.existsByEmailAndIsDeletedTrue(pending.getEmail())) {
+                throw new CompteSupprimeException("cet e-mail");
+            }
+            if (pending.getTelephone() != null && userRepository.existsByTelephoneAndIsDeletedTrue(pending.getTelephone())) {
+                throw new CompteSupprimeException("ce numéro de téléphone");
+            }
             throw new EmailAlreadyExistsException("Cet email ou numero de telephone est déjà utilisé");
         }
         User user = new User();
@@ -202,6 +223,7 @@ public class UserService {
         user.setEmail(pending.getEmail());
         user.setDateNaissance(pending.getDateNaissance());
         user.setTelephone(pending.getTelephone());
+        user.setTelephone1(pending.getTelephone1());
         user.setRole(userRole);
         user.setFlagActif(true);
         user.setSexe(pending.getSexe());

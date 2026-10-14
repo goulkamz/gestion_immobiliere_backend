@@ -13,12 +13,15 @@ public class LocationBienServiceResponseDTO {
     private Integer idLocationBienService;
     private Integer idClient;
     private String nomClient;
+    private String emailClient;
+    private String telephoneClient;
     private Integer idBienService;
     private String libelleBienService;
     private String destination;
     private LocalDateTime dateDebut;
     private LocalDateTime dateFin;
     private Long duree;
+    private BigDecimal prixJournalier;
     private BigDecimal montantTotal;
     private StatutLocationBienService statut;
     private List<PaiementLocationBienServiceResponseDTO> historiquePaiements;

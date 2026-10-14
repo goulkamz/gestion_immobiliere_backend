@@ -2,6 +2,7 @@ package com.immobilier.gestionImmobiliere.modules.contrats.controllers;
 
 import com.immobilier.gestionImmobiliere.modules.contrats.apis.ContratLocationAPI;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.CreateContratLocationDTO;
+import com.immobilier.gestionImmobiliere.donnees.contrats.model.StatutLocation;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.ResilierLocationDTO;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.TerminerLocationDTO;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.UpdateContratLocationDTO;
@@ -29,11 +30,11 @@ public class ContratLocationController implements ContratLocationAPI {
 
     @Override
     @PreAuthorize("hasAnyRole('AGENT','ADMIN','CLIENT','BAILLEUR')")
-    public ResponseEntity<?> getAll(Integer idMaison, Integer idLocataire, String recherche, Pageable pageable,
+    public ResponseEntity<?> getAll(Integer idMaison, Integer idLocataire, String recherche, StatutLocation statut, String referenceCour, Pageable pageable,
                                     @AuthenticationPrincipal UserDetailsImpl currentUser) {
         boolean isAdminOrAgent = currentUser.hasAnyRole("ADMIN", "AGENT");
         boolean isBailleur = currentUser.hasRole("BAILLEUR");
-        return locationService.getAllForCurrentUser(idMaison, idLocataire, recherche, currentUser.getIdUser(), isAdminOrAgent, isBailleur, pageable);
+        return locationService.getAllForCurrentUser(idMaison, idLocataire, recherche, statut, referenceCour, currentUser.getIdUser(), isAdminOrAgent, isBailleur, pageable);
     }
 
 

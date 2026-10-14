@@ -131,6 +131,11 @@ public class GlobalExceptionHandler {
         return  buildErrorResponse(HttpStatus.CONFLICT,ex.getMessage(),"EMAIL_ALREADY_EXISTS",ex);
     }
 
+    @ExceptionHandler(CompteSupprimeException.class)
+    public ResponseEntity<?> handleCompteSupprime(CompteSupprimeException ex) {
+        return buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage(), "ACCOUNT_DELETED", ex);
+    }
+
     @ExceptionHandler(InvalidEmailException.class)
     public ResponseEntity<?> handleInvalidEmail(InvalidEmailException ex) {
         return  buildErrorResponse(HttpStatus.BAD_REQUEST,ex.getMessage(),"INVALID_EMAIL",ex);

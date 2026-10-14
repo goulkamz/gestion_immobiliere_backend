@@ -94,7 +94,7 @@ public class ContratLocationService {
      * - BAILLEUR : uniquement les contrats sur ses cours
      */
     // Recherche insensible à la casse sur le nom de la maison ou le nom/prénom du locataire
-    private Specification<ContratLocation> filtrer(Integer idMaison, Integer idLocataire, String recherche) {
+    private Specification<ContratLocation> filtrer(Integer idMaison, Integer idLocataire, Integer idProprietaire, String recherche, StatutLocation statut, String referenceCour) {
         return (root, query, cb) -> {
             List<Predicate> predicats = new ArrayList<>();
             if (idMaison != null) {
@@ -102,6 +102,15 @@ public class ContratLocationService {
             }
             if (idLocataire != null) {
                 predicats.add(cb.equal(root.get("locataire").get("idUser"), idLocataire));
+            }
+            if (idProprietaire != null) {
+                predicats.add(cb.equal(root.get("maison").get("cour").get("proprietaire").get("idUser"), idProprietaire));
+            }
+            if (referenceCour != null && !referenceCour.isBlank()) {
+                predicats.add(cb.equal(root.get("maison").get("cour").get("referenceCour"), referenceCour.trim()));
+            }
+            if (statut != null) {
+                predicats.add(cb.equal(root.get("statut"), statut));
             }
             if (recherche != null && !recherche.isBlank()) {
                 String motif = "%" + recherche.trim().toLowerCase() + "%";
@@ -115,19 +124,20 @@ public class ContratLocationService {
         };
     }
 
-    public ResponseEntity<?> getAllForCurrentUser(Integer idMaison, Integer idLocataire, String recherche,
+    public ResponseEntity<?> getAllForCurrentUser(Integer idMaison, Integer idLocataire, String recherche, StatutLocation statut, String referenceCour,
                                                   Integer currentUserId, boolean isAdminOrAgent,
                                                   boolean isBailleur, Pageable pageable) {
         Page<ContratLocation> page;
 
+        // Filtres appliqués côté serveur pour que la pagination reste cohérente ;
+        // bailleur et client sont restreints à leur périmètre quoi qu'ils demandent (idMaison / idLocataire ignorés pour le client)
         if (isAdminOrAgent) {
-            // Filtres appliqués côté serveur pour que la pagination reste cohérente
-            page = locationRepository.findAll(filtrer(idMaison, idLocataire, recherche), pageable);
+            page = locationRepository.findAll(filtrer(idMaison, idLocataire, null, recherche, statut, referenceCour), pageable);
         } else if (isBailleur) {
-            page = locationRepository.findByMaison_Cour_Proprietaire_IdUser(currentUserId, pageable);
+            page = locationRepository.findAll(filtrer(idMaison, null, currentUserId, recherche, statut, referenceCour), pageable);
         } else {
             // CLIENT : filtre imposé, ignore toute tentative de consulter un autre id
-            page = locationRepository.findByLocataire_IdUser(currentUserId, pageable);
+            page = locationRepository.findAll(filtrer(idMaison, currentUserId, null, recherche, statut, referenceCour), pageable);
         }
 
         return buildSuccessResponse(HttpStatus.OK, "Liste des contrats de location", "LOCATION_LIST", page.map(this::toDto));
@@ -396,6 +406,7 @@ public class ContratLocationService {
                 .nomLocataire(l.getLocataire().getNom() + " " + l.getLocataire().getPrenom())
                 .idMaison(l.getMaison().getIdMaison())
                 .nomCommunMaison(l.getMaison().getNomCommunMaison())
+                .referenceCour(l.getMaison().getCour().getReferenceCour())
                 .dateEntree(l.getDateEntree())
                 .dateSortie(l.getDateSortie())
                 .montantLoyer(l.getMontantLoyer())

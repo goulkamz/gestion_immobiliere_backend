@@ -16,6 +16,8 @@ import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.CreateCon
 import com.immobilier.gestionImmobiliere.modules.contrats.services.ContratLocationService;
 import com.immobilier.gestionImmobiliere.donnees.parametres.model.CleParametre;
 import com.immobilier.gestionImmobiliere.modules.parametres.services.ParametreService;
+import com.immobilier.gestionImmobiliere.modules.notifications.services.AlerteAgentService;
+import com.immobilier.gestionImmobiliere.modules.notifications.services.AlerteUtilisateurService;
 import com.immobilier.gestionImmobiliere.modules.reservations.dto.requests.CreateReservationDTO;
 import com.immobilier.gestionImmobiliere.modules.reservations.dto.responses.ReservationResponseDTO;
 import org.springframework.data.domain.Page;
@@ -46,10 +48,15 @@ public class ReservationService {
     private final ContratLocationService contratLocationService;
     private final ParametreService parametreService;
     private final ContratMandatRepository mandatRepository;
+    private final AlerteAgentService alerteAgentService;
+    private final AlerteUtilisateurService alerteUtilisateurService;
 
     public ReservationService(ReservationMaisonRepository reservationRepository, MaisonRepository maisonRepository,
                               UserRepository userRepository, ContratLocationService contratLocationService,
-                              ParametreService parametreService, ContratMandatRepository mandatRepository) {
+                              ParametreService parametreService, ContratMandatRepository mandatRepository,
+                              AlerteAgentService alerteAgentService, AlerteUtilisateurService alerteUtilisateurService) {
+        this.alerteUtilisateurService = alerteUtilisateurService;
+        this.alerteAgentService = alerteAgentService;
         this.reservationRepository = reservationRepository;
         this.maisonRepository = maisonRepository;
         this.userRepository = userRepository;
@@ -62,24 +69,30 @@ public class ReservationService {
                                                   Integer currentUserId, boolean isAdminOrAgent, boolean isBailleur,
                                                   Pageable pageable) {
         Page<ReservationMaison> page;
+        // Filtres appliqués côté serveur pour que la pagination reste cohérente ; bailleur et client restent limités à leur périmètre
         if (isAdminOrAgent) {
-            // Filtres appliqués côté serveur pour que la pagination reste cohérente
-            page = reservationRepository.findAll(filtrer(idMaison, statut, recherche), pageable);
+            page = reservationRepository.findAll(filtrer(idMaison, statut, recherche, null, null), pageable);
         } else if (isBailleur) {
-            page = reservationRepository.findByMaison_Cour_Proprietaire_IdUser(currentUserId, pageable);
+            page = reservationRepository.findAll(filtrer(idMaison, statut, recherche, currentUserId, null), pageable);
         } else {
             // CLIENT : ses propres réservations uniquement
-            page = reservationRepository.findByUser_IdUser(currentUserId, pageable);
+            page = reservationRepository.findAll(filtrer(idMaison, statut, recherche, null, currentUserId), pageable);
         }
         return buildSuccessResponse(HttpStatus.OK, "Liste réservations", "RESERVATION_LIST", page.map(this::toDto));
     }
 
     // Recherche insensible à la casse sur le nom de la maison ou le nom/prénom du client
-    private Specification<ReservationMaison> filtrer(Integer idMaison, StatutReservation statut, String recherche) {
+    private Specification<ReservationMaison> filtrer(Integer idMaison, StatutReservation statut, String recherche, Integer idProprietaire, Integer idClient) {
         return (root, query, cb) -> {
             List<Predicate> predicats = new ArrayList<>();
             if (idMaison != null) {
                 predicats.add(cb.equal(root.get("maison").get("idMaison"), idMaison));
+            }
+            if (idProprietaire != null) {
+                predicats.add(cb.equal(root.get("maison").get("cour").get("proprietaire").get("idUser"), idProprietaire));
+            }
+            if (idClient != null) {
+                predicats.add(cb.equal(root.get("user").get("idUser"), idClient));
             }
             if (statut != null) {
                 predicats.add(cb.equal(root.get("statut"), statut));
@@ -141,6 +154,7 @@ public class ReservationService {
 
         maison.setStatut(StatutMaison.RESERVEE);
         maisonRepository.save(maison);
+        alerteAgentService.nouvelleReservation(reservation);
 
         return buildSuccessResponse(HttpStatus.CREATED, "Réservation créée, maison marquée réservée", "RESERVATION_CREATED", toDto(reservation));
     }
@@ -154,6 +168,7 @@ public class ReservationService {
 
         reservation.setStatut(StatutReservation.CONFIRMEE);
         reservationRepository.save(reservation);
+        alerteUtilisateurService.reservationConfirmee(reservation);
         return buildSuccessResponse(HttpStatus.OK, "Réservation confirmée", "RESERVATION_CONFIRMEE", toDto(reservation));
     }
 
@@ -167,6 +182,7 @@ public class ReservationService {
         reservation.setStatut(StatutReservation.ANNULEE);
         reservationRepository.save(reservation);
         libererMaisonSiLibre(reservation);
+        alerteUtilisateurService.reservationAnnulee(reservation, false);
 
         return buildSuccessResponse(HttpStatus.OK, "Réservation annulée", "RESERVATION_ANNULEE", toDto(reservation));
     }
@@ -184,6 +200,7 @@ public class ReservationService {
             reservation.setStatut(StatutReservation.ANNULEE);
             reservationRepository.save(reservation);
             libererMaisonSiLibre(reservation);
+            alerteUtilisateurService.reservationAnnulee(reservation, true);
         }
     }
 
@@ -250,6 +267,7 @@ public class ReservationService {
                 .telephoneUser(r.getUser().getTelephone())
                 .idMaison(r.getMaison().getIdMaison())
                 .nomCommunMaison(r.getMaison().getNomCommunMaison())
+                .loyerMaison(r.getMaison().getLoyer())
                 .dateDebut(r.getDateDebut())
                 .dateFin(r.getDateFin())
                 .statut(r.getStatut())

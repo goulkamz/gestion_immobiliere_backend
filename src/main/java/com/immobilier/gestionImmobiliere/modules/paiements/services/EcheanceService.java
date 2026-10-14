@@ -46,6 +46,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
+import com.immobilier.gestionImmobiliere.modules.notifications.services.AlerteUtilisateurService;
 
 @Service
 public class EcheanceService {
@@ -56,7 +57,10 @@ public class EcheanceService {
     private final PaiementService paiementService;
     private final ParametreService parametreService;
 
-    public EcheanceService(EcheanceLoyerRepository echeanceRepository, ContratLocationRepository contratLocationRepository, ContratMandatRepository contratMandatRepository, PaiementService paiementService, ParametreService parametreService) {
+    private final AlerteUtilisateurService alerteUtilisateurService;
+
+    public EcheanceService(EcheanceLoyerRepository echeanceRepository, ContratLocationRepository contratLocationRepository, ContratMandatRepository contratMandatRepository, PaiementService paiementService, ParametreService parametreService, AlerteUtilisateurService alerteUtilisateurService) {
+        this.alerteUtilisateurService = alerteUtilisateurService;
         this.echeanceRepository = echeanceRepository;
         this.contratLocationRepository = contratLocationRepository;
         this.contratMandatRepository = contratMandatRepository;
@@ -74,21 +78,20 @@ public class EcheanceService {
 
         if (isAdminOrAgent) {
             // recherche, referenceCour et periode sont reserves a l'agent/admin et appliques avant la pagination
-            page = echeanceRepository.findAll(filtrerAgent(type, entiteId, statut, recherche, referenceCour, periode, modeFacturation), pageable);
+            page = echeanceRepository.findAll(filtrer(type, entiteId, statut, recherche, referenceCour, periode, modeFacturation, null, null), pageable);
         } else if (isBailleur) {
+            // Périmètre du bailleur imposé côté serveur ; recherche, cour, période et statut s'appliquent avant la pagination
             List<Integer> locationIds = contratLocationRepository.findIdsByProprietaire(currentUserId);
             List<Integer> mandatIds = contratMandatRepository.findIdsByProprietaire(currentUserId);
-            page = echeanceRepository.findForBailleurFiltered(
+            page = echeanceRepository.findAll(filtrer(type, entiteId, statut, recherche, referenceCour, periode, modeFacturation,
                     locationIds.isEmpty() ? List.of(-1) : locationIds,
-                    mandatIds.isEmpty() ? List.of(-1) : mandatIds,
-                    type, statut,
-                    pageable);
+                    mandatIds.isEmpty() ? List.of(-1) : mandatIds), pageable);
         } else {
             // CLIENT : uniquement les échéances de ses propres contrats de location
             // (type forcé à LOCATION côté serveur, jamais piloté par le client)
             List<Integer> locationIds = contratLocationRepository.findIdsByLocataire(currentUserId);
-            page = echeanceRepository.findLocationPourClient(
-                    locationIds.isEmpty() ? List.of(-1) : locationIds, statut, pageable);
+            page = echeanceRepository.findAll(filtrer(TypeEcheance.LOCATION, entiteId, statut, recherche, referenceCour, periode, null,
+                    locationIds.isEmpty() ? List.of(-1) : locationIds, List.of(-1)), pageable);
         }
 
         return buildSuccessResponse(HttpStatus.OK, "Liste des échéances", "ECHEANCE_LIST", page.map(this::toDtoEnrichi));
@@ -100,11 +103,18 @@ public class EcheanceService {
      * Filtres de la liste agent. La recherche couvre le libelle du mois ("mars 2026"), la maison et le locataire
      * (echeances LOCATION) ou la cour et le proprietaire (echeances MANDAT), sans jointure cote navigateur.
      */
-    private Specification<EcheanceLoyer> filtrerAgent(TypeEcheance type, Integer entiteId, StatutEcheance statut,
-                                                      String recherche, String referenceCour, String periode,
-                                                      ModeFacturation modeFacturation) {
+    private Specification<EcheanceLoyer> filtrer(TypeEcheance type, Integer entiteId, StatutEcheance statut,
+                                                 String recherche, String referenceCour, String periode,
+                                                 ModeFacturation modeFacturation,
+                                                 List<Integer> idsLocation, List<Integer> idsMandat) {
         return (root, query, cb) -> {
             List<Predicate> predicats = new ArrayList<>();
+            // Périmètre imposé (bailleur / client) : null = aucune restriction (agent, admin)
+            if (idsLocation != null && idsMandat != null) {
+                predicats.add(cb.or(
+                        cb.and(cb.equal(root.get("entiteEcheanceType"), TypeEcheance.LOCATION), root.get("entiteEcheanceId").in(idsLocation)),
+                        cb.and(cb.equal(root.get("entiteEcheanceType"), TypeEcheance.MANDAT), root.get("entiteEcheanceId").in(idsMandat))));
+            }
             if (type != null) {
                 predicats.add(cb.equal(root.get("entiteEcheanceType"), type));
             }
@@ -132,7 +142,14 @@ public class EcheanceService {
                 sub.select(m.get("idMandat")).where(
                         cb.equal(m.get("idMandat"), root.get("entiteEcheanceId")),
                         cb.equal(m.get("cour").get("referenceCour"), referenceCour.trim()));
-                predicats.add(cb.and(cb.equal(root.get("entiteEcheanceType"), TypeEcheance.MANDAT), cb.exists(sub)));
+                Subquery<Integer> subLoc = query.subquery(Integer.class);
+                Root<ContratLocation> c = subLoc.from(ContratLocation.class);
+                subLoc.select(c.get("idContratLocation")).where(
+                        cb.equal(c.get("idContratLocation"), root.get("entiteEcheanceId")),
+                        cb.equal(c.get("maison").get("cour").get("referenceCour"), referenceCour.trim()));
+                predicats.add(cb.or(
+                        cb.and(cb.equal(root.get("entiteEcheanceType"), TypeEcheance.MANDAT), cb.exists(sub)),
+                        cb.and(cb.equal(root.get("entiteEcheanceType"), TypeEcheance.LOCATION), cb.exists(subLoc))));
             }
             if (recherche != null && !recherche.isBlank()) {
                 String terme = recherche.trim().toLowerCase();
@@ -330,6 +347,9 @@ public class EcheanceService {
         }
 
         CalculMois calcul = creerEcheanceMandat(mandat, debutMois, currentAgentId);
+        alerteUtilisateurService.reversementCalcule(mandat, calcul.echeance().getMontantDu(),
+                "le mois de " + debutMois.format(java.time.format.DateTimeFormatter.ofPattern("MM/yyyy")),
+                "REVERSEMENT_CALCULE:" + calcul.echeance().getIdEcheance());
         return buildSuccessResponse(HttpStatus.CREATED, "Montant à reverser calculé", "ECHEANCE_MANDAT_CALCULEE",
                 toMandatDto(calcul.echeance(), calcul.loyersDus()));
     }
@@ -383,6 +403,9 @@ public class EcheanceService {
         BigDecimal totalCommission = calculs.stream().map(c -> c.echeance().getCommissionDeduite()).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal totalNet = calculs.stream().map(c -> c.echeance().getMontantDu()).reduce(BigDecimal.ZERO, BigDecimal::add);
 
+        alerteUtilisateurService.reversementCalcule(mandat, totalNet,
+                calculs.size() + " mois jusqu'à " + dernierMois.format(java.time.format.DateTimeFormatter.ofPattern("MM/yyyy")),
+                "REVERSEMENT_CUMUL:" + calculs.get(0).echeance().getIdEcheance());
         java.util.Map<String, Object> resultat = new java.util.LinkedHashMap<>();
         resultat.put("idMandat", idMandat);
         resultat.put("nombreMois", calculs.size());
@@ -517,6 +540,7 @@ public class EcheanceService {
                 currentAgentId,
                 LocalDateTime.now());
 
+        alerteUtilisateurService.virementMandatConfirme(echeance);
         return buildSuccessResponse(HttpStatus.OK, "Virement confirmé", "VIREMENT_MANDAT_CONFIRME", null);
     }
 

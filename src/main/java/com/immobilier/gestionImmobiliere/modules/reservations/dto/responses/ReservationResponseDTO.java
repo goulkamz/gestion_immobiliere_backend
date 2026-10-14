@@ -4,6 +4,7 @@ import com.immobilier.gestionImmobiliere.donnees.reservations.model.StatutReserv
 import lombok.Builder;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data @Builder
@@ -15,6 +16,7 @@ public class ReservationResponseDTO {
     private String telephoneUser;
     private Integer idMaison;
     private String nomCommunMaison;
+    private BigDecimal loyerMaison;
     private LocalDateTime dateDebut;
     private LocalDateTime dateFin;
     private StatutReservation statut;

@@ -22,9 +22,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * Operations d'ecriture metier et regles de gestion (RG2/RG3), verifiees jusqu'en base.
- * Donnees du seed : maisons 1=A et 4=C louees, 2=B (reservation EN_ATTENTE a J+5..J+10),
- * 3=E et 5=D disponibles ; mandats 1 (cour 1) et 2 (cour 2) actifs ; echeances 1
- * (EN_RETARD) et 3 du contrat 1, 5 du contrat 2, 6 du contrat 3.
+ * Donnees du seed : maisons 1=A, 4=C et 7=G louees, 2=B (reservation EN_ATTENTE a J+5..J+10),
+ * 3=E, 5=D et 6=F disponibles ; mandats 1 (cour 1), 2 (cour 2) et 3 (cour 4) actifs, cour 3 sans mandat ;
+ * echeances LOCATION : 4 (contrat 1), 7 (contrat 2), 10 (contrat 3) et 14 (contrat 4) EN_ATTENTE,
+ * les autres sont PAYE (sauf la 2, EN_RETARD).
  * Chaque test travaille sur ses propres maisons/echeances pour rester independant.
  */
 class EcritureMetierIntegrationTest extends AbstractIntegrationTest {
@@ -99,21 +100,16 @@ class EcritureMetierIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void conversion_courSansMandatActif_refusee() throws Exception {
-        // Maison 6 (Maison F) : sa cour n'a aucun mandat dans le jeu de donnees
+    void reservation_courSansMandatActif_refusee() throws Exception {
+        // Maison 6 (Maison F) : sa cour n'a aucun mandat dans le jeu de donnees, elle n'est donc pas reservable
         LocalDateTime debut = LocalDateTime.now().plusDays(60).truncatedTo(ChronoUnit.SECONDS);
         appel(client, post("/api/reservations"), """
                 {"idMaison":6,"dateDebut":"%s"}""".formatted(debut),
-                status().isCreated());
-        int idResa = jdbc.queryForObject(
-                "SELECT MAX(id_reservation) FROM reservation_maison WHERE id_maison = 6", Integer.class);
-        appel(agent, patch("/api/reservations/" + idResa + "/confirmer"), null, status().isOk());
+                status().isConflict());
 
-        appel(agent, patch("/api/reservations/" + idResa + "/convertir")
-                .param("montantLoyer", "65000").param("typeContrat", "HABITATION"), null, status().isConflict());
-
-        assertThat(statutReservation(idResa)).as("reservation inchangee").isEqualTo("CONFIRMEE");
-        assertThat(statutMaison(6)).as("maison inchangee").isEqualTo("RESERVEE");
+        assertThat(statutMaison(6)).as("maison inchangee").isEqualTo("DISPONIBLE");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM reservation_maison WHERE id_maison = 6", Integer.class))
+                .as("aucune reservation creee").isZero();
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM contra_location WHERE id_maison = 6", Integer.class))
                 .as("aucun contrat cree").isZero();
     }
@@ -155,32 +151,33 @@ class EcritureMetierIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void paiement_soldeUneEcheance_puisRefuseLeDoublePaiement() throws Exception {
-        payer(1, "150000", status().isCreated());
-        assertThat(statutEcheance(1)).isEqualTo("PAYE");
-        assertThat(montantPaye(1)).isEqualByComparingTo("150000");
+        payer(4, "150000", status().isCreated());
+        assertThat(statutEcheance(4)).isEqualTo("PAYE");
+        assertThat(montantPaye(4)).isEqualByComparingTo("150000");
 
-        payer(1, "150000", status().isConflict());
+        payer(4, "150000", status().isConflict());
     }
 
     @Test
     void paiement_superieurAuResteDu_refuse() throws Exception {
-        payer(3, "200000", status().isBadRequest());
-        assertThat(montantPaye(3)).isEqualByComparingTo("0");
+        payer(7, "200000", status().isBadRequest());
+        assertThat(montantPaye(7)).isEqualByComparingTo("0");
     }
 
     @Test
     void paiement_partielPuisPaiementGroupeDePlusieursEcheances() throws Exception {
-        payer(5, "40000", status().isCreated());
-        assertThat(montantPaye(5)).isEqualByComparingTo("40000");
-        assertThat(statutEcheance(5)).isNotEqualTo("PAYE");
+        // Echeance 10 (contrat 3, 70000) puis 14 (contrat 4, 50000)
+        payer(10, "30000", status().isCreated());
+        assertThat(montantPaye(10)).isEqualByComparingTo("30000");
+        assertThat(statutEcheance(10)).isNotEqualTo("PAYE");
 
         appel(agent, post("/api/paiements"), """
-                {"montantPaiement":130000,"modePaiement":"ESPECES","idEcheances":[5,6]}""", status().isCreated());
-        assertThat(statutEcheance(5)).isEqualTo("PAYE");
-        assertThat(statutEcheance(6)).isEqualTo("PAYE");
+                {"montantPaiement":90000,"modePaiement":"ESPECES","idEcheances":[10,14]}""", status().isCreated());
+        assertThat(statutEcheance(10)).isEqualTo("PAYE");
+        assertThat(statutEcheance(14)).isEqualTo("PAYE");
         assertThat(jdbc.queryForObject("""
-                SELECT COUNT(DISTINCT id_paiement) FROM paiement_echeance WHERE id_echeance = 5""", Integer.class))
-                .as("echeance 5 liee aux deux paiements").isEqualTo(2);
+                SELECT COUNT(DISTINCT id_paiement) FROM paiement_echeance WHERE id_echeance = 10""", Integer.class))
+                .as("echeance 10 liee aux deux paiements").isEqualTo(2);
     }
 
     @Test
@@ -249,6 +246,8 @@ class EcritureMetierIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void mandat_activableApresResiliationDuPrecedent() throws Exception {
+        // Un mandat ne peut pas etre resilie tant qu'une maison de sa cour est louee : on libere d'abord la maison C (cour 2)
+        jdbc.update("UPDATE contra_location SET statut = 'RESILIE' WHERE id_maison = 4");
         appel(agent, patch("/api/contrats-mandat/2/resilierContratLocation"), """
                 {"motifResiliation":"Fin de collaboration"}""", status().isOk());
         assertThat(statutMandat(2)).isEqualTo("RESILIE");

@@ -51,6 +51,9 @@ public class Maison extends Model {
     @Column(name = "statut")
     private StatutMaison statut;
 
+    @Column(name = "description", columnDefinition = "TEXT")
+    private String description;
+
     @Column(name = "user_create")
     private Integer userCreate;
 

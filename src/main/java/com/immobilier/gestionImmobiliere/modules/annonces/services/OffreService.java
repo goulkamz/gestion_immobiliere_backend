@@ -27,6 +27,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 
 import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
+import com.immobilier.gestionImmobiliere.modules.notifications.services.AlerteAgentService;
 
 @Service
 public class OffreService {
@@ -36,13 +37,16 @@ public class OffreService {
     private final ClientIpResolver clientIpResolver;
     private final JetonDepotOffreService jetonDepotOffreService;
     private final MediaService mediaService;
+    private final AlerteAgentService alerteAgentService;
 
     // Depot public de photos : plafond par offre et par IP
     private static final int MAX_PHOTOS_PAR_OFFRE = 10;
     private static final int MAX_ENVOIS_PHOTOS_PAR_HEURE = 20;
 
     public OffreService(OffreRepository offreRepository, RateLimitService rateLimitService, ClientIpResolver clientIpResolver,
-                        JetonDepotOffreService jetonDepotOffreService, MediaService mediaService) {
+                        JetonDepotOffreService jetonDepotOffreService, MediaService mediaService,
+                        AlerteAgentService alerteAgentService) {
+        this.alerteAgentService = alerteAgentService;
         this.offreRepository = offreRepository;
         this.rateLimitService = rateLimitService;
         this.clientIpResolver = clientIpResolver;
@@ -79,6 +83,7 @@ public class OffreService {
                 .statut(StatutOffre.EN_ATTENTE)
                 .build();
         offreRepository.save(offre);
+        alerteAgentService.nouvelleOffre(offre);
         OffreResponseDTO reponse = toDto(offre);
         reponse.setJetonDepotPhotos(jetonDepotOffreService.generer(offre.getIdOffre()));
         return buildSuccessResponse(HttpStatus.CREATED, "Offre déposée avec succès", "OFFRE_CREATED", reponse);

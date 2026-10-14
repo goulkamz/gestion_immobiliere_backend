@@ -96,6 +96,18 @@ public class NotificationService {
 
     // ── Notifications ──────────────────────────────────────────────────────────
 
+    // Alerte metier (loyer, fin de location, remboursement...) : meme habillage que les autres mails
+    public void envoyerAlerte(String email, String nom, String titre, String message) {
+        String contenuHtml = """
+                <h2>%s</h2>
+                <p>Bonjour %s,</p>
+                <p>%s</p>
+                <p>Retrouvez le détail dans votre espace GI.BF : <a href="%s">%s</a></p>
+                """.formatted(titre, nom, message, baseUrl, baseUrl);
+        String textePlain = "Bonjour " + nom + ",\n" + message + "\nDétail dans votre espace GI.BF : " + baseUrl + "\n";
+        envoyerEmailHtml(email, titre + " - GI.BF", getTemplateHtml(contenuHtml, COULEUR_ENTETE), textePlain);
+    }
+
     public void envoyerCodeActivation(String email, String nom, String code) {
         String subject = "Votre code d'activation GI.BF";
         String contenuHtml = """

@@ -7,4 +7,6 @@ import lombok.Data;
 @Data
 public class UpdateStatutLocationBienServiceDTO {
     @NotNull private StatutLocationBienService statut;
+    /** Clôture anticipée uniquement : true = ramener la fin à aujourd'hui (trop-perçu à rembourser), sinon durée inchangée. */
+    private Boolean raccourcir;
 }

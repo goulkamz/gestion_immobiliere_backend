@@ -14,7 +14,9 @@ public interface UserAdminAPI {
 
     @GetMapping
     ResponseEntity<?> getAll(@RequestParam(required = false) ERole role,
-                             @RequestParam(required = false) String recherche, Pageable pageable);
+                             @RequestParam(required = false) String recherche,
+                             @RequestParam(defaultValue = "false") boolean supprimes,
+                             @AuthenticationPrincipal UserDetailsImpl currentUser, Pageable pageable);
 
     @GetMapping("/{id}")
     ResponseEntity<?> getById(@PathVariable Integer id);
@@ -30,6 +32,9 @@ public interface UserAdminAPI {
 
     @PatchMapping("/{id}/status")
     ResponseEntity<?> updateStatus(@PathVariable Integer id, @Valid @RequestBody UpdateUserStatusDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser);
+
+    @PatchMapping("/{id}/restaurer")
+    ResponseEntity<?> restaurer(@PathVariable Integer id);
 
     @DeleteMapping("/{id}")
     ResponseEntity<?> delete(@PathVariable Integer id, @AuthenticationPrincipal UserDetailsImpl currentUser);

@@ -16,6 +16,8 @@ import java.util.List;
 public interface LocationBienServiceRepository extends JpaRepository<LocationBienService,Integer>, JpaSpecificationExecutor<LocationBienService> {
     Page<LocationBienService> findByClient_IdUser(Integer idUser, Pageable pageable);
 
+    boolean existsByBienService_IdBienServiceAndStatut(Integer idBien, StatutLocationBienService statut);
+
     // Nombre de locations ACTIF du meme bien qui chevauchent la periode [debut, fin[ (hors la location exclue)
     @Query("SELECT COUNT(l) FROM LocationBienService l WHERE l.bienService.idBienService = :idBien " +
             "AND l.statut = :statut AND l.idLocationBienService <> :idExclue " +
@@ -30,6 +32,9 @@ public interface LocationBienServiceRepository extends JpaRepository<LocationBie
     List<Object[]> countByStatut();
 
     List<LocationBienService> findByStatutOrderByDateDebutAsc(StatutLocationBienService statut);
+
+    // Locations d'un statut dont la fin est anterieure a la limite (alertes d'echeance)
+    List<LocationBienService> findByStatutAndDateFinBefore(StatutLocationBienService statut, LocalDateTime limite);
 
     List<LocationBienService> findByClient_IdUserOrderByDateDebutDesc(Integer idClient);
 

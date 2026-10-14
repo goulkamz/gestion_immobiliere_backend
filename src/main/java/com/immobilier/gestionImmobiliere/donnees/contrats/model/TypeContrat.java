@@ -3,7 +3,7 @@ package com.immobilier.gestionImmobiliere.donnees.contrats.model;
 import java.util.Arrays;
 
 public enum TypeContrat {
-    HABITATION, COMMERCIAL, MEUBLE;
+    HABITATION, COMMERCIAL;
 
     /**
      * Valide une valeur reçue de l'API. Retourne null si absente (champ optionnel),

@@ -2,6 +2,7 @@ package com.immobilier.gestionImmobiliere.modules.user.services;
 
 import com.immobilier.gestionImmobiliere.donnees.user.model.User;
 import com.immobilier.gestionImmobiliere.donnees.user.repository.UserRepository;
+import com.immobilier.gestionImmobiliere.exceptions.CompteSupprimeException;
 import com.immobilier.gestionImmobiliere.exceptions.ResourceNotFoundException;
 import com.immobilier.gestionImmobiliere.modules.user.dto.requests.UpdateProfileDTO;
 import com.immobilier.gestionImmobiliere.modules.user.dto.responses.ProfileResponseDTO;
@@ -29,8 +30,17 @@ public class UserProfileService {
     public ResponseEntity<?> updateMe(Integer currentUserId, UpdateProfileDTO dto) {
         User user = findOrThrow(currentUserId);
 
+        if (dto.getTelephone() != null && userRepository.existsByTelephoneAndIdUserNotAndIsDeletedTrue(dto.getTelephone(), currentUserId)) {
+            throw new CompteSupprimeException("ce numéro de téléphone");
+        }
         if (dto.getTelephone() != null && userRepository.existsByTelephoneAndIdUserNot(dto.getTelephone(), currentUserId)) {
             throw new RuntimeException("Ce numéro de téléphone est déjà utilisé");
+        }
+        if (dto.getTelephone1() != null && userRepository.existsByTelephone1AndIdUserNotAndIsDeletedTrue(dto.getTelephone1(), currentUserId)) {
+            throw new CompteSupprimeException("ce numéro de téléphone secondaire");
+        }
+        if (dto.getTelephone1() != null && userRepository.existsByTelephone1AndIdUserNot(dto.getTelephone1(), currentUserId)) {
+            throw new RuntimeException("Ce numéro de téléphone secondaire est déjà utilisé");
         }
 
         if (dto.getNom() != null) user.setNom(dto.getNom());

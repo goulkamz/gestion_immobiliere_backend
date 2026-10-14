@@ -14,6 +14,7 @@ public class ContratLocationResponseDTO {
     private String nomLocataire;
     private Integer idMaison;
     private String nomCommunMaison;
+    private String referenceCour;
     private LocalDateTime dateEntree;
     private LocalDateTime dateSortie;
     private BigDecimal montantLoyer;

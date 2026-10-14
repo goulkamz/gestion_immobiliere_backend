@@ -3,6 +3,9 @@ package com.immobilier.gestionImmobiliere.configurations;
 import com.immobilier.gestionImmobiliere.modules.annonces.services.AnnonceService;
 import com.immobilier.gestionImmobiliere.modules.documents.services.RapportMensuelDocumentService;
 import com.immobilier.gestionImmobiliere.modules.medias.services.MediaReconciliationService;
+import com.immobilier.gestionImmobiliere.modules.notifications.services.AlerteAgentService;
+import com.immobilier.gestionImmobiliere.modules.notifications.services.AlerteUtilisateurService;
+import com.immobilier.gestionImmobiliere.modules.notifications.services.NotificationInAppService;
 import com.immobilier.gestionImmobiliere.modules.paiements.services.EcheanceGenerationService;
 import com.immobilier.gestionImmobiliere.modules.paiements.services.EcheanceService;
 import com.immobilier.gestionImmobiliere.modules.reservations.services.ReservationService;
@@ -30,6 +33,9 @@ public class Scheduler {
     private final EcheanceGenerationService echeanceGenerationService;
     private final RapportMensuelDocumentService rapportMensuelDocumentService;
     private final ReservationService reservationService;
+    private final NotificationInAppService notificationInAppService;
+    private final AlerteAgentService alerteAgentService;
+    private final AlerteUtilisateurService alerteUtilisateurService;
 
     // Nettoyage tous les jours a 2h du matin
     @Scheduled(cron = "0 0 2 * * *")
@@ -107,5 +113,23 @@ public class Scheduler {
     @Scheduled(cron = "0 0 * * * *")
     public void expirerReservationsEnAttente() {
         reservationService.expirerReservationsEnAttente();
+    }
+
+    // Tous les jours a 7h - alerte les agents des locations de biens/services qui se terminent bientot ou sont depassees
+    @Scheduled(cron = "${app.notifications.cron-agents:0 0 7 * * *}")
+    public void alerterLocationsAEcheance() {
+        alerteAgentService.alerterLocationsAEcheance();
+    }
+
+    // Tous les jours a 7h15 - alerte les clients : loyers proches ou en retard, fin de location de bien/service
+    @Scheduled(cron = "${app.notifications.cron-clients:0 15 7 * * *}")
+    public void alerterClients() {
+        alerteUtilisateurService.alerterClients();
+    }
+
+    // Tous les jours a 3h30 - purge les notifications lues depuis plus de 30 jours (les non lues sont conservees)
+    @Scheduled(cron = "0 30 3 * * *")
+    public void purgerNotificationsLues() {
+        notificationInAppService.purgerNotificationsLues();
     }
 }

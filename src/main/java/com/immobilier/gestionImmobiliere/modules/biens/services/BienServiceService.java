@@ -9,6 +9,7 @@ import com.immobilier.gestionImmobiliere.donnees.localisation.model.Secteur;
 import com.immobilier.gestionImmobiliere.donnees.localisation.repository.SecteurRepository;
 import com.immobilier.gestionImmobiliere.donnees.user.model.User;
 import com.immobilier.gestionImmobiliere.donnees.user.repository.UserRepository;
+import com.immobilier.gestionImmobiliere.exceptions.InvalidStatutTransitionException;
 import com.immobilier.gestionImmobiliere.exceptions.ResourceNotFoundException;
 import com.immobilier.gestionImmobiliere.exceptions.SecteurNotFoundException;
 import com.immobilier.gestionImmobiliere.modules.biens.dto.requests.CreateBienServiceDTO;
@@ -27,12 +28,22 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 
 import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
 
 @Service
 public class BienServiceService {
+
+    // Transitions MANUELLES autorisées : RESERVEE et LOUEE ne se posent ni ne se retirent à la main.
+    private static final Map<StatutBienService, EnumSet<StatutBienService>> TRANSITIONS = new EnumMap<>(StatutBienService.class);
+    static {
+        TRANSITIONS.put(StatutBienService.DISPONIBLE, EnumSet.of(StatutBienService.EN_MAINTENANCE));
+        TRANSITIONS.put(StatutBienService.EN_MAINTENANCE, EnumSet.of(StatutBienService.DISPONIBLE));
+    }
 
     private final BienServiceRepository bienServiceRepository;
     private final SecteurRepository secteurRepository;
@@ -137,7 +148,12 @@ public class BienServiceService {
     @Transactional
     public ResponseEntity<?> updateDisponibilite(Integer id, UpdateDisponibiliteBienServiceDTO dto) {
         BienService bien = findOrThrow(id);
-        bien.setDisponibilite(dto.getDisponibilite());
+        StatutBienService actuel = bien.getDisponibilite();
+        StatutBienService cible = dto.getDisponibilite();
+        if (actuel != cible && !TRANSITIONS.getOrDefault(actuel, EnumSet.noneOf(StatutBienService.class)).contains(cible)) {
+            throw new InvalidStatutTransitionException(actuel.name(), cible.name());
+        }
+        bien.setDisponibilite(cible);
         bien.setUpdatedAt(LocalDateTime.now());
         bienServiceRepository.save(bien);
         return buildSuccessResponse(HttpStatus.OK, "Disponibilité mise à jour", "BIEN_SERVICE_DISPO_UPDATED", toDto(bien));

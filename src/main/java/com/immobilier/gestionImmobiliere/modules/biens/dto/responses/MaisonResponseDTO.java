@@ -16,6 +16,7 @@ public class MaisonResponseDTO {
     private BigDecimal caution;
     private BigDecimal avance;
     private Integer nombreMoisCaution;
+    private String description;
     private StatutMaison statut;
     private Integer idCour;
     private String referenceCour;

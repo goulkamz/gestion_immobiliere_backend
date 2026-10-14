@@ -18,6 +18,7 @@ public interface LocationBienServiceAPI {
     @GetMapping
     ResponseEntity<?> getAll(@RequestParam(required = false) StatutLocationBienService statut,
                              @RequestParam(required = false) String recherche,
+                             @RequestParam(required = false) Boolean aEcheance,
                              Pageable pageable, @AuthenticationPrincipal UserDetailsImpl currentUser);
 
     @PreAuthorize("hasAnyRole('AGENT','ADMIN','CLIENT')")

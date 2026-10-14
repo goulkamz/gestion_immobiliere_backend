@@ -15,4 +15,5 @@ public class CreateMaisonDTO {
     private BigDecimal caution;
     private BigDecimal avance;
     private Integer nombreMoisCaution;
+    private String description;
 }
