@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.contrats.services;
 
+import com.immobilier.gestionImmobiliere.modules.notifications.services.AlerteUtilisateurService;
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.Avenant;
 import com.immobilier.gestionImmobiliere.modules.documents.services.ContratLocationDocumentService;
 import com.immobilier.gestionImmobiliere.donnees.biens.model.Maison;
@@ -64,10 +65,11 @@ public class ContratLocationService {
     private final DecompteSortieRepository decompteSortieRepository;
     private final PaiementRepository paiementRepository;
     private final AvenantService avenantService;
+    private final AlerteUtilisateurService alerteUtilisateurService;
     private final ContratLocationDocumentService contratLocationDocumentService;
 
 
-    public ContratLocationService(ContratLocationRepository locationRepository, MaisonRepository maisonRepository, UserRepository userRepository, EcheanceGenerationService echeanceGenerationService, EcheanceService echeanceService, EcheanceLoyerRepository echeanceLoyerRepository, DecompteSortieRepository decompteSortieRepository, PaiementRepository paiementRepository, AvenantService avenantService, ContratLocationDocumentService contratLocationDocumentService) {
+    public ContratLocationService(ContratLocationRepository locationRepository, MaisonRepository maisonRepository, UserRepository userRepository, EcheanceGenerationService echeanceGenerationService, EcheanceService echeanceService, EcheanceLoyerRepository echeanceLoyerRepository, DecompteSortieRepository decompteSortieRepository, PaiementRepository paiementRepository, AvenantService avenantService, ContratLocationDocumentService contratLocationDocumentService, AlerteUtilisateurService alerteUtilisateurService) {
         this.locationRepository = locationRepository;
         this.maisonRepository = maisonRepository;
         this.userRepository = userRepository;
@@ -77,6 +79,7 @@ public class ContratLocationService {
         this.decompteSortieRepository = decompteSortieRepository;
         this.paiementRepository = paiementRepository;
         this.avenantService = avenantService;
+        this.alerteUtilisateurService = alerteUtilisateurService;
         this.contratLocationDocumentService = contratLocationDocumentService;
     }
 
@@ -272,6 +275,8 @@ public class ContratLocationService {
         locationRepository.save(location);
 
         Avenant avenant = avenantService.enregistrerPourLocation(location, dateEffet, dto.getMotif(), modifications, currentUserId);
+
+        alerteUtilisateurService.avenantCree(avenant);
 
         ContratLocationResponseDTO reponse = toDto(location);
         reponse.setIdAvenant(avenant.getIdAvenant());

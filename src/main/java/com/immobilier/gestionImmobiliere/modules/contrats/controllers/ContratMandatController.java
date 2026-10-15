@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.contrats.controllers;
 
+import com.immobilier.gestionImmobiliere.modules.contrats.services.AvenantService;
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.StatutMandat;
 import com.immobilier.gestionImmobiliere.modules.contrats.apis.ContratMandatAPI;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.CreateContratMandatDTO;
@@ -18,9 +19,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class ContratMandatController implements ContratMandatAPI {
 
     private final ContratMandatService mandatService;
+    private final AvenantService avenantService;
 
-    public ContratMandatController(ContratMandatService mandatService) {
+    public ContratMandatController(ContratMandatService mandatService, AvenantService avenantService) {
         this.mandatService = mandatService;
+        this.avenantService = avenantService;
     }
 
     @Override
@@ -58,6 +61,12 @@ public class ContratMandatController implements ContratMandatAPI {
     @PreAuthorize("hasRole('AGENT')")
     public ResponseEntity<?> resilier(Integer id, ResilierMandatDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser) {
         return mandatService.resilier(id, dto, currentUser.getIdUser());
+    }
+
+    @Override
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN') or @contratMandatSecurity.isAccessible(#id, authentication.principal.idUser)")
+    public ResponseEntity<?> getAvenants(Integer id) {
+        return avenantService.listerPourMandat(id);
     }
 
     @Override

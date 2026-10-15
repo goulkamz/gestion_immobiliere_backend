@@ -1,5 +1,8 @@
 package com.immobilier.gestionImmobiliere.modules.contrats.services;
 
+import com.immobilier.gestionImmobiliere.modules.contrats.dto.responses.AvenantResponseDTO;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.Avenant;
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.AvenantLigne;
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.ContratLocation;
@@ -8,6 +11,8 @@ import com.immobilier.gestionImmobiliere.donnees.contrats.repository.AvenantRepo
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+
+import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -72,6 +77,40 @@ public class AvenantService {
                 .userCreate(currentUserId)
                 .build();
         return sauvegarder(avenant, modifications);
+    }
+
+    @Transactional(readOnly = true)
+    public ResponseEntity<?> listerPourLocation(Integer idContratLocation) {
+        List<AvenantResponseDTO> avenants = avenantRepository
+                .findByContratLocation_IdContratLocationOrderByNumeroOrdreAsc(idContratLocation).stream()
+                .map(this::toDto).toList();
+        return buildSuccessResponse(HttpStatus.OK, "Avenants du contrat de location", "AVENANT_LIST", avenants);
+    }
+
+    @Transactional(readOnly = true)
+    public ResponseEntity<?> listerPourMandat(Integer idMandat) {
+        List<AvenantResponseDTO> avenants = avenantRepository
+                .findByMandat_IdMandatOrderByNumeroOrdreAsc(idMandat).stream()
+                .map(this::toDto).toList();
+        return buildSuccessResponse(HttpStatus.OK, "Avenants du mandat", "AVENANT_LIST", avenants);
+    }
+
+    private AvenantResponseDTO toDto(Avenant a) {
+        boolean location = a.getContratLocation() != null;
+        return AvenantResponseDTO.builder()
+                .idAvenant(a.getIdAvenant())
+                .typeContrat(location ? "LOCATION" : "MANDAT")
+                .idContrat(location ? a.getContratLocation().getIdContratLocation() : a.getMandat().getIdMandat())
+                .numeroOrdre(a.getNumeroOrdre())
+                .dateEffet(a.getDateEffet())
+                .motif(a.getMotif())
+                .dateCreation(a.getCreatedAt())
+                .lignes(a.getLignes().stream().map(l -> AvenantResponseDTO.Ligne.builder()
+                        .champ(l.getChamp())
+                        .ancienneValeur(l.getAncienneValeur())
+                        .nouvelleValeur(l.getNouvelleValeur())
+                        .build()).toList())
+                .build();
     }
 
     private Avenant sauvegarder(Avenant avenant, List<Modification> modifications) {

@@ -27,6 +27,10 @@ public interface ContratMandatAPI {
     @GetMapping("/{id}")
     ResponseEntity<?> getById(@PathVariable Integer id,@AuthenticationPrincipal UserDetailsImpl currentUser);
 
+    // Avenants du mandat (accessibles a ceux qui accedent au mandat)
+    @GetMapping("/{id}/avenants")
+    ResponseEntity<?> getAvenants(@PathVariable Integer id);
+
     @PostMapping
     ResponseEntity<?> create(@Valid @RequestBody CreateContratMandatDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser);
 

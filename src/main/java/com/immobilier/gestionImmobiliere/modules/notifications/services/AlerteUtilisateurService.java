@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.notifications.services;
 
+import com.immobilier.gestionImmobiliere.donnees.contrats.model.Avenant;
 import com.immobilier.gestionImmobiliere.donnees.biens.model.LocationBienService;
 import com.immobilier.gestionImmobiliere.donnees.biens.model.StatutLocationBienService;
 import com.immobilier.gestionImmobiliere.donnees.biens.repository.LocationBienServiceRepository;
@@ -41,6 +42,8 @@ public class AlerteUtilisateurService {
     private static final String LIEN_ECHEANCES = "/espace-client/echeances";
     private static final String LIEN_REMBOURSEMENTS = "/espace-client/remboursements";
     private static final String LIEN_BAILLEUR_MANDATS = "/espace-bailleur/mandats";
+    private static final String LIEN_CONTRATS = "/espace-client/contrats";
+    private static final String LIEN_BAILLEUR_CONTRATS = "/espace-bailleur/contrats";
     private static final String LIEN_BAILLEUR_ECHEANCES = "/espace-bailleur/echeances";
 
     private final NotificationInAppService notificationService;
@@ -103,6 +106,30 @@ public class AlerteUtilisateurService {
         envoyer(l.getClient(), true, TypeNotification.INFO, "Remboursement effectué",
                 "Un remboursement de " + montant.stripTrailingZeros().toPlainString() + " vous a été versé pour la location de "
                         + l.getBienService().getLibelle() + ".", LIEN_REMBOURSEMENTS, "REMBOURSEMENT:" + idRemboursement);
+    }
+
+    // Avenant ajoute a un contrat actif : le locataire et le bailleur concernes sont informes (document a consulter)
+    public void avenantCree(Avenant a) {
+        String cle = "AVENANT:" + a.getIdAvenant();
+        String effet = a.getDateEffet().format(FORMAT_DATE);
+        if (a.getContratLocation() != null) {
+            ContratLocation c = a.getContratLocation();
+            String message = "Un avenant n°" + a.getNumeroOrdre() + " a été ajouté au contrat de location de "
+                    + c.getMaison().getNomCommunMaison() + ", à compter du " + effet + ".";
+            envoyer(c.getLocataire(), false, TypeNotification.INFO, "Avenant à votre contrat", message, LIEN_CONTRATS, cle);
+            User bailleur = c.getMaison().getCour().getProprietaire();
+            if (bailleur != null) {
+                envoyer(bailleur, false, TypeNotification.INFO, "Avenant à un contrat de location", message, LIEN_BAILLEUR_CONTRATS, cle);
+            }
+        } else if (a.getMandat() != null) {
+            ContratMandat m = a.getMandat();
+            User bailleur = m.getCour().getProprietaire();
+            if (bailleur != null) {
+                envoyer(bailleur, false, TypeNotification.INFO, "Avenant à votre mandat",
+                        "Un avenant n°" + a.getNumeroOrdre() + " a été ajouté à votre mandat sur la cour "
+                                + m.getCour().getReferenceCour() + ", à compter du " + effet + ".", LIEN_BAILLEUR_MANDATS, cle);
+            }
+        }
     }
 
     // Virement du loyer reverse au bailleur (confirme par l'agent)

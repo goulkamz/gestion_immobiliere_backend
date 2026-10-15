@@ -636,6 +636,8 @@ Modifie dateFin/commission/modeFacturation/typeMandat sans changer le statut (aj
 Body : `{ dateFin?: string; commission?: number; modeFacturation?: 'MENSUEL'|'CUMUL'|'COMMISSION'; typeMandat?: 'GESTION'|'LOCATION'|'VENTE' }` (tous optionnels, seuls les champs fournis sont modifiés). Le couple type/mode final est revalidé : changer le type vers un type qui n'accepte pas le mode actuel exige d'envoyer aussi un mode valide (400 sinon).
 **Avenants (2026-10-16)** : au body s'ajoutent `motif?: string`, `accordClient?: boolean`, `dateEffet?: string` (yyyy-MM-dd). Mandat **ACTIF** : `motif` et `accordClient: true` obligatoires ; le PDF du contrat d'origine est figé (généré avant la modification) puis un **avenant** numéroté enregistre les champs changés ; `dateEffet` = aujourd'hui par défaut, jamais dans le passé ni dans le futur (la modification s'applique dès l'enregistrement). Mandat **EN_ATTENTE** : brouillon, ni motif ni accord requis, aucun avenant ; le PDF déjà généré est supprimé et se régénère à la demande. Réponse : `ContratMandatResponse` avec `idAvenant` et `numeroAvenant` renseignés quand un avenant est créé.
 Codes : 400 (motif absent, accord absent, date d'effet invalide, aucune modification réelle) ; 409 `INVALID_STATUT_TRANSITION` (mandat RESILIE/EXPIRE).
+#### GET /api/contrats-mandat/{id}/avenants
+Avenants du mandat, du plus ancien au plus récent. Rôle requis : ROLE_AGENT, ROLE_ADMIN, ou le bailleur propriétaire de la cour (`@contratMandatSecurity.isAccessible`). Réponse (data) : `AvenantResponse[]` (même forme que pour la location). Codes : 403 `ACCESS_DENIED`.
 #### DELETE /api/contrats-mandat/{id}
 Rôle requis : ROLE_ADMIN uniquement.
 
@@ -683,6 +685,17 @@ Modifie dateSortie (prolonge/réduit le bail) et/ou montantLoyer **sans clôture
 Body : `{ dateSortie?: string; montantLoyer?: number }` (tous optionnels, seuls les champs fournis sont modifiés). Si `montantLoyer` change : les échéances déjà générées ne sont **pas régénérées** (dates/numérotation conservées), mais leur `montantDu` est **mis à jour** pour celles encore `EN_ATTENTE`/`EN_RETARD` — les échéances `PAYE`/`ANNULE` restent inchangées (elles reflètent ce qui a réellement été dû/réglé à l'époque).
 **Avenants (2026-10-16)** : au body s'ajoutent `motif: string` et `accordClient: true` (**obligatoires**) et `dateEffet?: string` (yyyy-MM-dd, aujourd'hui par défaut, jamais dans le passé, peut être future). Le PDF du contrat d'origine est figé (généré avant la modification), puis un **avenant** numéroté enregistre les champs changés. Si `montantLoyer` change, seules les échéances **non réglées dues à partir de la date d'effet** sont mises à jour. Réponse : `ContratLocationResponse` avec `idAvenant` et `numeroAvenant`.
 Codes : 400 (motif absent, accord absent, date d'effet dans le passé, aucune modification réelle) ; 409 `INVALID_STATUT_TRANSITION` (contrat non ACTIF).
+#### GET /api/contrats-location/{id}/avenants
+Avenants du contrat, du plus ancien au plus récent. Rôle requis : ROLE_AGENT, ROLE_ADMIN, ou le locataire / le bailleur propriétaire du contrat (`@contratLocationSecurity.isAccessible`). Réponse (data) : `AvenantResponse[]`. Codes : 403 `ACCESS_DENIED`.
+```typescript
+interface AvenantResponse {
+  idAvenant: number; typeContrat: 'LOCATION' | 'MANDAT'; idContrat: number; numeroOrdre: number;
+  dateEffet: string; // yyyy-MM-dd
+  motif: string; dateCreation: string;
+  lignes: { champ: 'montantLoyer' | 'dateSortie' | 'dateFin' | 'commission' | 'modeFacturation' | 'typeMandat';
+            ancienneValeur: string | null; nouvelleValeur: string | null }[];
+}
+```
 #### PATCH /api/contrats-location/decomptes-sortie/{idDecompte}/regler
 Règle le décompte de sortie (restitution avance/caution ou complément dû). Rôle requis : ROLE_AGENT, ROLE_ADMIN.
 Body : `{ modePaiement: string; reference?: string }` (`modePaiement` requis).
@@ -1102,6 +1115,12 @@ Rapport mensuel de gestion (loyers/commissions encaissés, retards, locations bi
 Rôle requis : `ROLE_ADMIN` uniquement — `@PreAuthorize("hasRole('ADMIN')")` posé directement sur l'interface `RapportMensuelDocumentAPI`.
 Query : `periode` (LocalDate, requis ; seul le mois/année comptent).
 Réponse : PDF (`rapport-mensuel.pdf`, ou `rapport-mensuel-provisoire.pdf` pour le mois en cours). Codes : 400 si `periode` est un mois futur ; sinon aucune exception métier (un rapport est toujours calculable, même à zéro).
+
+### GET /api/documents/avenants/{idAvenant}
+Génère une seule fois (immuable, stocké) ou récupère le PDF de l'avenant : contrat concerné, tableau Avant / Après, date d'effet, motif, clause « les autres clauses demeurent inchangées », zones de signature, QR code signé. Numéro `GI.BF-AVT-<année>-<id sur 5 chiffres>`.
+Rôle requis : `hasAnyRole('ADMIN','AGENT') or @avenantSecurity.isAccessible(#idAvenant, principal.idUser)` (même droits que le contrat concerné) posé sur `AvenantDocumentService`.
+Réponse : PDF (`avenant.pdf`). Codes : 404 si l'avenant n'existe pas ; 403 `ACCESS_DENIED`.
+**Notifications** : à la création d'un avenant, le locataire (lien `/espace-client/contrats`) et le bailleur (`/espace-bailleur/contrats` ou `/espace-bailleur/mandats`) reçoivent une notification in-app (clé `AVENANT:<id>`, pas d'e-mail).
 
 ### GET /api/documents/recus/{idPaiement}
 Génère une seule fois (immuable, stocké) ou récupère le reçu de paiement PDF.

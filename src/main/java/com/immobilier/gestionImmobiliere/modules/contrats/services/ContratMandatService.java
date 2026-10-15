@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.contrats.services;
 
+import com.immobilier.gestionImmobiliere.modules.notifications.services.AlerteUtilisateurService;
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.Avenant;
 import com.immobilier.gestionImmobiliere.modules.documents.services.ContratMandatDocumentService;
 import jakarta.persistence.criteria.Join;
@@ -57,16 +58,18 @@ public class ContratMandatService {
     private final EcheanceService echeanceService;
     private final ContratLocationRepository contratLocationRepository;
     private final AvenantService avenantService;
+    private final AlerteUtilisateurService alerteUtilisateurService;
     private final ContratMandatDocumentService contratMandatDocumentService;
 
 
-    public ContratMandatService(ContratMandatRepository mandatRepository, CourRepository courRepository, UserRepository userRepository, EcheanceService echeanceService, ContratLocationRepository contratLocationRepository, AvenantService avenantService, ContratMandatDocumentService contratMandatDocumentService) {
+    public ContratMandatService(ContratMandatRepository mandatRepository, CourRepository courRepository, UserRepository userRepository, EcheanceService echeanceService, ContratLocationRepository contratLocationRepository, AvenantService avenantService, ContratMandatDocumentService contratMandatDocumentService, AlerteUtilisateurService alerteUtilisateurService) {
         this.mandatRepository = mandatRepository;
         this.courRepository = courRepository;
         this.userRepository = userRepository;
         this.echeanceService = echeanceService;
         this.contratLocationRepository = contratLocationRepository;
         this.avenantService = avenantService;
+        this.alerteUtilisateurService = alerteUtilisateurService;
         this.contratMandatDocumentService = contratMandatDocumentService;
     }
 
@@ -267,6 +270,7 @@ public class ContratMandatService {
         String message = "Mandat modifié";
         if (actif) {
             Avenant avenant = avenantService.enregistrerPourMandat(mandat, dateEffet, dto.getMotif(), modifications, currentUserId);
+            alerteUtilisateurService.avenantCree(avenant);
             reponse.setIdAvenant(avenant.getIdAvenant());
             reponse.setNumeroAvenant(avenant.getNumeroOrdre());
             message = "Mandat modifié, avenant n°" + avenant.getNumeroOrdre() + " créé";

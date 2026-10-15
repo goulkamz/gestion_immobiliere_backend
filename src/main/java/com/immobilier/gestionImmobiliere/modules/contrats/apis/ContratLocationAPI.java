@@ -31,6 +31,10 @@ public interface ContratLocationAPI {
     @GetMapping("/{id}")
     ResponseEntity<?> getById(@PathVariable Integer id);
 
+    // Avenants du contrat (accessibles a ceux qui accedent au contrat)
+    @GetMapping("/{id}/avenants")
+    ResponseEntity<?> getAvenants(@PathVariable Integer id);
+
     @PostMapping
     ContratLocationResponseDTO create(@Valid @RequestBody CreateContratLocationDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser);
 

@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.contrats.controllers;
 
+import com.immobilier.gestionImmobiliere.modules.contrats.services.AvenantService;
 import com.immobilier.gestionImmobiliere.modules.contrats.apis.ContratLocationAPI;
 import com.immobilier.gestionImmobiliere.modules.contrats.dto.requests.CreateContratLocationDTO;
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.StatutLocation;
@@ -23,9 +24,11 @@ import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.build
 public class ContratLocationController implements ContratLocationAPI {
 
     private final ContratLocationService locationService;
+    private final AvenantService avenantService;
 
-    public ContratLocationController(ContratLocationService locationService) {
+    public ContratLocationController(ContratLocationService locationService, AvenantService avenantService) {
         this.locationService = locationService;
+        this.avenantService = avenantService;
     }
 
     @Override
@@ -45,6 +48,12 @@ public class ContratLocationController implements ContratLocationAPI {
         // Appel via le proxy (méthode publique du bean) -> @PostAuthorize s'exécute ici
         ContratLocationResponseDTO dto = locationService.getContratById(id);
         return buildSuccessResponse(HttpStatus.OK, "Contrat de location trouvé", "LOCATION_FOUND", dto);
+    }
+
+    @Override
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN') or @contratLocationSecurity.isAccessible(#id, authentication.principal.idUser)")
+    public ResponseEntity<?> getAvenants(Integer id) {
+        return avenantService.listerPourLocation(id);
     }
 
     @Override
