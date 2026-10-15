@@ -49,6 +49,7 @@ import java.util.UUID;
 
         private final PaiementRepository paiementRepository;
         private final DocumentRepository documentRepository;
+        private final DocumentRegistrar documentRegistrar;
         private final DocumentStorageService documentStorageService;
         private final PaiementEcheanceRepository paiementEcheanceRepository;
         private final EcheanceLoyerRepository echeanceLoyerRepository;
@@ -56,12 +57,13 @@ import java.util.UUID;
         private final LocationBienServiceRepository locationBienServiceRepository;
         private final Utils utils;
 
-        public RecuDocumentService(PaiementRepository paiementRepository, DocumentRepository documentRepository,
+        public RecuDocumentService(PaiementRepository paiementRepository, DocumentRepository documentRepository, DocumentRegistrar documentRegistrar,
                                    DocumentStorageService documentStorageService, PaiementEcheanceRepository paiementEcheanceRepository,
                                    EcheanceLoyerRepository echeanceLoyerRepository, PaiementLocationBienServiceRepository paiementLocationBienServiceRepository,
                                    LocationBienServiceRepository locationBienServiceRepository, Utils utils) {
             this.paiementRepository = paiementRepository;
             this.documentRepository = documentRepository;
+            this.documentRegistrar = documentRegistrar;
             this.documentStorageService = documentStorageService;
             this.paiementEcheanceRepository = paiementEcheanceRepository;
             this.echeanceLoyerRepository = echeanceLoyerRepository;
@@ -100,9 +102,7 @@ import java.util.UUID;
                     .createdAt(LocalDateTime.now())
                     .userCreate(currentUserId)
                     .build();
-            documentRepository.save(document);
-
-            return pdf;
+            return documentRegistrar.enregistrer(document, pdf);
         }
 
         // ── Génération PDF (OpenPDF) ─────────────────────────────────────────────

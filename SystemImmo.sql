@@ -763,6 +763,8 @@ CREATE INDEX idx_remboursement_entite ON remboursement(entite_type, entite_id);
 CREATE INDEX idx_parametre_cle ON parametre_systeme(cle);
 CREATE INDEX idx_document_entite ON document(entite_type, entite_id);
 CREATE INDEX idx_document_type ON document(type_document);
+CREATE UNIQUE INDEX uq_document_entite ON document(type_document, entite_type, entite_id) WHERE entite_id IS NOT NULL AND is_deleted IS NOT TRUE;
+CREATE UNIQUE INDEX uq_document_periode ON document(type_document, periode_mois) WHERE periode_mois IS NOT NULL AND is_deleted IS NOT TRUE;
 
 -- ==============================================================
 -- Données initiales (rôles)

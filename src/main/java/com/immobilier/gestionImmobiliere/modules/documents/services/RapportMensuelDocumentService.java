@@ -39,6 +39,7 @@ public class RapportMensuelDocumentService {
     private final RemboursementRepository remboursementRepository;
     private final DecompteSortieRepository decompteSortieRepository;
     private final DocumentRepository documentRepository;
+    private final DocumentRegistrar documentRegistrar;
     private final DocumentStorageService documentStorageService;
     private final Utils utils;
 
@@ -46,13 +47,14 @@ public class RapportMensuelDocumentService {
                                          PaiementLocationBienServiceRepository paiementLocationBienServiceRepository,
                                          RemboursementRepository remboursementRepository,
                                          DecompteSortieRepository decompteSortieRepository,
-                                         DocumentRepository documentRepository,
+                                         DocumentRepository documentRepository, DocumentRegistrar documentRegistrar,
                                          DocumentStorageService documentStorageService, Utils utils) {
         this.echeanceLoyerRepository = echeanceLoyerRepository;
         this.paiementLocationBienServiceRepository = paiementLocationBienServiceRepository;
         this.remboursementRepository = remboursementRepository;
         this.decompteSortieRepository = decompteSortieRepository;
         this.documentRepository = documentRepository;
+        this.documentRegistrar = documentRegistrar;
         this.documentStorageService = documentStorageService;
         this.utils = utils;
     }
@@ -82,9 +84,7 @@ public class RapportMensuelDocumentService {
                 .createdAt(LocalDateTime.now())
                 .userCreate(currentUserId)
                 .build();
-        documentRepository.save(nouveau);
-
-        return pdf;
+        return documentRegistrar.enregistrer(nouveau, pdf);
     }
 
     // ── Génération PDF (OpenPDF) ─────────────────────────────────────────────

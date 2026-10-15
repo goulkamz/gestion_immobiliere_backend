@@ -37,6 +37,15 @@ public class DocumentStorageService {
         }
     }
 
+    /** Supprime un fichier orphelin (ex. PDF généré en double lors de deux demandes simultanées). */
+    public void supprimer(String cle) {
+        try {
+            minioClient.removeObject(RemoveObjectArgs.builder().bucket(bucket).object(cle).build());
+        } catch (Exception e) {
+            throw new MediaStorageException("Impossible de supprimer le document sur MinIO", e);
+        }
+    }
+
     /**
      * Télécharge les octets du document depuis MinIO — l'autorisation est
      * vérifiée par le service appelant (via @PreAuthorize) à chaque requête,

@@ -42,17 +42,19 @@ public class QuittanceLoyerDocumentService {
     private final EcheanceLoyerRepository echeanceLoyerRepository;
     private final ContratLocationRepository contratLocationRepository;
     private final DocumentRepository documentRepository;
+    private final DocumentRegistrar documentRegistrar;
     private final DocumentStorageService documentStorageService;
     private final Utils utils;
 
     public QuittanceLoyerDocumentService(EcheanceLoyerRepository echeanceLoyerRepository,
                                          ContratLocationRepository contratLocationRepository,
-                                         DocumentRepository documentRepository,
+                                         DocumentRepository documentRepository, DocumentRegistrar documentRegistrar,
                                          DocumentStorageService documentStorageService,
                                          Utils utils) {
         this.echeanceLoyerRepository = echeanceLoyerRepository;
         this.contratLocationRepository = contratLocationRepository;
         this.documentRepository = documentRepository;
+        this.documentRegistrar = documentRegistrar;
         this.documentStorageService = documentStorageService;
         this.utils = utils;
     }
@@ -99,9 +101,7 @@ public class QuittanceLoyerDocumentService {
                 .createdAt(LocalDateTime.now())
                 .userCreate(currentUserId)
                 .build();
-        documentRepository.save(document);
-
-        return pdf;
+        return documentRegistrar.enregistrer(document, pdf);
     }
 
     // ── Génération PDF (OpenPDF) ─────────────────────────────────────────────

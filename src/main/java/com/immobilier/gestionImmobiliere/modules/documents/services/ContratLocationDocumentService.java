@@ -37,15 +37,17 @@ public class ContratLocationDocumentService {
 
     private final ContratLocationRepository contratLocationRepository;
     private final DocumentRepository documentRepository;
+    private final DocumentRegistrar documentRegistrar;
     private final DocumentStorageService documentStorageService;
     private final Utils utils;
 
     public ContratLocationDocumentService(ContratLocationRepository contratLocationRepository,
-                                          DocumentRepository documentRepository,
+                                          DocumentRepository documentRepository, DocumentRegistrar documentRegistrar,
                                           DocumentStorageService documentStorageService,
                                           Utils utils) {
         this.contratLocationRepository = contratLocationRepository;
         this.documentRepository = documentRepository;
+        this.documentRegistrar = documentRegistrar;
         this.documentStorageService = documentStorageService;
         this.utils = utils;
     }
@@ -60,11 +62,15 @@ public class ContratLocationDocumentService {
     )
     @Transactional
     public byte[] genererOuRecuperer(Integer idContrat, Integer currentUserId) {
+        // Les états des lieux partagent la même entité (CONTRAT_LOCATION, id du contrat) :
+        // on filtre sur le type pour ne jamais renvoyer un état des lieux à la place du contrat.
         var existant = documentRepository.findByEntiteTypeAndEntiteIdOrderByCreatedAtDesc(
-                TypeEntiteDocument.CONTRAT_LOCATION, idContrat);
+                        TypeEntiteDocument.CONTRAT_LOCATION, idContrat).stream()
+                .filter(d -> d.getTypeDocument() == TypeDocument.CONTRAT_LOCATION)
+                .findFirst();
 
-        if (!existant.isEmpty()) {
-            return documentStorageService.telecharger(existant.getFirst().getCheminFichier());
+        if (existant.isPresent()) {
+            return documentStorageService.telecharger(existant.get().getCheminFichier());
         }
 
         ContratLocation contrat = contratLocationRepository.findById(idContrat)
@@ -81,9 +87,7 @@ public class ContratLocationDocumentService {
                 .createdAt(LocalDateTime.now())
                 .userCreate(currentUserId)
                 .build();
-        documentRepository.save(document);
-
-        return pdf;
+        return documentRegistrar.enregistrer(document, pdf);
     }
 
     // ── Génération PDF (OpenPDF) ─────────────────────────────────────────────

@@ -43,15 +43,17 @@ public class DecompteSortieDocumentService {
 
     private final DecompteSortieRepository decompteSortieRepository;
     private final DocumentRepository documentRepository;
+    private final DocumentRegistrar documentRegistrar;
     private final DocumentStorageService documentStorageService;
     private final Utils utils;
 
     public DecompteSortieDocumentService(DecompteSortieRepository decompteSortieRepository,
-                                         DocumentRepository documentRepository,
+                                         DocumentRepository documentRepository, DocumentRegistrar documentRegistrar,
                                          DocumentStorageService documentStorageService,
                                          Utils utils) {
         this.decompteSortieRepository = decompteSortieRepository;
         this.documentRepository = documentRepository;
+        this.documentRegistrar = documentRegistrar;
         this.documentStorageService = documentStorageService;
         this.utils = utils;
     }
@@ -92,9 +94,7 @@ public class DecompteSortieDocumentService {
                 .createdAt(LocalDateTime.now())
                 .userCreate(currentUserId)
                 .build();
-        documentRepository.save(document);
-
-        return pdf;
+        return documentRegistrar.enregistrer(document, pdf);
     }
 
     // ── Génération PDF (OpenPDF) ─────────────────────────────────────────────
