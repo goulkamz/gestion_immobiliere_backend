@@ -1,5 +1,7 @@
 package com.immobilier.gestionImmobiliere.modules.contrats.services;
 
+import com.immobilier.gestionImmobiliere.donnees.contrats.model.Avenant;
+import com.immobilier.gestionImmobiliere.modules.documents.services.ContratMandatDocumentService;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
@@ -54,14 +56,18 @@ public class ContratMandatService {
     private final UserRepository userRepository;
     private final EcheanceService echeanceService;
     private final ContratLocationRepository contratLocationRepository;
+    private final AvenantService avenantService;
+    private final ContratMandatDocumentService contratMandatDocumentService;
 
 
-    public ContratMandatService(ContratMandatRepository mandatRepository, CourRepository courRepository, UserRepository userRepository, EcheanceService echeanceService, ContratLocationRepository contratLocationRepository) {
+    public ContratMandatService(ContratMandatRepository mandatRepository, CourRepository courRepository, UserRepository userRepository, EcheanceService echeanceService, ContratLocationRepository contratLocationRepository, AvenantService avenantService, ContratMandatDocumentService contratMandatDocumentService) {
         this.mandatRepository = mandatRepository;
         this.courRepository = courRepository;
         this.userRepository = userRepository;
         this.echeanceService = echeanceService;
         this.contratLocationRepository = contratLocationRepository;
+        this.avenantService = avenantService;
+        this.contratMandatDocumentService = contratMandatDocumentService;
     }
 
     public ResponseEntity<?> getAllForCurrentUser(Integer idCour, StatutMandat statut, String recherche,
@@ -188,6 +194,12 @@ public class ContratMandatService {
     /**
      * Modifie dateFin/commission/modeFacturation/typeMandat sans changer le statut.
      * Réservé aux mandats EN_ATTENTE/ACTIF : un mandat RESILIE/EXPIRE est figé.
+     *
+     * EN_ATTENTE : le PDF éventuellement déjà généré est un brouillon, il est supprimé et se
+     * régénérera avec les nouvelles valeurs. ACTIF : le contrat d'origine reste figé (son PDF est
+     * généré avant la modification) et un avenant numéroté enregistre ce qui change ; motif et accord
+     * du client sont obligatoires. La modification s'applique dès l'enregistrement : la date d'effet ne
+     * peut donc être qu'aujourd'hui.
      */
     @Transactional
     public ResponseEntity<?> modifier(Integer id, UpdateContratMandatDTO dto, Integer currentUserId) {
@@ -197,24 +209,69 @@ public class ContratMandatService {
             throw new InvalidStatutTransitionException(mandat.getStatut().name(), "MODIFICATION_MANDAT");
         }
 
+        List<AvenantService.Modification> modifications = new ArrayList<>();
         if (dto.getDateFin() != null) {
             if (!dto.getDateFin().isAfter(mandat.getDateDebut())) {
                 throw new IllegalArgumentException("La date de fin doit être postérieure à la date de début");
             }
-            mandat.setDateFin(dto.getDateFin());
+            if (!dto.getDateFin().equals(mandat.getDateFin())) {
+                modifications.add(new AvenantService.Modification("dateFin",
+                        mandat.getDateFin() != null ? mandat.getDateFin().toString() : null, dto.getDateFin().toString()));
+            }
         }
         TypeMandat type = dto.getTypeMandat() != null ? dto.getTypeMandat() : mandat.getTypeMandat();
         ModeFacturation mode = dto.getModeFacturation() != null ? dto.getModeFacturation() : mandat.getModeFacturation();
         if (dto.getTypeMandat() != null || dto.getModeFacturation() != null) {
             validerModeFacturation(type, mode);
         }
+        if (dto.getTypeMandat() != null && dto.getTypeMandat() != mandat.getTypeMandat()) {
+            modifications.add(new AvenantService.Modification("typeMandat",
+                    mandat.getTypeMandat() != null ? mandat.getTypeMandat().name() : null, dto.getTypeMandat().name()));
+        }
+        if (dto.getModeFacturation() != null && dto.getModeFacturation() != mandat.getModeFacturation()) {
+            modifications.add(new AvenantService.Modification("modeFacturation",
+                    mandat.getModeFacturation() != null ? mandat.getModeFacturation().name() : null, dto.getModeFacturation().name()));
+        }
+        if (dto.getCommission() != null
+                && (mandat.getCommission() == null || dto.getCommission().compareTo(mandat.getCommission()) != 0)) {
+            modifications.add(new AvenantService.Modification("commission",
+                    mandat.getCommission() != null ? mandat.getCommission().toPlainString() : null,
+                    dto.getCommission().toPlainString()));
+        }
+        if (modifications.isEmpty()) {
+            throw new IllegalArgumentException("Aucune modification à enregistrer");
+        }
 
+        boolean actif = mandat.getStatut() == StatutMandat.ACTIF;
+        LocalDate dateEffet = null;
+        if (actif) {
+            dateEffet = avenantService.verifierSaisie(dto.getMotif(), dto.getAccordClient(), dto.getDateEffet());
+            if (dateEffet.isAfter(LocalDate.now())) {
+                throw new IllegalArgumentException("Pour un mandat, la modification s'applique dès son enregistrement : "
+                        + "la date d'effet ne peut pas être postérieure à aujourd'hui");
+            }
+            // Fige le contrat d'origine tel qu'il a été signé, avant d'appliquer quoi que ce soit
+            contratMandatDocumentService.genererOuRecuperer(id, currentUserId);
+        } else {
+            contratMandatDocumentService.supprimerBrouillon(id);
+        }
+
+        if (dto.getDateFin() != null) mandat.setDateFin(dto.getDateFin());
         if (dto.getCommission() != null) mandat.setCommission(dto.getCommission());
         mandat.setModeFacturation(mode);
         mandat.setTypeMandat(type);
 
         mandatRepository.save(mandat);
-        return buildSuccessResponse(HttpStatus.OK, "Mandat modifié", "MANDAT_UPDATED", toDto(mandat));
+
+        ContratMandatResponseDTO reponse = toDto(mandat);
+        String message = "Mandat modifié";
+        if (actif) {
+            Avenant avenant = avenantService.enregistrerPourMandat(mandat, dateEffet, dto.getMotif(), modifications, currentUserId);
+            reponse.setIdAvenant(avenant.getIdAvenant());
+            reponse.setNumeroAvenant(avenant.getNumeroOrdre());
+            message = "Mandat modifié, avenant n°" + avenant.getNumeroOrdre() + " créé";
+        }
+        return buildSuccessResponse(HttpStatus.OK, message, "MANDAT_UPDATED", reponse);
     }
 
     /** Modes de facturation proposés pour chaque type de mandat. */

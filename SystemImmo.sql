@@ -40,6 +40,8 @@ DROP TABLE IF EXISTS password_reset_token CASCADE;
 DROP TABLE IF EXISTS remboursement CASCADE;
 DROP TABLE IF EXISTS decompte_sortie CASCADE;
 DROP TABLE IF EXISTS parametre_systeme CASCADE;
+DROP TABLE IF EXISTS avenant_ligne CASCADE;
+DROP TABLE IF EXISTS avenant CASCADE;
 DROP TABLE IF EXISTS document CASCADE;
 
 DROP SEQUENCE IF EXISTS seq_annonce CASCADE;
@@ -71,6 +73,8 @@ DROP SEQUENCE IF EXISTS seq_paiement_echeance CASCADE;
 DROP SEQUENCE IF EXISTS seq_remboursement CASCADE;
 DROP SEQUENCE IF EXISTS seq_decompte_sortie CASCADE;
 DROP SEQUENCE IF EXISTS seq_parametre CASCADE;
+DROP SEQUENCE IF EXISTS seq_avenant_ligne CASCADE;
+DROP SEQUENCE IF EXISTS seq_avenant CASCADE;
 DROP SEQUENCE IF EXISTS seq_document CASCADE;
 
 -- ==============================================================
@@ -106,6 +110,8 @@ CREATE SEQUENCE seq_remboursement START 1;
 CREATE SEQUENCE seq_decompte_sortie START 1;
 CREATE SEQUENCE seq_parametre START 1;
 CREATE SEQUENCE seq_document START 1;
+CREATE SEQUENCE seq_avenant START 1;
+CREATE SEQUENCE seq_avenant_ligne START 1;
 
 -- ==============================================================
 -- Types ENUM
@@ -718,6 +724,42 @@ CREATE TABLE document (
     updated_at TIMESTAMP(6) DEFAULT NOW(),
     is_deleted BOOLEAN DEFAULT FALSE
 );
+
+-- ==============================================================
+-- Table: avenant / avenant_ligne
+-- ==============================================================
+CREATE TABLE avenant (
+    id_avenant INTEGER PRIMARY KEY DEFAULT nextval('seq_avenant'),
+    id_contrat_location INTEGER,
+    id_mandat INTEGER,
+    numero_ordre INTEGER NOT NULL,
+    date_effet DATE NOT NULL,
+    motif TEXT NOT NULL,
+    user_create INTEGER,
+    created_at TIMESTAMP(6) DEFAULT NOW(),
+    updated_at TIMESTAMP(6) DEFAULT NOW(),
+    is_deleted BOOLEAN DEFAULT FALSE,
+    CONSTRAINT fk_avenant_location FOREIGN KEY (id_contrat_location) REFERENCES contra_location(id_contra_location),
+    CONSTRAINT fk_avenant_mandat FOREIGN KEY (id_mandat) REFERENCES contrat_mandat(id_mandat),
+    -- Un avenant porte sur exactement un contrat : location OU mandat
+    CONSTRAINT ck_avenant_un_contrat CHECK ((id_contrat_location IS NULL) <> (id_mandat IS NULL))
+);
+
+CREATE TABLE avenant_ligne (
+    id_ligne INTEGER PRIMARY KEY DEFAULT nextval('seq_avenant_ligne'),
+    id_avenant INTEGER NOT NULL,
+    champ VARCHAR(50) NOT NULL,
+    ancienne_valeur VARCHAR(255),
+    nouvelle_valeur VARCHAR(255),
+    CONSTRAINT fk_avenant_ligne_avenant FOREIGN KEY (id_avenant) REFERENCES avenant(id_avenant) ON DELETE CASCADE
+);
+
+-- Numerotation sans doublon par contrat (garde-fou en cas de modifications simultanees)
+CREATE UNIQUE INDEX uq_avenant_location_numero
+    ON avenant (id_contrat_location, numero_ordre) WHERE id_contrat_location IS NOT NULL AND is_deleted IS NOT TRUE;
+CREATE UNIQUE INDEX uq_avenant_mandat_numero
+    ON avenant (id_mandat, numero_ordre) WHERE id_mandat IS NOT NULL AND is_deleted IS NOT TRUE;
+CREATE INDEX idx_avenant_ligne_avenant ON avenant_ligne (id_avenant);
 
 -- ==============================================================
 -- Index

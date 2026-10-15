@@ -1,5 +1,7 @@
 package com.immobilier.gestionImmobiliere.modules.contrats.services;
 
+import com.immobilier.gestionImmobiliere.donnees.contrats.model.Avenant;
+import com.immobilier.gestionImmobiliere.modules.documents.services.ContratLocationDocumentService;
 import com.immobilier.gestionImmobiliere.donnees.biens.model.Maison;
 import com.immobilier.gestionImmobiliere.donnees.biens.model.StatutMaison;
 import com.immobilier.gestionImmobiliere.donnees.biens.repository.MaisonRepository;
@@ -61,9 +63,11 @@ public class ContratLocationService {
     private final EcheanceLoyerRepository echeanceLoyerRepository;
     private final DecompteSortieRepository decompteSortieRepository;
     private final PaiementRepository paiementRepository;
+    private final AvenantService avenantService;
+    private final ContratLocationDocumentService contratLocationDocumentService;
 
 
-    public ContratLocationService(ContratLocationRepository locationRepository, MaisonRepository maisonRepository, UserRepository userRepository, EcheanceGenerationService echeanceGenerationService, EcheanceService echeanceService, EcheanceLoyerRepository echeanceLoyerRepository, DecompteSortieRepository decompteSortieRepository, PaiementRepository paiementRepository) {
+    public ContratLocationService(ContratLocationRepository locationRepository, MaisonRepository maisonRepository, UserRepository userRepository, EcheanceGenerationService echeanceGenerationService, EcheanceService echeanceService, EcheanceLoyerRepository echeanceLoyerRepository, DecompteSortieRepository decompteSortieRepository, PaiementRepository paiementRepository, AvenantService avenantService, ContratLocationDocumentService contratLocationDocumentService) {
         this.locationRepository = locationRepository;
         this.maisonRepository = maisonRepository;
         this.userRepository = userRepository;
@@ -72,6 +76,8 @@ public class ContratLocationService {
         this.echeanceLoyerRepository = echeanceLoyerRepository;
         this.decompteSortieRepository = decompteSortieRepository;
         this.paiementRepository = paiementRepository;
+        this.avenantService = avenantService;
+        this.contratLocationDocumentService = contratLocationDocumentService;
     }
 
     /**
@@ -203,10 +209,15 @@ public class ContratLocationService {
      * le contrat — à distinguer de terminer()/resilierContratLocation() qui fixent
      * dateSortie au moment de mettre fin au bail. Réservé aux contrats ACTIF.
      *
+     * Le contrat d'origine reste figé : son PDF est généré (s'il ne l'était pas) AVANT la
+     * modification, puis un avenant numéroté enregistre ce qui change. Motif, accord du client
+     * et date d'effet (aujourd'hui par défaut, jamais dans le passé) sont obligatoires.
+     *
      * Si montantLoyer change, les échéances déjà générées ne sont pas régénérées
      * (dates/numérotation conservées) mais leur montantDu est mis à jour pour
-     * celles non réglées (EN_ATTENTE/EN_RETARD) — PAYE/ANNULE restent inchangées,
-     * elles reflètent ce qui a réellement été dû/réglé à l'époque.
+     * celles non réglées (EN_ATTENTE/EN_RETARD) et dues à partir de la date d'effet —
+     * PAYE/ANNULE et les échéances antérieures restent inchangées, elles reflètent
+     * ce qui a réellement été dû/réglé à l'époque.
      */
     @Transactional
     public ResponseEntity<?> modifier(Integer id, UpdateContratLocationDTO dto, Integer currentUserId) {
@@ -216,18 +227,40 @@ public class ContratLocationService {
             throw new InvalidStatutTransitionException(location.getStatut().name(), "MODIFICATION_LOCATION");
         }
 
+        List<AvenantService.Modification> modifications = new ArrayList<>();
         if (dto.getDateSortie() != null) {
             if (!dto.getDateSortie().isAfter(location.getDateEntree())) {
                 throw new IllegalArgumentException("La date de sortie doit être postérieure à la date d'entrée");
             }
+            if (!dto.getDateSortie().equals(location.getDateSortie())) {
+                modifications.add(new AvenantService.Modification("dateSortie",
+                        location.getDateSortie() != null ? location.getDateSortie().toString() : null,
+                        dto.getDateSortie().toString()));
+            }
+        }
+        if (dto.getMontantLoyer() != null && dto.getMontantLoyer().compareTo(location.getMontantLoyer()) != 0) {
+            modifications.add(new AvenantService.Modification("montantLoyer",
+                    location.getMontantLoyer().toPlainString(), dto.getMontantLoyer().toPlainString()));
+        }
+        if (modifications.isEmpty()) {
+            throw new IllegalArgumentException("Aucune modification à enregistrer");
+        }
+        LocalDate dateEffet = avenantService.verifierSaisie(dto.getMotif(), dto.getAccordClient(), dto.getDateEffet());
+
+        // Fige le contrat d'origine tel qu'il a été signé, avant d'appliquer quoi que ce soit
+        contratLocationDocumentService.genererOuRecuperer(id, currentUserId);
+
+        if (dto.getDateSortie() != null) {
             location.setDateSortie(dto.getDateSortie());
         }
         if (dto.getMontantLoyer() != null) {
             location.setMontantLoyer(dto.getMontantLoyer());
 
             List<EcheanceLoyer> nonReglees = echeanceLoyerRepository.findByEntiteEcheanceTypeAndEntiteEcheanceIdAndStatutIn(
-                    TypeEcheance.LOCATION, location.getIdContratLocation(),
-                    List.of(StatutEcheance.EN_ATTENTE, StatutEcheance.EN_RETARD));
+                            TypeEcheance.LOCATION, location.getIdContratLocation(),
+                            List.of(StatutEcheance.EN_ATTENTE, StatutEcheance.EN_RETARD)).stream()
+                    .filter(e -> !e.getDateEcheance().isBefore(dateEffet))
+                    .toList();
             nonReglees.forEach(e -> {
                 e.setMontantDu(dto.getMontantLoyer());
                 e.setUserUpdate(currentUserId);
@@ -238,7 +271,12 @@ public class ContratLocationService {
         location.setUserUpdate(currentUserId);
         locationRepository.save(location);
 
-        return buildSuccessResponse(HttpStatus.OK, "Contrat de location modifié", "LOCATION_UPDATED", toDto(location));
+        Avenant avenant = avenantService.enregistrerPourLocation(location, dateEffet, dto.getMotif(), modifications, currentUserId);
+
+        ContratLocationResponseDTO reponse = toDto(location);
+        reponse.setIdAvenant(avenant.getIdAvenant());
+        reponse.setNumeroAvenant(avenant.getNumeroOrdre());
+        return buildSuccessResponse(HttpStatus.OK, "Contrat de location modifié, avenant n°" + avenant.getNumeroOrdre() + " créé", "LOCATION_UPDATED", reponse);
     }
 
     @Transactional

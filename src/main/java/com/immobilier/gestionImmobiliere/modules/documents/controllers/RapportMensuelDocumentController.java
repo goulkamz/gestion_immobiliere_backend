@@ -26,7 +26,7 @@ public class RapportMensuelDocumentController implements RapportMensuelDocumentA
         byte[] pdf = rapportMensuelDocumentService.genererOuRecuperer(periode, currentUser.getIdUser());
 
         HttpHeaders headers = new HttpHeaders();
-        headers.setContentDisposition(ContentDisposition.attachment().filename("rapport-mensuel.pdf").build());
+        headers.setContentDisposition(ContentDisposition.attachment().filename(rapportMensuelDocumentService.estProvisoire(periode) ? "rapport-mensuel-provisoire.pdf" : "rapport-mensuel.pdf").build());
 
         return ResponseEntity.ok()
                 .headers(headers)

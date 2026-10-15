@@ -60,21 +60,33 @@ public class RapportMensuelDocumentService {
     }
 
 
+    /** Vrai si la période demandée est le mois en cours : son rapport est alors provisoire et jamais enregistré. */
+    public boolean estProvisoire(LocalDate periode) {
+        return periode.withDayOfMonth(1).equals(LocalDate.now().withDayOfMonth(1));
+    }
+
     /**
-     * Réservé Admin. Un seul rapport par mois (immuable une fois généré) —
-     * appelable à tout moment (avant ou après le 15), mais le job planifié
-     * s'assure qu'il existe automatiquement chaque 15 du mois.
+     * Réservé Admin. Un seul rapport par mois, immuable une fois généré : le job planifié le crée le 1er
+     * du mois suivant, quand le mois écoulé est complet. Pour le mois en cours, un rapport PROVISOIRE est
+     * généré à la volée (chiffres susceptibles d'évoluer), sans être enregistré. Un mois futur est refusé.
      */
     @Transactional
     public byte[] genererOuRecuperer(LocalDate periode, Integer currentUserId) {
         LocalDate debutMois = periode.withDayOfMonth(1);
+
+        if (debutMois.isAfter(LocalDate.now().withDayOfMonth(1))) {
+            throw new IllegalArgumentException("Le rapport d'un mois futur n'est pas disponible");
+        }
+        if (estProvisoire(debutMois)) {
+            return genererPdf(debutMois, true);
+        }
 
         var existant = documentRepository.findByTypeDocumentAndPeriodeMois(TypeDocument.RAPPORT_MENSUEL, debutMois);
         if (existant.isPresent()) {
             return documentStorageService.telecharger(existant.get().getCheminFichier());
         }
 
-        byte[] pdf = genererPdf(debutMois);
+        byte[] pdf = genererPdf(debutMois, false);
         String cle = documentStorageService.store(pdf, "rapports-mensuels");
 
         Document nouveau = Document.builder()
@@ -89,9 +101,11 @@ public class RapportMensuelDocumentService {
 
     // ── Génération PDF (OpenPDF) ─────────────────────────────────────────────
 
-    private byte[] genererPdf(LocalDate periode) {
-        String libellePeriode = DateUtils.nomMoisFrancais(periode) + " " + periode.getYear();
-        String numero = "GI.BF-RAP-" + periode.getYear() + "-" + String.format("%02d", periode.getMonthValue());
+    private byte[] genererPdf(LocalDate periode, boolean provisoire) {
+        String libellePeriode = DateUtils.nomMoisFrancais(periode) + " " + periode.getYear()
+                + (provisoire ? " (PROVISOIRE)" : "");
+        String numero = "GI.BF-RAP-" + periode.getYear() + "-" + String.format("%02d", periode.getMonthValue())
+                + (provisoire ? "-PROV" : "");
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         org.openpdf.text.Document document = new org.openpdf.text.Document(PageSize.A4, 50, 50, 60, 60);
@@ -114,8 +128,11 @@ public class RapportMensuelDocumentService {
 
             Font fontNote = FontFactory.getFont(FontFactory.HELVETICA, 8, Font.ITALIC, Color.GRAY);
             Paragraph note = new Paragraph(
-                    "Rapport généré le 15 du mois : on suppose qu'à cette date tous les paiements " +
-                            "et virements du mois sont effectués.", fontNote);
+                    provisoire
+                            ? "RAPPORT PROVISOIRE : le mois n'est pas terminé, les chiffres peuvent encore évoluer. " +
+                                    "Ce document n'est pas enregistré ; le rapport définitif est généré le 1er du mois suivant."
+                            : "Rapport généré après la clôture du mois : il couvre l'ensemble des paiements " +
+                                    "et virements de la période.", fontNote);
             note.setSpacingBefore(15f);
             document.add(note);
 

@@ -52,6 +52,24 @@ public class ContratMandatDocumentService {
         this.utils = utils;
     }
 
+    /**
+     * Supprime le PDF stocké d'un mandat encore EN_ATTENTE (brouillon) : il se régénérera, avec les
+     * valeurs à jour, à la prochaine demande. À ne jamais utiliser sur un mandat actif (contrat d'origine).
+     */
+    @Transactional
+    public void supprimerBrouillon(Integer idMandat) {
+        documentRepository.findByEntiteTypeAndEntiteIdOrderByCreatedAtDesc(TypeEntiteDocument.CONTRAT_MANDAT, idMandat).stream()
+                .filter(d -> d.getTypeDocument() == TypeDocument.CONTRAT_MANDAT)
+                .forEach(d -> {
+                    documentRepository.delete(d);
+                    try {
+                        documentStorageService.supprimer(d.getCheminFichier());
+                    } catch (RuntimeException e) {
+                        log.warn("Fichier du brouillon de mandat {} non supprimé : {}", idMandat, e.getMessage());
+                    }
+                });
+    }
+
     @PreAuthorize(
             "hasAnyRole('ADMIN','AGENT') " +
                     "or @contratMandatSecurity.isAccessible(#idMandat, authentication.principal.idUser)"

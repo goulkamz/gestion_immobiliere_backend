@@ -634,7 +634,8 @@ Body : `{ motifResiliation: string }` (requis).
 #### PATCH /api/contrats-mandat/{id}/modifier
 Modifie dateFin/commission/modeFacturation/typeMandat sans changer le statut (ajouté le 2026-10-02). Rôle requis : ROLE_AGENT uniquement (pas ADMIN, même restriction que create/activer/resilier sur ce contrôleur). Réservé aux mandats EN_ATTENTE/ACTIF.
 Body : `{ dateFin?: string; commission?: number; modeFacturation?: 'MENSUEL'|'CUMUL'|'COMMISSION'; typeMandat?: 'GESTION'|'LOCATION'|'VENTE' }` (tous optionnels, seuls les champs fournis sont modifiés). Le couple type/mode final est revalidé : changer le type vers un type qui n'accepte pas le mode actuel exige d'envoyer aussi un mode valide (400 sinon).
-Codes : 409 `INVALID_STATUT_TRANSITION` (mandat RESILIE/EXPIRE).
+**Avenants (2026-10-16)** : au body s'ajoutent `motif?: string`, `accordClient?: boolean`, `dateEffet?: string` (yyyy-MM-dd). Mandat **ACTIF** : `motif` et `accordClient: true` obligatoires ; le PDF du contrat d'origine est figé (généré avant la modification) puis un **avenant** numéroté enregistre les champs changés ; `dateEffet` = aujourd'hui par défaut, jamais dans le passé ni dans le futur (la modification s'applique dès l'enregistrement). Mandat **EN_ATTENTE** : brouillon, ni motif ni accord requis, aucun avenant ; le PDF déjà généré est supprimé et se régénère à la demande. Réponse : `ContratMandatResponse` avec `idAvenant` et `numeroAvenant` renseignés quand un avenant est créé.
+Codes : 400 (motif absent, accord absent, date d'effet invalide, aucune modification réelle) ; 409 `INVALID_STATUT_TRANSITION` (mandat RESILIE/EXPIRE).
 #### DELETE /api/contrats-mandat/{id}
 Rôle requis : ROLE_ADMIN uniquement.
 
@@ -680,7 +681,8 @@ Body : `{ etatDesLieuxSortie: string; dateSortie?: string; coutReparation: numbe
 #### PATCH /api/contrats-location/{id}/modifier
 Modifie dateSortie (prolonge/réduit le bail) et/ou montantLoyer **sans clôturer le contrat** (ajouté le 2026-10-02) — à distinguer de `terminer`/`resilier` ci-dessus qui mettent fin au bail. Rôle requis : ROLE_AGENT, ROLE_ADMIN. Réservé aux contrats ACTIF.
 Body : `{ dateSortie?: string; montantLoyer?: number }` (tous optionnels, seuls les champs fournis sont modifiés). Si `montantLoyer` change : les échéances déjà générées ne sont **pas régénérées** (dates/numérotation conservées), mais leur `montantDu` est **mis à jour** pour celles encore `EN_ATTENTE`/`EN_RETARD` — les échéances `PAYE`/`ANNULE` restent inchangées (elles reflètent ce qui a réellement été dû/réglé à l'époque).
-Codes : 409 `INVALID_STATUT_TRANSITION` (contrat non ACTIF).
+**Avenants (2026-10-16)** : au body s'ajoutent `motif: string` et `accordClient: true` (**obligatoires**) et `dateEffet?: string` (yyyy-MM-dd, aujourd'hui par défaut, jamais dans le passé, peut être future). Le PDF du contrat d'origine est figé (généré avant la modification), puis un **avenant** numéroté enregistre les champs changés. Si `montantLoyer` change, seules les échéances **non réglées dues à partir de la date d'effet** sont mises à jour. Réponse : `ContratLocationResponse` avec `idAvenant` et `numeroAvenant`.
+Codes : 400 (motif absent, accord absent, date d'effet dans le passé, aucune modification réelle) ; 409 `INVALID_STATUT_TRANSITION` (contrat non ACTIF).
 #### PATCH /api/contrats-location/decomptes-sortie/{idDecompte}/regler
 Règle le décompte de sortie (restitution avance/caution ou complément dû). Rôle requis : ROLE_AGENT, ROLE_ADMIN.
 Body : `{ modePaiement: string; reference?: string }` (`modePaiement` requis).
@@ -1096,10 +1098,10 @@ Rôle : `hasAnyRole('ADMIN','AGENT') or @quittanceLoyerSecurity.isAccessible(#id
 Réponse : PDF (`quittance-loyer.pdf`). Codes : 404 `ÉCHÉANCE_NOT_FOUND`/`CONTRAT_DE_LOCATION_NOT_FOUND` ; 409 `INVALID_STATE_TRANSITION` si le type d'échéance n'est pas `LOCATION` ou si `statut != PAYE` ; 403 `ACCESS_DENIED`.
 
 ### GET /api/documents/rapports-mensuels?periode={date}
-Rapport mensuel de gestion (loyers/commissions encaissés, retards, locations biens/services, décomptes réglés) pour le mois de `periode`. Un seul rapport par mois, immuable une fois généré ; un job planifié en génère un automatiquement chaque 15 du mois, mais il reste générable à la demande.
+Rapport mensuel de gestion (loyers/commissions encaissés, retards, locations biens/services, décomptes réglés) pour le mois de `periode`. Un seul rapport définitif par mois, immuable une fois généré : un job planifié génère celui du mois ÉCOULÉ chaque 1er du mois à 6h, et un mois passé reste générable à la demande. Pour le **mois en cours**, le rapport est **provisoire** : généré à la volée, mention « PROVISOIRE » dans le PDF, jamais enregistré. Un mois futur est refusé (400).
 Rôle requis : `ROLE_ADMIN` uniquement — `@PreAuthorize("hasRole('ADMIN')")` posé directement sur l'interface `RapportMensuelDocumentAPI`.
 Query : `periode` (LocalDate, requis ; seul le mois/année comptent).
-Réponse : PDF (`rapport-mensuel.pdf`). Codes : aucune exception métier spécifique (un rapport est toujours calculable, même à zéro).
+Réponse : PDF (`rapport-mensuel.pdf`, ou `rapport-mensuel-provisoire.pdf` pour le mois en cours). Codes : 400 si `periode` est un mois futur ; sinon aucune exception métier (un rapport est toujours calculable, même à zéro).
 
 ### GET /api/documents/recus/{idPaiement}
 Génère une seule fois (immuable, stocké) ou récupère le reçu de paiement PDF.

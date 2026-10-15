@@ -94,14 +94,14 @@ public class Scheduler {
     }
 
     /**
-     * Le 15 du mois à 6h — on suppose que tous les paiements/virements du
-     * mois sont déjà effectués à cette heure. userCreate=null indique une
-     * génération système, pas une action manuelle d'un admin.
+     * Le 1er du mois à 6h — génère le rapport définitif du mois ÉCOULÉ, quand toutes ses
+     * opérations sont connues. userCreate=null indique une génération système, pas une
+     * action manuelle d'un admin.
      */
-    @Scheduled(cron = "0 0 6 15 * *")
+    @Scheduled(cron = "0 0 6 1 * *")
     public void genererRapportDuMois() {
-        LocalDate moisEnCours = LocalDate.now().withDayOfMonth(1);
-        rapportMensuelDocumentService.genererOuRecuperer(moisEnCours, null);
+        LocalDate moisEcoule = LocalDate.now().minusMonths(1).withDayOfMonth(1);
+        rapportMensuelDocumentService.genererOuRecuperer(moisEcoule, null);
     }
 
     /**

@@ -19,4 +19,7 @@ public class ContratLocationResponseDTO {
     private LocalDateTime dateSortie;
     private BigDecimal montantLoyer;
     private StatutLocation statut;
+    // Renseignes uniquement par la reponse d'une modification qui a cree un avenant
+    private Integer idAvenant;
+    private Integer numeroAvenant;
 }

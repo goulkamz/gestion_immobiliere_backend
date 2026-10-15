@@ -24,4 +24,7 @@ public class ContratMandatResponseDTO {
     private ModeFacturation modeFacturation;
     private StatutMandat statut;
     private String motifResiliation;
+    // Renseignes uniquement par la reponse d'une modification qui a cree un avenant
+    private Integer idAvenant;
+    private Integer numeroAvenant;
 }
