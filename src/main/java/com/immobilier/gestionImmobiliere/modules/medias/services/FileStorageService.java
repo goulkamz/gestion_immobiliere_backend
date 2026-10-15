@@ -18,6 +18,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -104,7 +105,7 @@ public class FileStorageService {
     public String store(MultipartFile file, String bucket, String sousDossier, String typeReel) {
         try {
             byte[] contenu = file.getBytes();
-            String cle = construireCle(sousDossier, file.getOriginalFilename());
+            String cle = construireCle(sousDossier, typeReel);
 
             minioClient.putObject(PutObjectArgs.builder()
                     .bucket(bucket)
@@ -129,7 +130,7 @@ public class FileStorageService {
                     .toOutputStream(buffer);
 
             byte[] miniature = buffer.toByteArray();
-            String cle = construireCle(sousDossier + "/thumbnails", file.getOriginalFilename());
+            String cle = construireCle(sousDossier + "/thumbnails", typeReel);
 
             minioClient.putObject(PutObjectArgs.builder()
                     .bucket(bucket)
@@ -196,14 +197,22 @@ public class FileStorageService {
         }
     }
 
-    private String construireCle(String sousDossier, String nomOriginal) {
-        String extension = extraireExtension(nomOriginal);
-        return sousDossier + "/" + UUID.randomUUID() + extension;
+    // Extensions deduites du type REEL detecte (Tika), jamais du nom envoye par le client.
+    private static final Map<String, String> EXTENSIONS_PAR_TYPE = Map.of(
+            "image/jpeg", ".jpg",
+            "image/png", ".png",
+            "image/webp", ".webp",
+            "video/mp4", ".mp4",
+            "video/quicktime", ".mov",
+            "video/webm", ".webm");
+
+    private String construireCle(String sousDossier, String typeReel) {
+        return sousDossier + "/" + UUID.randomUUID() + extensionPour(typeReel);
     }
 
-    public String extraireExtension(String nomOriginal) {
-        if (nomOriginal == null || !nomOriginal.contains(".")) return "";
-        return nomOriginal.substring(nomOriginal.lastIndexOf('.'));
+    /** Extension (avec le point) correspondant au type MIME detecte, "" si le type est inconnu. */
+    public String extensionPour(String typeReel) {
+        return EXTENSIONS_PAR_TYPE.getOrDefault(typeReel, "");
     }
 
     public String getBucketMediasPublic() { return bucketPublic; }

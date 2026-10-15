@@ -35,4 +35,23 @@ public class RateLimitService {
 
         return tentatives != null && tentatives > maxTentatives;
     }
+
+    /** Lecture seule : true si au moins {@code max} échecs sont déjà enregistrés pour cette clé. */
+    public boolean estBloque(String cle, int max) {
+        String valeur = stringRedisTemplate.opsForValue().get("ratelimit:" + cle);
+        return valeur != null && Long.parseLong(valeur) >= max;
+    }
+
+    /** Enregistre un échec (ex. mot de passe erroné) ; la fenêtre démarre au premier échec. */
+    public void enregistrerEchec(String cle, Duration fenetre) {
+        String redisKey = "ratelimit:" + cle;
+        Long echecs = stringRedisTemplate.opsForValue().increment(redisKey);
+        if (echecs != null && echecs == 1) {
+            stringRedisTemplate.expire(redisKey, fenetre);
+        }
+    }
+
+    public void reinitialiser(String cle) {
+        stringRedisTemplate.delete("ratelimit:" + cle);
+    }
 }

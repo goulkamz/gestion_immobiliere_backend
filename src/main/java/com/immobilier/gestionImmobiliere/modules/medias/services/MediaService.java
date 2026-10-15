@@ -181,7 +181,7 @@ public class MediaService {
 
         if (estVideo) {
             statutThumbnail = StatutThumbnail.EN_COURS;
-            extension = fileStorageService.extraireExtension(fichier.getOriginalFilename());
+            extension = fileStorageService.extensionPour(typeReel);
         } else {
             cheminThumbnail = fileStorageService.storeThumbnail(fichier, bucket, sousDossier, 400, typeReel);
         }

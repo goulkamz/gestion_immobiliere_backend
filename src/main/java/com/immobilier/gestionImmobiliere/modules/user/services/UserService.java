@@ -29,6 +29,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -39,12 +40,19 @@ import org.springframework.transaction.annotation.Transactional;
 import static java.time.temporal.ChronoUnit.MINUTES;
 
 import java.security.SecureRandom;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
 public class UserService {
+
+    // Limitation des echecs de connexion (fenetre commune de 15 minutes)
+    private static final Duration LOGIN_FENETRE_ECHECS = Duration.ofMinutes(15);
+    private static final int LOGIN_MAX_ECHECS_COMPTE_IP = 5;
+    private static final int LOGIN_MAX_ECHECS_IP = 30;
+    private static final int LOGIN_MAX_ECHECS_COMPTE = 50;
 
     private static final int CODE_EXPIRATION_MINUTES = 10;
     private static final int MAX_RESEND_ATTEMPTS = 3;
@@ -77,17 +85,35 @@ public class UserService {
     @Transactional
     public ResponseEntity<?> authenticateUser(AuthenticateDTO authenticateDTO,HttpServletRequest request, HttpServletResponse response) {
 
-            // Deux cles distinctes : par IP (frein a un attaquant sur une seule machine)
-            // et par compte cible (frein a un attaquant qui tournerait sur plusieurs IP
-            // pour viser un compte precis).
+            // Seuls les ECHECS sont comptes (les connexions reussies ne consomment aucun quota).
+            // Trois cles :
+            //  - couple compte + IP : stoppe un attaquant sur une machine sans pouvoir verrouiller
+            //    le compte d'un tiers depuis une autre IP ;
+            //  - IP seule (seuil large, des agents peuvent partager la meme IP) ;
+            //  - compte seul (seuil tres large) : attaque distribuee sur plusieurs IP.
             String ip = clientIpResolver.resolve(request);
-            if (rateLimitService.estLimiteDepassee("login-ip:" + ip)
-                    || rateLimitService.estLimiteDepassee("login-user:" + authenticateDTO.getUsername())) {
+            String compte = authenticateDTO.getUsername() == null
+                    ? "" : authenticateDTO.getUsername().trim().toLowerCase(Locale.ROOT);
+            String cleCompteIp = "login-fail:" + compte + "|" + ip;
+            String cleIp = "login-fail-ip:" + ip;
+            String cleCompte = "login-fail-user:" + compte;
+            if (rateLimitService.estBloque(cleCompteIp, LOGIN_MAX_ECHECS_COMPTE_IP)
+                    || rateLimitService.estBloque(cleIp, LOGIN_MAX_ECHECS_IP)
+                    || rateLimitService.estBloque(cleCompte, LOGIN_MAX_ECHECS_COMPTE)) {
                 throw new TooManyRequestsException("Trop de tentatives de connexion. Veuillez réessayer plus tard.");
             }
 
-            Authentication authentication = authenticationManager
-                    .authenticate(new UsernamePasswordAuthenticationToken(authenticateDTO.getUsername(), authenticateDTO.getPassword()));
+            Authentication authentication;
+            try {
+                authentication = authenticationManager
+                        .authenticate(new UsernamePasswordAuthenticationToken(authenticateDTO.getUsername(), authenticateDTO.getPassword()));
+            } catch (BadCredentialsException e) {
+                rateLimitService.enregistrerEchec(cleCompteIp, LOGIN_FENETRE_ECHECS);
+                rateLimitService.enregistrerEchec(cleIp, LOGIN_FENETRE_ECHECS);
+                rateLimitService.enregistrerEchec(cleCompte, LOGIN_FENETRE_ECHECS);
+                throw e;
+            }
+            rateLimitService.reinitialiser(cleCompteIp);
 
                 UserDetailsImpl user = (UserDetailsImpl) authentication.getPrincipal();
                 userRepository.touchLastLogin(user.getUsername(), LocalDateTime.now());
