@@ -28,11 +28,12 @@ public class EcheanceController implements EcheanceAPI {
     @Override
     public ResponseEntity<?> getAll(TypeEcheance type, Integer entiteId, StatutEcheance statut, String recherche,
                                     String referenceCour, String periode, ModeFacturation modeFacturation,
+                                    Integer idVille, Boolean sansVille,
                                     Pageable pageable,
                                     @AuthenticationPrincipal UserDetailsImpl currentUser) {
         boolean isAdminOrAgent = currentUser.hasAnyRole("ADMIN", "AGENT");
         boolean isBailleur = currentUser.hasRole("BAILLEUR");
-        return echeanceService.getAllForCurrentUser(type, entiteId, statut, recherche, referenceCour, periode, modeFacturation,
+        return echeanceService.getAllForCurrentUser(type, entiteId, statut, recherche, referenceCour, periode, modeFacturation, idVille, sansVille,
                 currentUser.getIdUser(), isAdminOrAgent, isBailleur, pageable);
     }
 

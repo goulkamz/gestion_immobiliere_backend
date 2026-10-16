@@ -234,6 +234,7 @@ public class LocationBienServiceService {
         locationBienServiceRepository.save(location);
         synchroniserDisponibilite(location.getBienService());
         alerteUtilisateurService.locationConfirmee(location);
+        alerteUtilisateurService.paiementLocationRecu(location, paiement, false);
         return buildSuccessResponse(HttpStatus.OK, "Location confirmée après réception du paiement", "LOCATION_BIEN_SERVICE_CONFIRMED", toDto(location));
     }
 
@@ -354,6 +355,7 @@ public class LocationBienServiceService {
                     .paiement(complement)
                     .typePaiement(TypePaiementLocationBienService.PROLONGATION)
                     .build());
+            alerteUtilisateurService.paiementLocationRecu(location, complement, true);
         }
 
         location.setDateFin(dto.getNouvelleDateFin());

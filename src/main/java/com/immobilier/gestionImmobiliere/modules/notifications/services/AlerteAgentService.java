@@ -1,7 +1,12 @@
 package com.immobilier.gestionImmobiliere.modules.notifications.services;
 
 import com.immobilier.gestionImmobiliere.donnees.annonces.model.Contact;
+import com.immobilier.gestionImmobiliere.donnees.annonces.model.Demande;
 import com.immobilier.gestionImmobiliere.donnees.annonces.model.Offre;
+import com.immobilier.gestionImmobiliere.donnees.annonces.model.Temoignage;
+import com.immobilier.gestionImmobiliere.donnees.contrats.repository.ContratMandatRepository;
+import com.immobilier.gestionImmobiliere.donnees.paiements.model.EcheanceLoyer;
+import com.immobilier.gestionImmobiliere.utils.DateUtils;
 import com.immobilier.gestionImmobiliere.donnees.biens.model.LocationBienService;
 import com.immobilier.gestionImmobiliere.donnees.biens.model.StatutLocationBienService;
 import com.immobilier.gestionImmobiliere.donnees.biens.repository.LocationBienServiceRepository;
@@ -30,15 +35,21 @@ public class AlerteAgentService {
 
     private static final String LIEN_LOCATIONS = "/espace-agent/locations-biens-services";
     private static final String LIEN_RESERVATIONS = "/espace-agent/reservations";
+    private static final String LIEN_DEMANDES = "/espace-agent/demandes";
+    private static final String LIEN_TEMOIGNAGES = "/espace-agent/temoignages";
+    private static final String LIEN_UTILISATEURS = "/espace-agent/utilisateurs";
+    private static final String LIEN_REVERSEMENTS = "/espace-agent/reversements";
     private static final String LIEN_OFFRES = "/espace-agent/offres";
     private static final String LIEN_CONTACTS = "/espace-agent/contacts";
 
     private final NotificationInAppService notificationService;
     private final UserRepository userRepository;
     private final LocationBienServiceRepository locationRepository;
+    private final ContratMandatRepository mandatRepository;
 
     public AlerteAgentService(NotificationInAppService notificationService, UserRepository userRepository,
-                              LocationBienServiceRepository locationRepository) {
+                              LocationBienServiceRepository locationRepository, ContratMandatRepository mandatRepository) {
+        this.mandatRepository = mandatRepository;
         this.notificationService = notificationService;
         this.userRepository = userRepository;
         this.locationRepository = locationRepository;
@@ -66,6 +77,49 @@ public class AlerteAgentService {
             notifierAgents(TypeNotification.DEMANDE, titre, message, cible(LIEN_RESERVATIONS, reservation.getIdReservation()), cle);
         } catch (RuntimeException e) {
             log.warn("Alerte de nouvelle reservation non creee : {}", e.getMessage());
+        }
+    }
+
+    public void nouvelleDemande(Demande demande) {
+        try {
+            String message = demande.getNomComplet() + " recherche " + (vide(demande.getTypeBien()) ? "un bien" : demande.getTypeBien())
+                    + (demande.getVille() != null ? " à " + demande.getVille().getNomVille() : vide(demande.getVilleAutre()) ? "" : " à " + demande.getVilleAutre()) + ".";
+            notifierAgents(TypeNotification.DEMANDE, "Nouvelle demande de bien", message, cible(LIEN_DEMANDES, demande.getIdDemande()), "DEMANDE_DEPOT:" + demande.getIdDemande());
+        } catch (RuntimeException e) {
+            log.warn("Alerte de nouvelle demande non creee : {}", e.getMessage());
+        }
+    }
+
+    public void nouveauTemoignage(Temoignage t) {
+        try {
+            notifierAgents(TypeNotification.INFO, "Nouveau témoignage à valider", t.getNomAuteur() + " a déposé un témoignage.",
+                    cible(LIEN_TEMOIGNAGES, t.getIdTemoignage()), "TEMOIGNAGE_DEPOT:" + t.getIdTemoignage());
+        } catch (RuntimeException e) {
+            log.warn("Alerte de nouveau temoignage non creee : {}", e.getMessage());
+        }
+    }
+
+    public void nouveauCompte(User u) {
+        try {
+            notifierAgents(TypeNotification.INFO, "Nouveau compte client", nomComplet(u) + " vient d'activer son compte client.",
+                    cible(LIEN_UTILISATEURS, u.getIdUser()), "COMPTE_CREE:" + u.getIdUser());
+        } catch (RuntimeException e) {
+            log.warn("Alerte de nouveau compte non creee : {}", e.getMessage());
+        }
+    }
+
+    // Reversement au bailleur non confirme dans le delai de tolerance (echeance MANDAT passee EN_RETARD)
+    public void reversementEnRetard(EcheanceLoyer e) {
+        try {
+            String mois = DateUtils.nomMoisFrancais(e.getDateEcheance()) + " " + e.getDateEcheance().getYear();
+            String message = mandatRepository.findById(e.getEntiteEcheanceId())
+                    .map(m -> "Le reversement de " + mois + " pour la cour " + m.getCour().getReferenceCour()
+                            + (m.getCour().getProprietaire() != null ? " (" + nomComplet(m.getCour().getProprietaire()) + ")" : "") + " est en retard.")
+                    .orElse("Un reversement de " + mois + " est en retard.");
+            notifierAgents(TypeNotification.ECHEANCE, "Reversement en retard", message,
+                    cible(LIEN_REVERSEMENTS, e.getIdEcheance()), "MANDAT_RETARD:" + e.getIdEcheance());
+        } catch (RuntimeException ex) {
+            log.warn("Alerte de reversement en retard non creee : {}", ex.getMessage());
         }
     }
 

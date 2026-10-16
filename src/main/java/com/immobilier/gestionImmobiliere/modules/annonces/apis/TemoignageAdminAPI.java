@@ -20,6 +20,9 @@ public interface TemoignageAdminAPI {
                              @RequestParam(required = false) String recherche,
                              @PageableDefault(sort = "idTemoignage", direction = Sort.Direction.DESC) Pageable pageable);
 
+    @GetMapping("/{id}")
+    ResponseEntity<?> getById(@PathVariable Integer id);
+
     // Saisie par l'agence
     @PostMapping
     ResponseEntity<?> create(@Valid @RequestBody CreateTemoignageDTO dto);

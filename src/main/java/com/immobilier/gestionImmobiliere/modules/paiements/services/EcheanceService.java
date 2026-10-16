@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.paiements.services;
 
+import com.immobilier.gestionImmobiliere.modules.notifications.services.AlerteAgentService;
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.ContratLocation;
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.ContratMandat;
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.ModeFacturation;
@@ -58,8 +59,10 @@ public class EcheanceService {
     private final ParametreService parametreService;
 
     private final AlerteUtilisateurService alerteUtilisateurService;
+    private final AlerteAgentService alerteAgentService;
 
-    public EcheanceService(EcheanceLoyerRepository echeanceRepository, ContratLocationRepository contratLocationRepository, ContratMandatRepository contratMandatRepository, PaiementService paiementService, ParametreService parametreService, AlerteUtilisateurService alerteUtilisateurService) {
+    public EcheanceService(EcheanceLoyerRepository echeanceRepository, ContratLocationRepository contratLocationRepository, ContratMandatRepository contratMandatRepository, PaiementService paiementService, ParametreService parametreService, AlerteUtilisateurService alerteUtilisateurService, AlerteAgentService alerteAgentService) {
+        this.alerteAgentService = alerteAgentService;
         this.alerteUtilisateurService = alerteUtilisateurService;
         this.echeanceRepository = echeanceRepository;
         this.contratLocationRepository = contratLocationRepository;
@@ -71,30 +74,42 @@ public class EcheanceService {
     // Remplace getAll() par une version filtrée par rôle
     public ResponseEntity<?> getAllForCurrentUser(TypeEcheance type, Integer entiteId, StatutEcheance statut,
                                                   String recherche, String referenceCour, String periode,
-                                                  ModeFacturation modeFacturation,
+                                                  ModeFacturation modeFacturation, Integer idVille, Boolean sansVille,
                                                   Integer currentUserId, boolean isAdminOrAgent, boolean isBailleur,
                                                   Pageable pageable) {
         Page<EcheanceLoyer> page;
 
         if (isAdminOrAgent) {
             // recherche, referenceCour et periode sont reserves a l'agent/admin et appliques avant la pagination
-            page = echeanceRepository.findAll(filtrer(type, entiteId, statut, recherche, referenceCour, periode, modeFacturation, null, null), pageable);
+            page = echeanceRepository.findAll(filtrer(type, entiteId, statut, recherche, referenceCour, periode, modeFacturation, idVille, sansVille, null, null), pageable);
         } else if (isBailleur) {
             // Périmètre du bailleur imposé côté serveur ; recherche, cour, période et statut s'appliquent avant la pagination
             List<Integer> locationIds = contratLocationRepository.findIdsByProprietaire(currentUserId);
             List<Integer> mandatIds = contratMandatRepository.findIdsByProprietaire(currentUserId);
-            page = echeanceRepository.findAll(filtrer(type, entiteId, statut, recherche, referenceCour, periode, modeFacturation,
+            page = echeanceRepository.findAll(filtrer(type, entiteId, statut, recherche, referenceCour, periode, modeFacturation, null, null,
                     locationIds.isEmpty() ? List.of(-1) : locationIds,
                     mandatIds.isEmpty() ? List.of(-1) : mandatIds), pageable);
         } else {
             // CLIENT : uniquement les échéances de ses propres contrats de location
             // (type forcé à LOCATION côté serveur, jamais piloté par le client)
             List<Integer> locationIds = contratLocationRepository.findIdsByLocataire(currentUserId);
-            page = echeanceRepository.findAll(filtrer(TypeEcheance.LOCATION, entiteId, statut, recherche, referenceCour, periode, null,
+            page = echeanceRepository.findAll(filtrer(TypeEcheance.LOCATION, entiteId, statut, recherche, referenceCour, periode, null, null, null,
                     locationIds.isEmpty() ? List.of(-1) : locationIds, List.of(-1)), pageable);
         }
 
         return buildSuccessResponse(HttpStatus.OK, "Liste des échéances", "ECHEANCE_LIST", page.map(this::toDtoEnrichi));
+    }
+
+    /** Vrai si au moins un reversement (échéance MANDAT) a déjà été calculé pour ce mandat. */
+    public boolean mandatADesReversements(Integer idMandat) {
+        return !echeanceRepository.findByEntiteEcheanceTypeAndEntiteEcheanceIdAndDateEcheanceBetween(
+                TypeEcheance.MANDAT, idMandat, LocalDate.of(1900, 1, 1), LocalDate.of(2999, 12, 31)).isEmpty();
+    }
+
+    /** Vrai si un reversement a été calculé pour un mois postérieur au mois de {@code dateFin} (mandat qui ne couvre plus ce mois). */
+    public boolean reversementApres(Integer idMandat, LocalDate dateFin) {
+        return !echeanceRepository.findByEntiteEcheanceTypeAndEntiteEcheanceIdAndDateEcheanceBetween(
+                TypeEcheance.MANDAT, idMandat, dateFin.withDayOfMonth(1).plusDays(1), LocalDate.of(2999, 12, 31)).isEmpty();
     }
 
     private static final int[] MOIS = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
@@ -105,7 +120,7 @@ public class EcheanceService {
      */
     private Specification<EcheanceLoyer> filtrer(TypeEcheance type, Integer entiteId, StatutEcheance statut,
                                                  String recherche, String referenceCour, String periode,
-                                                 ModeFacturation modeFacturation,
+                                                 ModeFacturation modeFacturation, Integer idVille, Boolean sansVille,
                                                  List<Integer> idsLocation, List<Integer> idsMandat) {
         return (root, query, cb) -> {
             List<Predicate> predicats = new ArrayList<>();
@@ -135,6 +150,27 @@ public class EcheanceService {
                         cb.equal(m.get("idMandat"), root.get("entiteEcheanceId")),
                         cb.equal(m.get("modeFacturation"), modeFacturation));
                 predicats.add(cb.and(cb.equal(root.get("entiteEcheanceType"), TypeEcheance.MANDAT), cb.exists(sub)));
+            }
+            if (idVille != null || Boolean.TRUE.equals(sansVille)) {
+                // Ville de la cour du mandat, ou de la cour de la maison louee ; jointures gauches : « sans ville » = cour sans secteur ou secteur sans ville
+                Subquery<Integer> subMandatVille = query.subquery(Integer.class);
+                Root<ContratMandat> mv = subMandatVille.from(ContratMandat.class);
+                jakarta.persistence.criteria.Path<Object> villeMandat = mv.join("cour", jakarta.persistence.criteria.JoinType.LEFT)
+                        .join("secteur", jakarta.persistence.criteria.JoinType.LEFT).join("ville", jakarta.persistence.criteria.JoinType.LEFT).get("idVille");
+                subMandatVille.select(mv.get("idMandat")).where(
+                        cb.equal(mv.get("idMandat"), root.get("entiteEcheanceId")),
+                        idVille != null ? cb.equal(villeMandat, idVille) : cb.isNull(villeMandat));
+                Subquery<Integer> subLocVille = query.subquery(Integer.class);
+                Root<ContratLocation> lv = subLocVille.from(ContratLocation.class);
+                jakarta.persistence.criteria.Path<Object> villeLoc = lv.join("maison", jakarta.persistence.criteria.JoinType.LEFT)
+                        .join("cour", jakarta.persistence.criteria.JoinType.LEFT).join("secteur", jakarta.persistence.criteria.JoinType.LEFT)
+                        .join("ville", jakarta.persistence.criteria.JoinType.LEFT).get("idVille");
+                subLocVille.select(lv.get("idContratLocation")).where(
+                        cb.equal(lv.get("idContratLocation"), root.get("entiteEcheanceId")),
+                        idVille != null ? cb.equal(villeLoc, idVille) : cb.isNull(villeLoc));
+                predicats.add(cb.or(
+                        cb.and(cb.equal(root.get("entiteEcheanceType"), TypeEcheance.MANDAT), cb.exists(subMandatVille)),
+                        cb.and(cb.equal(root.get("entiteEcheanceType"), TypeEcheance.LOCATION), cb.exists(subLocVille))));
             }
             if (referenceCour != null && !referenceCour.isBlank()) {
                 Subquery<Integer> sub = query.subquery(Integer.class);
@@ -242,22 +278,34 @@ public class EcheanceService {
             if (!autorise) throw new AccessDeniedException("Vous n'avez pas accès à cette échéance");
         }
 
-        return buildSuccessResponse(HttpStatus.OK, "Échéance trouvée", "ECHEANCE_FOUND", toDto(echeance));
+        return buildSuccessResponse(HttpStatus.OK, "Échéance trouvée", "ECHEANCE_FOUND", toDtoEnrichi(echeance));
+    }
+
+    // Date d'échéance du premier mois à supprimer : le mois de sortie reste dû (le locataire l'occupait, même partiellement)
+    private static LocalDate premierMoisASupprimer(LocalDate dateSortie) {
+        return dateSortie.withDayOfMonth(1).plusMonths(2);
+    }
+
+    /** Vrai si un loyer ayant déjà reçu un paiement (même partiel) tombe après le mois de sortie : il ne peut pas être supprimé sans remboursement. */
+    public boolean aDesLoyersPayesApresSortie(Integer idContratLocation, LocalDate dateSortie) {
+        return echeanceRepository
+                .findByEntiteEcheanceTypeAndEntiteEcheanceIdAndDateEcheanceGreaterThanEqualAndStatutNot(
+                        TypeEcheance.LOCATION, idContratLocation, premierMoisASupprimer(dateSortie), StatutEcheance.ANNULE)
+                .stream().anyMatch(e -> e.getMontantPaye() != null && e.getMontantPaye().signum() > 0);
     }
 
     /**
-     * Supprime (soft delete) les échéances LOCATION des mois suivant la résiliation.
-     * Le mois de la résiliation reste dû intégralement (le locataire occupait ce mois,
-     * même partiellement) — seule l'échéance du mois de résiliation est CONSERVÉE.
+     * Supprime (soft delete) les échéances LOCATION des mois suivant la sortie (clôture, résiliation ou nouvelle date de sortie).
+     * Le mois de sortie est CONSERVÉ. Une échéance qui a reçu un paiement, même partiel, n'est jamais supprimée :
+     * la trace du paiement et le remboursement éventuel passent par le décompte de sortie.
      */
     @Transactional
-    public void supprimerEcheancesFutures(Integer idContratLocation, LocalDate dateResiliation) {
-        LocalDate moisResiliation = dateResiliation.withDayOfMonth(1);
-        LocalDate premierMoisASupprimer = moisResiliation.plusMonths(2); // date d'échéance du mois SUIVANT celui de la résiliation
-
+    public void supprimerEcheancesFutures(Integer idContratLocation, LocalDate dateSortie) {
         List<EcheanceLoyer> aSupprimer = echeanceRepository
                 .findByEntiteEcheanceTypeAndEntiteEcheanceIdAndDateEcheanceGreaterThanEqualAndStatutNot(
-                        TypeEcheance.LOCATION, idContratLocation, premierMoisASupprimer, StatutEcheance.PAYE);
+                        TypeEcheance.LOCATION, idContratLocation, premierMoisASupprimer(dateSortie), StatutEcheance.PAYE).stream()
+                .filter(e -> e.getMontantPaye() == null || e.getMontantPaye().signum() == 0)
+                .toList();
 
         echeanceRepository.deleteAll(aSupprimer);
     }
@@ -302,7 +350,7 @@ public class EcheanceService {
                         findByEntiteEcheanceTypeAndStatutAndDateEcheanceBefore(TypeEcheance.MANDAT,StatutEcheance.EN_ATTENTE, seuil);
         expirees.forEach(e -> e.setStatut(StatutEcheance.EN_RETARD));
         echeanceRepository.saveAll(expirees);
-        //return expirees.size();
+        expirees.forEach(alerteAgentService::reversementEnRetard);
     }
 
     // ==================================================================
@@ -576,6 +624,7 @@ public class EcheanceService {
                 dto.setReferenceCour(c.getCour().getReferenceCour());
                 dto.setNomProprietaire(c.getCour().getProprietaire().getNom() + " " + c.getCour().getProprietaire().getPrenom());
                 dto.setCommissionMandat(c.getCommission());
+                dto.setModeFacturation(c.getModeFacturation() != null ? c.getModeFacturation().name() : null);
             });
         }
         return dto;

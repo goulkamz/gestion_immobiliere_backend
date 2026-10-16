@@ -10,7 +10,9 @@ import com.immobilier.gestionImmobiliere.donnees.contrats.model.StatutMandat;
 import com.immobilier.gestionImmobiliere.donnees.contrats.repository.ContratLocationRepository;
 import com.immobilier.gestionImmobiliere.donnees.contrats.repository.ContratMandatRepository;
 import com.immobilier.gestionImmobiliere.donnees.notifications.model.TypeNotification;
+import com.immobilier.gestionImmobiliere.donnees.contrats.model.DecompteSortie;
 import com.immobilier.gestionImmobiliere.donnees.paiements.model.EcheanceLoyer;
+import com.immobilier.gestionImmobiliere.donnees.paiements.model.Paiement;
 import com.immobilier.gestionImmobiliere.donnees.paiements.model.StatutEcheance;
 import com.immobilier.gestionImmobiliere.donnees.paiements.model.TypeEcheance;
 import com.immobilier.gestionImmobiliere.donnees.paiements.repository.EcheanceLoyerRepository;
@@ -40,11 +42,12 @@ public class AlerteUtilisateurService {
     private static final String LIEN_RESERVATIONS = "/espace-client/reservations";
     private static final String LIEN_LOCATIONS = "/espace-client/locations";
     private static final String LIEN_ECHEANCES = "/espace-client/echeances";
+    private static final String LIEN_RECUS = "/espace-client/recus";
     private static final String LIEN_REMBOURSEMENTS = "/espace-client/remboursements";
     private static final String LIEN_BAILLEUR_MANDATS = "/espace-bailleur/mandats";
     private static final String LIEN_CONTRATS = "/espace-client/contrats";
     private static final String LIEN_BAILLEUR_CONTRATS = "/espace-bailleur/contrats";
-    private static final String LIEN_BAILLEUR_ECHEANCES = "/espace-bailleur/echeances";
+    private static final String LIEN_BAILLEUR_REVENUS = "/espace-bailleur/revenus";
 
     private final NotificationInAppService notificationService;
     private final EcheanceLoyerRepository echeanceRepository;
@@ -105,7 +108,50 @@ public class AlerteUtilisateurService {
     public void remboursementEffectue(LocationBienService l, Integer idRemboursement, BigDecimal montant) {
         envoyer(l.getClient(), true, TypeNotification.INFO, "Remboursement effectué",
                 "Un remboursement de " + montant.stripTrailingZeros().toPlainString() + " vous a été versé pour la location de "
-                        + l.getBienService().getLibelle() + ".", LIEN_REMBOURSEMENTS, "REMBOURSEMENT:" + idRemboursement);
+                        + l.getBienService().getLibelle() + ".", cible(LIEN_REMBOURSEMENTS, idRemboursement), "REMBOURSEMENT:" + idRemboursement);
+    }
+
+    // ---- Recus de paiement : le client est prevenu des qu'un paiement qu'il a effectue est enregistre ----
+
+    // Loyer encaisse par l'agent (une ou plusieurs echeances d'un meme locataire)
+    public void paiementLoyerRecu(Paiement p, List<Integer> idEcheances) {
+        try {
+            if (idEcheances == null || idEcheances.isEmpty()) return;
+            EcheanceLoyer premiere = echeanceRepository.findById(idEcheances.get(0)).orElse(null);
+            if (premiere == null || premiere.getEntiteEcheanceType() != TypeEcheance.LOCATION) return;
+            ContratLocation c = contratLocationRepository.findById(premiere.getEntiteEcheanceId()).orElse(null);
+            if (c == null) return;
+            recu(c.getLocataire(), p, "le loyer de " + c.getMaison().getNomCommunMaison(), cible(LIEN_ECHEANCES, premiere.getIdEcheance()));
+        } catch (RuntimeException e) {
+            log.warn("Alerte de recu de loyer non creee : {}", e.getMessage());
+        }
+    }
+
+    // Paiement a la confirmation d'une location de bien/service, ou complement de prolongation
+    public void paiementLocationRecu(LocationBienService l, Paiement p, boolean prolongation) {
+        recu(l.getClient(), p, (prolongation ? "la prolongation de " : "la location de ") + l.getBienService().getLibelle(), cible(LIEN_RECUS, p.getIdPaiement()));
+    }
+
+    // Montant manquant regle par le locataire a la sortie (le remboursement dans l'autre sens a sa propre alerte)
+    public void paiementSortieRecu(DecompteSortie d, Paiement p) {
+        ContratLocation c = d.getContratLocation();
+        recu(c.getLocataire(), p, "le solde de sortie de " + c.getMaison().getNomCommunMaison(), cible(LIEN_CONTRATS, c.getIdContratLocation()));
+    }
+
+    // Trop-percu rendu au locataire a la sortie (decompte de sortie regle par l'agent)
+    public void remboursementSortie(DecompteSortie d, Paiement p) {
+        ContratLocation c = d.getContratLocation();
+        if (c.getLocataire() == null || p == null || p.getMontantPaiement() == null || p.getMontantPaiement().signum() <= 0) return;
+        envoyer(c.getLocataire(), true, TypeNotification.INFO, "Remboursement effectué",
+                "Un remboursement de " + p.getMontantPaiement().stripTrailingZeros().toPlainString() + " vous a été versé pour votre sortie de "
+                        + c.getMaison().getNomCommunMaison() + ".", cible(LIEN_CONTRATS, c.getIdContratLocation()), "REMBOURSEMENT_SORTIE:" + p.getIdPaiement());
+    }
+
+    private void recu(User client, Paiement p, String objet, String lien) {
+        if (client == null || p == null || p.getMontantPaiement() == null || p.getMontantPaiement().signum() <= 0) return;
+        envoyer(client, true, TypeNotification.INFO, "Paiement reçu",
+                "Nous avons enregistré votre paiement de " + p.getMontantPaiement().stripTrailingZeros().toPlainString() + " pour " + objet
+                        + ". Votre reçu est disponible dans « Mes reçus de paiement ».", lien, "PAIEMENT_RECU:" + p.getIdPaiement());
     }
 
     // Avenant ajoute a un contrat actif : le locataire et le bailleur concernes sont informes (document a consulter)
@@ -140,7 +186,7 @@ public class AlerteUtilisateurService {
             String message = "Un virement de " + echeance.getMontantDu().stripTrailingZeros().toPlainString()
                     + " vous a été effectué (échéance du " + echeance.getDateEcheance().format(FORMAT_DATE) + ").";
             notificationService.creer(mandat.getCour().getProprietaire().getIdUser(), TypeNotification.INFO, "Virement effectué",
-                    message, LIEN_BAILLEUR_ECHEANCES, "VIREMENT_MANDAT:" + echeance.getIdEcheance());
+                    message, cible(LIEN_BAILLEUR_REVENUS, echeance.getIdEcheance()), "VIREMENT_MANDAT:" + echeance.getIdEcheance());
         } catch (RuntimeException e) {
             log.warn("Alerte de virement bailleur non creee : {}", e.getMessage());
         }
@@ -152,7 +198,8 @@ public class AlerteUtilisateurService {
         if (bailleur == null) return;
         envoyer(bailleur, false, TypeNotification.INFO, "Montant à reverser calculé",
                 "Le montant à vous reverser pour " + periode + " est de " + montantNet.stripTrailingZeros().toPlainString()
-                        + " (cour " + mandat.getCour().getReferenceCour() + ").", LIEN_BAILLEUR_ECHEANCES, cle);
+                        + " (cour " + mandat.getCour().getReferenceCour() + ").",
+                cible(LIEN_BAILLEUR_REVENUS, idDepuisCle(cle)), cle);
     }
 
     // ---- Job quotidien ----
@@ -175,7 +222,7 @@ public class AlerteUtilisateurService {
             String quand = e.getDateEcheance().isBefore(aujourdhui) ? "était attendu le " : "est attendu le ";
             if (envoyer(contrat.getLocataire(), true, TypeNotification.ECHEANCE, "Loyer à payer",
                     "Votre loyer de " + contrat.getMaison().getNomCommunMaison() + " " + quand + e.getDateEcheance().format(FORMAT_DATE) + ".",
-                    LIEN_ECHEANCES, "ECHEANCE_PROCHE:" + e.getIdEcheance())) creees++;
+                    cible(LIEN_ECHEANCES, e.getIdEcheance()), "ECHEANCE_PROCHE:" + e.getIdEcheance())) creees++;
         }
 
         // Echeances en retard
@@ -186,7 +233,7 @@ public class AlerteUtilisateurService {
             if (contrat == null) continue;
             if (envoyer(contrat.getLocataire(), true, TypeNotification.ECHEANCE, "Loyer en retard",
                     "Votre loyer de " + contrat.getMaison().getNomCommunMaison() + " du " + e.getDateEcheance().format(FORMAT_DATE)
-                            + " est en retard.", LIEN_ECHEANCES, "ECHEANCE_RETARD:" + e.getIdEcheance())) creees++;
+                            + " est en retard.", cible(LIEN_ECHEANCES, e.getIdEcheance()), "ECHEANCE_RETARD:" + e.getIdEcheance())) creees++;
         }
 
         // Fin de location de bien/service
@@ -218,6 +265,11 @@ public class AlerteUtilisateurService {
                             + fin.format(FORMAT_DATE) + ".", cible(LIEN_BAILLEUR_MANDATS, m.getIdMandat()), "MANDAT_FIN:" + m.getIdMandat() + ":" + fin)) creees++;
         }
         return creees;
+    }
+
+    // Identifiant porte par la cle d'alerte (« REVERSEMENT_CALCULE:12 » -> 12)
+    private static Integer idDepuisCle(String cle) {
+        return Integer.valueOf(cle.substring(cle.indexOf(':') + 1));
     }
 
     // Lien vers la page, avec l'identifiant de la ligne concernee (la page la repere et la met en evidence)

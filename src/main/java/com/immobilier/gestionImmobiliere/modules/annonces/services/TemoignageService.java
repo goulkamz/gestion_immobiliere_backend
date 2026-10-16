@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.annonces.services;
 
+import com.immobilier.gestionImmobiliere.modules.notifications.services.AlerteAgentService;
 import com.immobilier.gestionImmobiliere.donnees.annonces.model.StatutTemoignage;
 import com.immobilier.gestionImmobiliere.donnees.annonces.model.Temoignage;
 import com.immobilier.gestionImmobiliere.donnees.annonces.repository.TemoignageRepository;
@@ -36,9 +37,11 @@ public class TemoignageService {
     private final TemoignageRepository temoignageRepository;
     private final RateLimitService rateLimitService;
     private final ClientIpResolver clientIpResolver;
+    private final AlerteAgentService alerteAgentService;
 
     public TemoignageService(TemoignageRepository temoignageRepository, RateLimitService rateLimitService,
-                             ClientIpResolver clientIpResolver) {
+                             ClientIpResolver clientIpResolver, AlerteAgentService alerteAgentService) {
+        this.alerteAgentService = alerteAgentService;
         this.temoignageRepository = temoignageRepository;
         this.rateLimitService = rateLimitService;
         this.clientIpResolver = clientIpResolver;
@@ -96,7 +99,14 @@ public class TemoignageService {
                 .dateTemoignage(LocalDate.now())
                 .build();
         temoignageRepository.save(temoignage);
+        alerteAgentService.nouveauTemoignage(temoignage);
         return buildSuccessResponse(HttpStatus.CREATED, "Merci pour votre témoignage, il sera publié après validation", "TEMOIGNAGE_CREATED", toDto(temoignage));
+    }
+
+    public ResponseEntity<?> getById(Integer id) {
+        Temoignage temoignage = temoignageRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("temoignage", id));
+        return buildSuccessResponse(HttpStatus.OK, "Témoignage trouvé", "TEMOIGNAGE_FOUND", toAdminDto(temoignage));
     }
 
     @Transactional

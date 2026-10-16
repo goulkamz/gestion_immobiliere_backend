@@ -27,4 +27,6 @@ public class EcheanceResponseDTO {
     private String referenceCour;
     private String nomProprietaire;
     private BigDecimal commissionMandat;
+    // MANDAT : mode de facturation du mandat (MENSUEL ou CUMUL)
+    private String modeFacturation;
 }

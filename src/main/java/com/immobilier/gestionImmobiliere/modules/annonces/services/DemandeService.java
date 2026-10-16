@@ -11,6 +11,7 @@ import com.immobilier.gestionImmobiliere.exceptions.TooManyRequestsException;
 import com.immobilier.gestionImmobiliere.modules.annonces.dto.requests.CreateDemandeDTO;
 import com.immobilier.gestionImmobiliere.modules.annonces.dto.requests.UpdateStatutDemandeDTO;
 import com.immobilier.gestionImmobiliere.modules.annonces.dto.responses.DemandeResponseDTO;
+import com.immobilier.gestionImmobiliere.modules.notifications.services.AlerteAgentService;
 import com.immobilier.gestionImmobiliere.modules.user.jwt.RateLimitService;
 import com.immobilier.gestionImmobiliere.utils.ClientIpResolver;
 import jakarta.servlet.http.HttpServletRequest;
@@ -33,9 +34,11 @@ public class DemandeService {
     private final VilleResolver villeResolver;
     private final RateLimitService rateLimitService;
     private final ClientIpResolver clientIpResolver;
+    private final AlerteAgentService alerteAgentService;
 
     public DemandeService(DemandeRepository demandeRepository, RateLimitService rateLimitService, ClientIpResolver clientIpResolver,
-                          VilleResolver villeResolver) {
+                          VilleResolver villeResolver, AlerteAgentService alerteAgentService) {
+        this.alerteAgentService = alerteAgentService;
         this.demandeRepository = demandeRepository;
         this.villeResolver = villeResolver;
         this.rateLimitService = rateLimitService;
@@ -73,6 +76,7 @@ public class DemandeService {
                 .statut(StatutDemande.EN_ATTENTE)
                 .build();
         demandeRepository.save(demande);
+        alerteAgentService.nouvelleDemande(demande);
         return buildSuccessResponse(HttpStatus.CREATED, "Demande déposée avec succès", "DEMANDE_CREATED", toDto(demande));
     }
 

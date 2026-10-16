@@ -27,6 +27,12 @@ public class TemoignageAdminController implements TemoignageAdminAPI {
 
     @Override
     @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
+    public ResponseEntity<?> getById(Integer id) {
+        return temoignageService.getById(id);
+    }
+
+    @Override
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
     public ResponseEntity<?> create(CreateTemoignageDTO dto) {
         return temoignageService.create(dto);
     }

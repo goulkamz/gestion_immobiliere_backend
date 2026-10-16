@@ -7,6 +7,7 @@ import com.immobilier.gestionImmobiliere.donnees.paiements.repository.PaiementRe
 import com.immobilier.gestionImmobiliere.exceptions.EcheanceDejaPayeeException;
 import com.immobilier.gestionImmobiliere.exceptions.MontantPaiementInvalideException;
 import com.immobilier.gestionImmobiliere.exceptions.ResourceNotFoundException;
+import com.immobilier.gestionImmobiliere.modules.notifications.services.AlerteUtilisateurService;
 import com.immobilier.gestionImmobiliere.modules.paiements.dto.requests.CreatePaiementDTO;
 import com.immobilier.gestionImmobiliere.modules.paiements.dto.responses.PaiementResponseDTO;
 import org.springframework.http.HttpStatus;
@@ -28,9 +29,11 @@ public class PaiementService {
     private final PaiementRepository paiementRepository;
     private final EcheanceLoyerRepository echeanceRepository;
     private final PaiementEcheanceRepository paiementEcheanceRepository;
+    private final AlerteUtilisateurService alerteUtilisateurService;
 
     public PaiementService(PaiementRepository paiementRepository, EcheanceLoyerRepository echeanceRepository,
-                           PaiementEcheanceRepository paiementEcheanceRepository) {
+                           PaiementEcheanceRepository paiementEcheanceRepository, AlerteUtilisateurService alerteUtilisateurService) {
+        this.alerteUtilisateurService = alerteUtilisateurService;
         this.paiementRepository = paiementRepository;
         this.echeanceRepository = echeanceRepository;
         this.paiementEcheanceRepository = paiementEcheanceRepository;
@@ -71,6 +74,7 @@ public class PaiementService {
                 currentUserId,
                 dto.getDatePaiement() != null ? dto.getDatePaiement() : LocalDateTime.now());
 
+        alerteUtilisateurService.paiementLoyerRecu(paiement, dto.getIdEcheances());
         return buildSuccessResponse(HttpStatus.CREATED, "Paiement enregistré avec succès", "PAIEMENT_CREATED",
                 toDto(paiement, dto.getIdEcheances()));
     }

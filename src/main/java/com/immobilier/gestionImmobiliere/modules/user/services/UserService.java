@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.user.services;
 
+import com.immobilier.gestionImmobiliere.modules.notifications.services.AlerteAgentService;
 import com.immobilier.gestionImmobiliere.donnees.user.model.ERole;
 import com.immobilier.gestionImmobiliere.donnees.user.model.Role;
 import com.immobilier.gestionImmobiliere.donnees.user.repository.RoleRepository;
@@ -67,9 +68,11 @@ public class UserService {
     private final NotificationService notificationService;
     private final RateLimitService rateLimitService;
     private final ClientIpResolver clientIpResolver;
+    private final AlerteAgentService alerteAgentService;
 
 
-    public UserService(AuthenticationManager authenticationManager, JwtUtils jwtUtils, RoleRepository roleRepository, PasswordEncoder encoder, UserRepository userRepository, PendingRegistrationRepository pendingRegistrationRepository, NotificationService notificationService, RateLimitService rateLimitService, ClientIpResolver clientIpResolver) {
+    public UserService(AuthenticationManager authenticationManager, JwtUtils jwtUtils, RoleRepository roleRepository, PasswordEncoder encoder, UserRepository userRepository, PendingRegistrationRepository pendingRegistrationRepository, NotificationService notificationService, RateLimitService rateLimitService, ClientIpResolver clientIpResolver, AlerteAgentService alerteAgentService) {
+        this.alerteAgentService = alerteAgentService;
         this.authenticationManager = authenticationManager;
         this.jwtUtils = jwtUtils;
         this.roleRepository = roleRepository;
@@ -256,6 +259,7 @@ public class UserService {
         user.initTimestamp();
         userRepository.save(user);
         pendingRegistrationRepository.delete(pending);
+        alerteAgentService.nouveauCompte(user);
         return  buildSuccessResponse(HttpStatus.OK, "Compte activé avec succès", "ACCOUNT_ACTIVATED",null);
     }
 

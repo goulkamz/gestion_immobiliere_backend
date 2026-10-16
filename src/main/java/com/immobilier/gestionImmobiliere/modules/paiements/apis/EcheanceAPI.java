@@ -25,6 +25,8 @@ public interface EcheanceAPI {
                              @RequestParam(required = false) String referenceCour,
                              @RequestParam(required = false) String periode,
                              @RequestParam(required = false) ModeFacturation modeFacturation,
+                             @RequestParam(required = false) Integer idVille,
+                             @RequestParam(required = false) Boolean sansVille,
                              Pageable pageable,
                              @AuthenticationPrincipal UserDetailsImpl currentUser);
 
