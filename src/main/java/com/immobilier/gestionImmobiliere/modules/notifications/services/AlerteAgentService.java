@@ -51,7 +51,7 @@ public class AlerteAgentService {
             String message = nomComplet(location.getClient()) + " demande " + location.getBienService().getLibelle()
                     + " du " + location.getDateDebut().format(FORMAT_DATE) + " au " + location.getDateFin().format(FORMAT_DATE) + ".";
             String cle = "LOCATION_DEMANDE:" + location.getIdLocationBienService();
-            notifierAgents(TypeNotification.DEMANDE, titre, message, LIEN_LOCATIONS, cle);
+            notifierAgents(TypeNotification.DEMANDE, titre, message, cible(LIEN_LOCATIONS, location.getIdLocationBienService()), cle);
         } catch (RuntimeException e) {
             log.warn("Alerte de nouvelle demande de location non creee : {}", e.getMessage());
         }
@@ -63,7 +63,7 @@ public class AlerteAgentService {
             String message = nomComplet(reservation.getUser()) + " a réservé " + reservation.getMaison().getNomCommunMaison()
                     + " à partir du " + reservation.getDateDebut().format(FORMAT_DATE) + ".";
             String cle = "RESERVATION_DEMANDE:" + reservation.getIdReservation();
-            notifierAgents(TypeNotification.DEMANDE, titre, message, LIEN_RESERVATIONS, cle);
+            notifierAgents(TypeNotification.DEMANDE, titre, message, cible(LIEN_RESERVATIONS, reservation.getIdReservation()), cle);
         } catch (RuntimeException e) {
             log.warn("Alerte de nouvelle reservation non creee : {}", e.getMessage());
         }
@@ -73,7 +73,7 @@ public class AlerteAgentService {
         try {
             String message = offre.getNomComplet() + " propose " + (vide(offre.getTitre()) ? "un bien" : "« " + offre.getTitre() + " »")
                     + (vide(offre.getTypeOffre()) ? "" : " (" + offre.getTypeOffre() + ")") + ".";
-            notifierAgents(TypeNotification.DEMANDE, "Nouvelle offre déposée", message, LIEN_OFFRES, "OFFRE_DEPOT:" + offre.getIdOffre());
+            notifierAgents(TypeNotification.DEMANDE, "Nouvelle offre déposée", message, cible(LIEN_OFFRES, offre.getIdOffre()), "OFFRE_DEPOT:" + offre.getIdOffre());
         } catch (RuntimeException e) {
             log.warn("Alerte de nouvelle offre non creee : {}", e.getMessage());
         }
@@ -82,7 +82,7 @@ public class AlerteAgentService {
     public void nouveauContact(Contact contact) {
         try {
             String message = contact.getNomComplet() + " vous a écrit" + (vide(contact.getSujet()) ? "." : " : " + contact.getSujet() + ".");
-            notifierAgents(TypeNotification.INFO, "Nouveau message de contact", message, LIEN_CONTACTS, "CONTACT_MESSAGE:" + contact.getIdContact());
+            notifierAgents(TypeNotification.INFO, "Nouveau message de contact", message, cible(LIEN_CONTACTS, contact.getIdContact()), "CONTACT_MESSAGE:" + contact.getIdContact());
         } catch (RuntimeException e) {
             log.warn("Alerte de nouveau contact non creee : {}", e.getMessage());
         }
@@ -107,7 +107,7 @@ public class AlerteAgentService {
                     + fin.format(FORMAT_DATE) + ". Clôturez ou prolongez la location.";
             String cle = (depassee ? "LOCATION_RETARD:" : "LOCATION_ECHEANCE:") + l.getIdLocationBienService() + ":" + fin;
             creees += notifierAgents(TypeNotification.ECHEANCE,
-                    depassee ? "Location à clôturer" : "Location bientôt terminée", message, LIEN_LOCATIONS, cle);
+                    depassee ? "Location à clôturer" : "Location bientôt terminée", message, cible(LIEN_LOCATIONS, l.getIdLocationBienService()), cle);
         }
         if (creees > 0) log.info("Alertes de fin de location : {} notification(s) creee(s)", creees);
     }
@@ -119,6 +119,11 @@ public class AlerteAgentService {
             if (notificationService.creer(agent.getIdUser(), type, titre, message, lien, cleAlerte)) creees++;
         }
         return creees;
+    }
+
+    // Lien vers la page, avec l'identifiant de la ligne concernee (la page la repere et la met en evidence)
+    private static String cible(String lien, Integer id) {
+        return id == null ? lien : lien + "?cible=" + id;
     }
 
     private boolean vide(String s) {

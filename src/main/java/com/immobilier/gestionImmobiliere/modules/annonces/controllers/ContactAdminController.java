@@ -27,6 +27,12 @@ public class ContactAdminController implements ContactAdminAPI {
 
     @Override
     @PreAuthorize("hasAnyRole('ADMIN','AGENT')")
+    public ResponseEntity<?> getById(Integer id) {
+        return contactService.getById(id);
+    }
+
+    @Override
+    @PreAuthorize("hasAnyRole('ADMIN','AGENT')")
     public ResponseEntity<?> updateStatut(Integer id, UpdateStatutContactDTO dto) {
         return contactService.updateStatut(id, dto);
     }

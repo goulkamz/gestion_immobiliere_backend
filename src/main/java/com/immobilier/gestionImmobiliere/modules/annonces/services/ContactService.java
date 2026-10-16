@@ -46,6 +46,11 @@ public class ContactService {
         return buildSuccessResponse(HttpStatus.OK, "Liste des contacts", "CONTACT_LIST", page.map(this::toDto));
     }
 
+    @Transactional(readOnly = true)
+    public ResponseEntity<?> getById(Integer id) {
+        return buildSuccessResponse(HttpStatus.OK, "Contact trouvé", "CONTACT_FOUND", toDto(findOrThrow(id)));
+    }
+
     @Transactional
     public ResponseEntity<?> create(CreateContactDTO dto, HttpServletRequest request) {
         if (rateLimitService.estLimiteDepassee("contact:" + clientIpResolver.resolve(request))) {

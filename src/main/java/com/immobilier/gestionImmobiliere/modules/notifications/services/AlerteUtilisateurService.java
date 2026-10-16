@@ -78,7 +78,7 @@ public class AlerteUtilisateurService {
     }
 
     private void reservation(ReservationMaison r, String prefixeCle, String titre, String message) {
-        envoyer(r.getUser(), false, TypeNotification.DEMANDE, titre, message, LIEN_RESERVATIONS,
+        envoyer(r.getUser(), false, TypeNotification.DEMANDE, titre, message, cible(LIEN_RESERVATIONS, r.getIdReservation()),
                 prefixeCle + ":" + r.getIdReservation());
     }
 
@@ -98,7 +98,7 @@ public class AlerteUtilisateurService {
     }
 
     private void location(LocationBienService l, String prefixeCle, String titre, String message) {
-        envoyer(l.getClient(), false, TypeNotification.DEMANDE, titre, message, LIEN_LOCATIONS,
+        envoyer(l.getClient(), false, TypeNotification.DEMANDE, titre, message, cible(LIEN_LOCATIONS, l.getIdLocationBienService()),
                 prefixeCle + ":" + l.getIdLocationBienService());
     }
 
@@ -116,10 +116,10 @@ public class AlerteUtilisateurService {
             ContratLocation c = a.getContratLocation();
             String message = "Un avenant n°" + a.getNumeroOrdre() + " a été ajouté au contrat de location de "
                     + c.getMaison().getNomCommunMaison() + ", à compter du " + effet + ".";
-            envoyer(c.getLocataire(), false, TypeNotification.INFO, "Avenant à votre contrat", message, LIEN_CONTRATS, cle);
+            envoyer(c.getLocataire(), false, TypeNotification.INFO, "Avenant à votre contrat", message, cible(LIEN_CONTRATS, c.getIdContratLocation()), cle);
             User bailleur = c.getMaison().getCour().getProprietaire();
             if (bailleur != null) {
-                envoyer(bailleur, false, TypeNotification.INFO, "Avenant à un contrat de location", message, LIEN_BAILLEUR_CONTRATS, cle);
+                envoyer(bailleur, false, TypeNotification.INFO, "Avenant à un contrat de location", message, cible(LIEN_BAILLEUR_CONTRATS, c.getIdContratLocation()), cle);
             }
         } else if (a.getMandat() != null) {
             ContratMandat m = a.getMandat();
@@ -127,7 +127,7 @@ public class AlerteUtilisateurService {
             if (bailleur != null) {
                 envoyer(bailleur, false, TypeNotification.INFO, "Avenant à votre mandat",
                         "Un avenant n°" + a.getNumeroOrdre() + " a été ajouté à votre mandat sur la cour "
-                                + m.getCour().getReferenceCour() + ", à compter du " + effet + ".", LIEN_BAILLEUR_MANDATS, cle);
+                                + m.getCour().getReferenceCour() + ", à compter du " + effet + ".", cible(LIEN_BAILLEUR_MANDATS, m.getIdMandat()), cle);
             }
         }
     }
@@ -198,7 +198,7 @@ public class AlerteUtilisateurService {
             String message = "Votre location de " + l.getBienService().getLibelle() + (depassee ? " est terminée depuis le " : " se termine le ")
                     + fin.format(FORMAT_DATE) + ".";
             if (envoyer(l.getClient(), true, TypeNotification.ECHEANCE, depassee ? "Location terminée" : "Fin de location proche",
-                    message, LIEN_LOCATIONS, "CLIENT_LOCATION_FIN:" + l.getIdLocationBienService() + ":" + fin)) creees++;
+                    message, cible(LIEN_LOCATIONS, l.getIdLocationBienService()), "CLIENT_LOCATION_FIN:" + l.getIdLocationBienService() + ":" + fin)) creees++;
         }
         creees += alerterMandatsBailleurs(aujourdhui);
         if (creees > 0) log.info("Alertes client : {} notification(s) creee(s)", creees);
@@ -215,9 +215,14 @@ public class AlerteUtilisateurService {
             if (envoyer(m.getCour().getProprietaire(), false, TypeNotification.ECHEANCE,
                     depasse ? "Mandat arrivé à terme" : "Mandat bientôt terminé",
                     "Votre mandat sur la cour " + m.getCour().getReferenceCour() + (depasse ? " est arrivé à terme le " : " se termine le ")
-                            + fin.format(FORMAT_DATE) + ".", LIEN_BAILLEUR_MANDATS, "MANDAT_FIN:" + m.getIdMandat() + ":" + fin)) creees++;
+                            + fin.format(FORMAT_DATE) + ".", cible(LIEN_BAILLEUR_MANDATS, m.getIdMandat()), "MANDAT_FIN:" + m.getIdMandat() + ":" + fin)) creees++;
         }
         return creees;
+    }
+
+    // Lien vers la page, avec l'identifiant de la ligne concernee (la page la repere et la met en evidence)
+    private static String cible(String lien, Integer id) {
+        return id == null ? lien : lien + "?cible=" + id;
     }
 
     // Mail envoye uniquement si la notification vient d'etre creee (pas de renvoi sur une cle deja connue)

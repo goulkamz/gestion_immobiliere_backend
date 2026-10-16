@@ -17,6 +17,10 @@ public interface ContactAdminAPI {
     ResponseEntity<?> getAll(@RequestParam(required = false) StatutContact statut,
                              @RequestParam(required = false) String recherche, Pageable pageable);
 
+    // Detail d'un message (pour retrouver la ligne ciblee par une notification)
+    @GetMapping("/{id}")
+    ResponseEntity<?> getById(@PathVariable Integer id);
+
     @PatchMapping("/{id}/statut")
     ResponseEntity<?> updateStatut(@PathVariable Integer id, @Valid @RequestBody UpdateStatutContactDTO dto);
 }
