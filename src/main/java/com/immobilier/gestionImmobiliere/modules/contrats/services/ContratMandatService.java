@@ -246,6 +246,16 @@ public class ContratMandatService {
             throw new IllegalArgumentException("Aucune modification à enregistrer");
         }
 
+        if (mandat.getStatut() == StatutMandat.ACTIF) {
+            if (dto.getModeFacturation() != null && dto.getModeFacturation() != mandat.getModeFacturation()
+                    && echeanceService.mandatADesReversements(id)) {
+                throw new IllegalStateException("Le mode de facturation ne peut plus changer : des reversements ont déjà été calculés pour ce mandat");
+            }
+            if (dto.getDateFin() != null && echeanceService.reversementApres(id, dto.getDateFin().toLocalDate())) {
+                throw new IllegalStateException("La date de fin ne peut pas précéder un mois pour lequel un reversement a déjà été calculé");
+            }
+        }
+
         boolean actif = mandat.getStatut() == StatutMandat.ACTIF;
         LocalDate dateEffet = null;
         if (actif) {

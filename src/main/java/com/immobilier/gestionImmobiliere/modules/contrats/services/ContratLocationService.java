@@ -251,11 +251,22 @@ public class ContratLocationService {
         }
         LocalDate dateEffet = avenantService.verifierSaisie(dto.getMotif(), dto.getAccordClient(), dto.getDateEffet());
 
+        // Nouvelle date de sortie : les échéances des mois suivant le mois de sortie n'ont plus lieu d'être (le mois de sortie reste dû).
+        // Si l'une d'elles a déjà reçu un paiement, la modification est refusée : il faut d'abord régler ce trop-perçu.
+        boolean sortieChangee = dto.getDateSortie() != null && !dto.getDateSortie().equals(location.getDateSortie());
+        if (sortieChangee && echeanceService.aDesLoyersPayesApresSortie(location.getIdContratLocation(), dto.getDateSortie().toLocalDate())) {
+            throw new IllegalStateException("Des loyers déjà réglés tombent après la nouvelle date de sortie : "
+                    + "remboursez-les ou conservez une date de sortie plus tardive");
+        }
+
         // Fige le contrat d'origine tel qu'il a été signé, avant d'appliquer quoi que ce soit
         contratLocationDocumentService.genererOuRecuperer(id, currentUserId);
 
         if (dto.getDateSortie() != null) {
             location.setDateSortie(dto.getDateSortie());
+            if (sortieChangee) {
+                echeanceService.supprimerEcheancesFutures(location.getIdContratLocation(), dto.getDateSortie().toLocalDate());
+            }
         }
         if (dto.getMontantLoyer() != null) {
             location.setMontantLoyer(dto.getMontantLoyer());
@@ -328,7 +339,7 @@ public class ContratLocationService {
         maison.setStatut(StatutMaison.DISPONIBLE);
         maisonRepository.save(maison);
 
-        echeanceService.supprimerEcheancesFutures(location.getIdContratLocation(), LocalDate.now());
+        echeanceService.supprimerEcheancesFutures(location.getIdContratLocation(), dateSortieEffective.toLocalDate());
 
         DecompteSortie decompte = calculerDecompteSortie(location, maison, dateSortieEffective, coutReparation, currentUserId);
 
@@ -421,6 +432,8 @@ public class ContratLocationService {
                     .build();
             paiementRepository.save(paiement);
             decompte.setPaiement(paiement);
+            if (sens == SensPaiement.ENTREE) alerteUtilisateurService.paiementSortieRecu(decompte, paiement);
+            else alerteUtilisateurService.remboursementSortie(decompte, paiement);
         }
 
         decompte.setStatut(StatutDecompteSortie.REGLE);
