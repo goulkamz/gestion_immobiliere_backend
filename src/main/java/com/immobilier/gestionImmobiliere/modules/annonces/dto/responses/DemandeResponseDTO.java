@@ -19,4 +19,8 @@ public class DemandeResponseDTO {
     private String description;
     private LocalDateTime dateDemande;
     private StatutDemande statut;
+    private Integer idVille;
+    private String nomVille;
+    /** Nom libre quand la ville n'est pas repertoriee. */
+    private String villeAutre;
 }

@@ -23,4 +23,8 @@ public class OffreResponseDTO {
     // Renvoye uniquement a la creation : autorise le depot de photos sur cette offre
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private String jetonDepotPhotos;
+    private Integer idVille;
+    private String nomVille;
+    /** Nom libre quand la ville n'est pas repertoriee. */
+    private String villeAutre;
 }

@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.annonces.dto.requests;
 
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -17,4 +18,8 @@ public class CreateAnnonceDTO {
     private LocalDateTime dateExpiration;
     private BigDecimal prix;
     private String localisation;
+
+    /** Ville repertoriee ; a defaut, {@code villeAutre} (nom libre, ville absente de la base). */
+    private Integer idVille;
+    @Size(max = 100) private String villeAutre;
 }

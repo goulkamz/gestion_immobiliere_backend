@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.donnees.annonces.model;
 
+import com.immobilier.gestionImmobiliere.donnees.localisation.model.Ville;
 import com.immobilier.gestionImmobiliere.donnees.Model;
 import com.immobilier.gestionImmobiliere.donnees.Model_1;
 import jakarta.persistence.*;
@@ -50,4 +51,12 @@ public class Offre extends Model_1 {
     @Enumerated(EnumType.STRING)
     @Column(name = "statut")
     private StatutOffre statut;
+
+    // Ville repertoriee, ou nom libre (ville_autre) quand la ville n'est pas dans la base
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_ville")
+    private Ville ville;
+
+    @Column(name = "ville_autre", length = 100)
+    private String villeAutre;
 }

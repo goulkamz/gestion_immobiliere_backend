@@ -18,4 +18,8 @@ public class AnnonceResponseDTO {
     private StatutAnnonce statut;
     private BigDecimal prix;
     private String localisation;
+    private Integer idVille;
+    private String nomVille;
+    /** Nom libre quand la ville n'est pas repertoriee. */
+    private String villeAutre;
 }

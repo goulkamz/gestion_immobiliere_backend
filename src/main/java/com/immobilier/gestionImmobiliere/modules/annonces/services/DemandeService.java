@@ -1,5 +1,7 @@
 package com.immobilier.gestionImmobiliere.modules.annonces.services;
 
+import com.immobilier.gestionImmobiliere.donnees.localisation.model.Ville;
+import com.immobilier.gestionImmobiliere.modules.localisation.services.VilleResolver;
 import com.immobilier.gestionImmobiliere.donnees.annonces.model.Demande;
 import com.immobilier.gestionImmobiliere.donnees.annonces.model.StatutDemande;
 import com.immobilier.gestionImmobiliere.donnees.annonces.repository.DemandeRepository;
@@ -27,11 +29,14 @@ import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.build
 public class DemandeService {
 
     private final DemandeRepository demandeRepository;
+    private final VilleResolver villeResolver;
     private final RateLimitService rateLimitService;
     private final ClientIpResolver clientIpResolver;
 
-    public DemandeService(DemandeRepository demandeRepository, RateLimitService rateLimitService, ClientIpResolver clientIpResolver) {
+    public DemandeService(DemandeRepository demandeRepository, RateLimitService rateLimitService, ClientIpResolver clientIpResolver,
+                          VilleResolver villeResolver) {
         this.demandeRepository = demandeRepository;
+        this.villeResolver = villeResolver;
         this.rateLimitService = rateLimitService;
         this.clientIpResolver = clientIpResolver;
     }
@@ -52,12 +57,15 @@ public class DemandeService {
             throw new TooManyRequestsException("Trop de demandes envoyées. Veuillez réessayer plus tard.");
         }
 
+        Ville ville = villeResolver.resoudre(dto.getIdVille());
         Demande demande = Demande.builder()
                 .nomComplet(dto.getNomComplet())
                 .email(dto.getEmail())
                 .telephone(dto.getTelephone())
                 .typeBien(dto.getTypeBien())
                 .localisationSouhaite(dto.getLocalisationSouhaite())
+                .ville(ville)
+                .villeAutre(villeResolver.villeAutre(ville, dto.getVilleAutre()))
                 .budgetMax(dto.getBudgetMax())
                 .description(dto.getDescription())
                 .dateDemande(LocalDateTime.now())
@@ -87,6 +95,9 @@ public class DemandeService {
                 .telephone(d.getTelephone())
                 .typeBien(d.getTypeBien())
                 .localisationSouhaite(d.getLocalisationSouhaite())
+                .idVille(d.getVille() != null ? d.getVille().getIdVille() : null)
+                .nomVille(d.getVille() != null ? d.getVille().getNomVille() : null)
+                .villeAutre(d.getVilleAutre())
                 .budgetMax(d.getBudgetMax())
                 .description(d.getDescription())
                 .dateDemande(d.getDateDemande())

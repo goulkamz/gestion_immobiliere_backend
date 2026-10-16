@@ -762,6 +762,35 @@ CREATE UNIQUE INDEX uq_avenant_mandat_numero
 CREATE INDEX idx_avenant_ligne_avenant ON avenant_ligne (id_avenant);
 
 -- ==============================================================
+-- Ville des annonces / demandes / offres
+-- ==============================================================
+-- Ville des annonces, demandes et offres : une ville repertoriee (id_ville) OU un nom libre (ville_autre)
+-- quand la ville n'est pas dans la base. Permet le filtre par ville cote agent.
+ALTER TABLE annonce ADD COLUMN id_ville INTEGER;
+ALTER TABLE annonce ADD COLUMN ville_autre VARCHAR(100);
+ALTER TABLE demande ADD COLUMN id_ville INTEGER;
+ALTER TABLE demande ADD COLUMN ville_autre VARCHAR(100);
+ALTER TABLE offre ADD COLUMN id_ville INTEGER;
+ALTER TABLE offre ADD COLUMN ville_autre VARCHAR(100);
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_annonce_ville') THEN
+        ALTER TABLE annonce ADD CONSTRAINT fk_annonce_ville FOREIGN KEY (id_ville) REFERENCES ville(id_ville);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_demande_ville') THEN
+        ALTER TABLE demande ADD CONSTRAINT fk_demande_ville FOREIGN KEY (id_ville) REFERENCES ville(id_ville);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_offre_ville') THEN
+        ALTER TABLE offre ADD CONSTRAINT fk_offre_ville FOREIGN KEY (id_ville) REFERENCES ville(id_ville);
+    END IF;
+END $$;
+
+CREATE INDEX idx_annonce_ville ON annonce(id_ville);
+CREATE INDEX idx_demande_ville ON demande(id_ville);
+CREATE INDEX idx_offre_ville ON offre(id_ville);
+
+-- ==============================================================
 -- Index
 -- ==============================================================
 CREATE INDEX idx_users_email ON users(email);

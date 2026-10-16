@@ -1,5 +1,7 @@
 package com.immobilier.gestionImmobiliere.modules.annonces.services;
 
+import com.immobilier.gestionImmobiliere.donnees.localisation.model.Ville;
+import com.immobilier.gestionImmobiliere.modules.localisation.services.VilleResolver;
 import com.immobilier.gestionImmobiliere.donnees.annonces.model.Offre;
 import com.immobilier.gestionImmobiliere.donnees.annonces.model.StatutOffre;
 import com.immobilier.gestionImmobiliere.donnees.annonces.repository.OffreRepository;
@@ -33,6 +35,7 @@ import com.immobilier.gestionImmobiliere.modules.notifications.services.AlerteAg
 public class OffreService {
 
     private final OffreRepository offreRepository;
+    private final VilleResolver villeResolver;
     private final RateLimitService rateLimitService;
     private final ClientIpResolver clientIpResolver;
     private final JetonDepotOffreService jetonDepotOffreService;
@@ -45,9 +48,10 @@ public class OffreService {
 
     public OffreService(OffreRepository offreRepository, RateLimitService rateLimitService, ClientIpResolver clientIpResolver,
                         JetonDepotOffreService jetonDepotOffreService, MediaService mediaService,
-                        AlerteAgentService alerteAgentService) {
+                        AlerteAgentService alerteAgentService, VilleResolver villeResolver) {
         this.alerteAgentService = alerteAgentService;
         this.offreRepository = offreRepository;
+        this.villeResolver = villeResolver;
         this.rateLimitService = rateLimitService;
         this.clientIpResolver = clientIpResolver;
         this.jetonDepotOffreService = jetonDepotOffreService;
@@ -71,6 +75,7 @@ public class OffreService {
             throw new TooManyRequestsException("Trop d'offres envoyées. Veuillez réessayer plus tard.");
         }
 
+        Ville ville = villeResolver.resoudre(dto.getIdVille());
         Offre offre = Offre.builder()
                 .nomComplet(dto.getNomComplet())
                 .email(dto.getEmail())
@@ -79,6 +84,8 @@ public class OffreService {
                 .titre(dto.getTitre())
                 .description(dto.getDescription())
                 .adresse(dto.getAdresse())
+                .ville(ville)
+                .villeAutre(villeResolver.villeAutre(ville, dto.getVilleAutre()))
                 .dateOffre(LocalDateTime.now())
                 .statut(StatutOffre.EN_ATTENTE)
                 .build();
@@ -136,6 +143,9 @@ public class OffreService {
                 .titre(o.getTitre())
                 .description(o.getDescription())
                 .adresse(o.getAdresse())
+                .idVille(o.getVille() != null ? o.getVille().getIdVille() : null)
+                .nomVille(o.getVille() != null ? o.getVille().getNomVille() : null)
+                .villeAutre(o.getVilleAutre())
                 .dateOffre(o.getDateOffre())
                 .statut(o.getStatut())
                 .build();

@@ -1,5 +1,7 @@
 package com.immobilier.gestionImmobiliere.modules.annonces.services;
 
+import com.immobilier.gestionImmobiliere.donnees.localisation.model.Ville;
+import com.immobilier.gestionImmobiliere.modules.localisation.services.VilleResolver;
 import com.immobilier.gestionImmobiliere.donnees.annonces.model.Annonce;
 import com.immobilier.gestionImmobiliere.donnees.annonces.model.StatutAnnonce;
 import com.immobilier.gestionImmobiliere.donnees.annonces.repository.AnnonceRepository;
@@ -28,9 +30,11 @@ import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.build
 public class AnnonceService {
 
     private final AnnonceRepository annonceRepository;
+    private final VilleResolver villeResolver;
 
-    public AnnonceService(AnnonceRepository annonceRepository) {
+    public AnnonceService(AnnonceRepository annonceRepository, VilleResolver villeResolver) {
         this.annonceRepository = annonceRepository;
+        this.villeResolver = villeResolver;
     }
 
     public ResponseEntity<?> getAll(StatutAnnonce statut, String recherche, Pageable pageable) {
@@ -51,6 +55,7 @@ public class AnnonceService {
             throw new DateExpirationInvalideException();
         }
 
+        Ville ville = villeResolver.resoudre(dto.getIdVille());
         Annonce annonce = Annonce.builder()
                 .titre(dto.getTitre())
                 .description(dto.getDescription())
@@ -59,6 +64,8 @@ public class AnnonceService {
                 .dateExpiration(dto.getDateExpiration())
                 .prix(dto.getPrix())
                 .localisation(dto.getLocalisation())
+                .ville(ville)
+                .villeAutre(villeResolver.villeAutre(ville, dto.getVilleAutre()))
                 .statut(StatutAnnonce.ACTIVE)
                 .build();
         annonceRepository.save(annonce);
@@ -79,6 +86,14 @@ public class AnnonceService {
         if (dto.getDateExpiration() != null) annonce.setDateExpiration(dto.getDateExpiration());
         if (dto.getPrix() != null) annonce.setPrix(dto.getPrix());
         if (dto.getLocalisation() != null) annonce.setLocalisation(dto.getLocalisation());
+        // Changer de ville : une ville repertoriee remplace le nom libre, et inversement
+        if (dto.getIdVille() != null) {
+            annonce.setVille(villeResolver.resoudre(dto.getIdVille()));
+            annonce.setVilleAutre(null);
+        } else if (dto.getVilleAutre() != null) {
+            annonce.setVille(null);
+            annonce.setVilleAutre(villeResolver.villeAutre(null, dto.getVilleAutre()));
+        }
 
         annonceRepository.save(annonce);
         return buildSuccessResponse(HttpStatus.OK, "Annonce mise à jour", "ANNONCE_UPDATED", toDto(annonce));
@@ -126,6 +141,9 @@ public class AnnonceService {
                 .statut(a.getStatut())
                 .prix(a.getPrix())
                 .localisation(a.getLocalisation())
+                .idVille(a.getVille() != null ? a.getVille().getIdVille() : null)
+                .nomVille(a.getVille() != null ? a.getVille().getNomVille() : null)
+                .villeAutre(a.getVilleAutre())
                 .build();
     }
 }
