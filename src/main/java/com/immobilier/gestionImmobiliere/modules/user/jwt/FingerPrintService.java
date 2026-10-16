@@ -20,6 +20,10 @@ public class FingerPrintService {
 
     private static final Logger log = LoggerFactory.getLogger(FingerPrintService.class);
 
+    // Meme option que les cookies JWT : securise par defaut, desactivable uniquement en developpement local
+    @Value("${jwt.cookie.secure:true}")
+    private boolean cookieSecure;
+
     @Value("${finger.secret.key}")
     private String fingerSecret;
 
@@ -105,7 +109,7 @@ public class FingerPrintService {
 
         Cookie deviceCookie = new Cookie("device_id", signedDeviceId);
         deviceCookie.setHttpOnly(true);
-        deviceCookie.setSecure(true);
+        deviceCookie.setSecure(cookieSecure);
         deviceCookie.setPath("/");
         deviceCookie.setMaxAge(365 * 24 * 60 * 60);
         deviceCookie.setAttribute("SameSite", "Strict");

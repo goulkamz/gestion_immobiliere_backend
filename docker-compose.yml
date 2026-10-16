@@ -133,7 +133,8 @@ services:
       - JWT_REFRESH_EXPIRATION=${JWT_REFRESH_EXPIRATION}
       - JWT_COOKIE_ACCESS_NAME=access_token
       - JWT_COOKIE_REFRESH_NAME=refresh_token
-      - JWT_COOKIE_SECURE=true
+      # Securise par defaut (production). En developpement local : JWT_COOKIE_SECURE=false dans .env (non versionne)
+      - JWT_COOKIE_SECURE=${JWT_COOKIE_SECURE:-true}
       - JWT_COOKIE_SAME_SITE=Strict
       - JWT_REDIS_ENABLED=true
 
