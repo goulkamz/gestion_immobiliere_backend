@@ -26,11 +26,11 @@ public class ReservationController implements ReservationAPI {
 
     // Lecture : ouverte à tous les rôles, filtrage par ownership fait dans le service
     @Override
-    public ResponseEntity<?> getAll(Integer idMaison, StatutReservation statut, String recherche, Pageable pageable,
+    public ResponseEntity<?> getAll(Integer idMaison, StatutReservation statut, String recherche, Integer idVille, Boolean sansVille, Pageable pageable,
                                     @AuthenticationPrincipal UserDetailsImpl currentUser) {
         boolean isAdminOrAgent = currentUser.hasAnyRole("ADMIN", "AGENT");
         boolean isBailleur = currentUser.hasRole("BAILLEUR");
-        return reservationService.getAllForCurrentUser(idMaison, statut, recherche, currentUser.getIdUser(), isAdminOrAgent, isBailleur, pageable);
+        return reservationService.getAllForCurrentUser(idMaison, statut, recherche, currentUser.getIdUser(), isAdminOrAgent, isBailleur, idVille, sansVille, pageable);
     }
 
     @Override

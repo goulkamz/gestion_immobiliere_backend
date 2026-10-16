@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.contrats.services;
 
+import com.immobilier.gestionImmobiliere.utils.VilleSpecification;
 import com.immobilier.gestionImmobiliere.modules.notifications.services.AlerteUtilisateurService;
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.Avenant;
 import com.immobilier.gestionImmobiliere.modules.documents.services.ContratMandatDocumentService;
@@ -75,10 +76,10 @@ public class ContratMandatService {
 
     public ResponseEntity<?> getAllForCurrentUser(Integer idCour, StatutMandat statut, String recherche,
                                                   Integer currentUserId, boolean isAdminOrAgent,
-                                                  Pageable pageable) {
+                                                  Integer idVille, Boolean sansVille, Pageable pageable) {
         // BAILLEUR : uniquement les mandats sur ses propres cours
         Page<ContratMandat> page = mandatRepository.findAll(
-                filtrer(idCour, statut, recherche, isAdminOrAgent ? null : currentUserId), pageable);
+                filtrer(idCour, statut, recherche, isAdminOrAgent ? null : currentUserId).and(VilleSpecification.parVille(idVille, sansVille, "cour", "secteur", "ville")), pageable);
 
         return buildSuccessResponse(HttpStatus.OK, "Liste des mandats", "MANDAT_LIST", page.map(this::toDto));
     }

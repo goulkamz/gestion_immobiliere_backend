@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.biens.services;
 
+import com.immobilier.gestionImmobiliere.utils.VilleSpecification;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
@@ -84,7 +85,7 @@ public class CourService {
         };
     }
 
-    public ResponseEntity<?> getAll(Integer idSecteur, String recherche, Boolean sansMandatActif, Pageable pageable, UserDetailsImpl currentUser) {
+    public ResponseEntity<?> getAll(Integer idSecteur, String recherche, Boolean sansMandatActif, Integer idVille, Boolean sansVille, Pageable pageable, UserDetailsImpl currentUser) {
 
         boolean isBailleur = currentUser.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_BAILLEUR"));
@@ -92,7 +93,7 @@ public class CourService {
         // Un bailleur ne voit QUE ses propres cours ; agent / admin : vue globale.
         // Secteur et recherche sont appliqués côté base avant la pagination.
         Page<CourResponseDTO> result = courRepository
-                .findAll(filtrer(idSecteur, recherche, isBailleur ? currentUser.getIdUser() : null, Boolean.TRUE.equals(sansMandatActif)), pageable)
+                .findAll(filtrer(idSecteur, recherche, isBailleur ? currentUser.getIdUser() : null, Boolean.TRUE.equals(sansMandatActif)).and(VilleSpecification.parVille(idVille, sansVille, "secteur", "ville")), pageable)
                 .map(this::toDto);
 
         return buildSuccessResponse(HttpStatus.OK, "Liste des cours", "COUR_LIST", result);

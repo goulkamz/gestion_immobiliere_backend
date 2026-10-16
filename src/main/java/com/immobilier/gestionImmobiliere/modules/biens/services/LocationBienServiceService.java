@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.biens.services;
 
+import com.immobilier.gestionImmobiliere.utils.VilleSpecification;
 import com.immobilier.gestionImmobiliere.donnees.biens.model.BienService;
 import com.immobilier.gestionImmobiliere.donnees.biens.model.LocationBienService;
 import com.immobilier.gestionImmobiliere.donnees.biens.model.StatutBienService;
@@ -71,13 +72,13 @@ public class LocationBienServiceService {
     // Locations ACTIF dont la fin tombe dans les JOURS_PREAVIS_ECHEANCE prochains jours (ou est déjà dépassée)
     public static final int JOURS_PREAVIS_ECHEANCE = 2;
 
-    public ResponseEntity<?> getAll(StatutLocationBienService statut, String recherche, Boolean aEcheance, Pageable pageable, UserDetailsImpl currentUser) {
+    public ResponseEntity<?> getAll(StatutLocationBienService statut, String recherche, Boolean aEcheance, Integer idVille, Boolean sansVille, Pageable pageable, UserDetailsImpl currentUser) {
         boolean isClient = currentUser.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_CLIENT"));
 
         // Filtres (statut, recherche) appliques cote base avant la pagination ; optionnels pour ne pas casser les autres espaces
         Page<LocationBienServiceResponseDTO> result = locationBienServiceRepository
-                .findAll(filtrer(isClient ? currentUser.getIdUser() : null, statut, recherche, Boolean.TRUE.equals(aEcheance)), pageable)
+                .findAll(filtrer(isClient ? currentUser.getIdUser() : null, statut, recherche, Boolean.TRUE.equals(aEcheance)).and(VilleSpecification.parVille(idVille, sansVille, "bienService", "secteur", "ville")), pageable)
                 .map(this::toDto);
 
         return buildSuccessResponse(HttpStatus.OK, "Liste des locations", "LOCATION_BIEN_SERVICE_LIST", result);

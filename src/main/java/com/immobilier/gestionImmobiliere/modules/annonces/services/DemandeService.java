@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.annonces.services;
 
+import com.immobilier.gestionImmobiliere.utils.VilleSpecification;
 import com.immobilier.gestionImmobiliere.donnees.localisation.model.Ville;
 import com.immobilier.gestionImmobiliere.modules.localisation.services.VilleResolver;
 import com.immobilier.gestionImmobiliere.donnees.annonces.model.Demande;
@@ -41,9 +42,9 @@ public class DemandeService {
         this.clientIpResolver = clientIpResolver;
     }
 
-    public ResponseEntity<?> getAll(StatutDemande statut, String recherche, Pageable pageable) {
+    public ResponseEntity<?> getAll(StatutDemande statut, String recherche, Integer idVille, Boolean sansVille, Pageable pageable) {
         Page<Demande> page = demandeRepository.findAll(
-                RechercheSpecification.<Demande>statutEtTexte(statut, recherche, "nomComplet", "email", "typeBien", "localisationSouhaite", "description"), pageable);
+                RechercheSpecification.<Demande>statutEtTexte(statut, recherche, "nomComplet", "email", "typeBien", "localisationSouhaite", "description").and(VilleSpecification.parVille(idVille, sansVille, "ville")), pageable);
         return buildSuccessResponse(HttpStatus.OK, "Liste des demandes", "DEMANDE_LIST", page.map(this::toDto));
     }
 

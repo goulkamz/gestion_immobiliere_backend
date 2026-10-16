@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.annonces.services;
 
+import com.immobilier.gestionImmobiliere.utils.VilleSpecification;
 import com.immobilier.gestionImmobiliere.donnees.localisation.model.Ville;
 import com.immobilier.gestionImmobiliere.modules.localisation.services.VilleResolver;
 import com.immobilier.gestionImmobiliere.donnees.annonces.model.Offre;
@@ -58,9 +59,9 @@ public class OffreService {
         this.mediaService = mediaService;
     }
 
-    public ResponseEntity<?> getAll(StatutOffre statut, String recherche, Pageable pageable) {
+    public ResponseEntity<?> getAll(StatutOffre statut, String recherche, Integer idVille, Boolean sansVille, Pageable pageable) {
         Page<Offre> offres = offreRepository.findAll(
-                RechercheSpecification.<Offre>statutEtTexte(statut, recherche, "nomComplet", "email", "titre", "adresse", "typeOffre"), pageable);
+                RechercheSpecification.<Offre>statutEtTexte(statut, recherche, "nomComplet", "email", "titre", "adresse", "typeOffre").and(VilleSpecification.parVille(idVille, sansVille, "ville")), pageable);
         Page<OffreResponseDTO> page = offres.map(this::toDto);
         return buildSuccessResponse(HttpStatus.OK, "Liste des offres", "OFFRE_LIST", page);
     }

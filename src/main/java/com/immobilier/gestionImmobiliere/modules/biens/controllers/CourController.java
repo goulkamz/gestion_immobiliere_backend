@@ -23,8 +23,8 @@ public class CourController implements CourAPI {
 
     @Override
     @PreAuthorize("hasAnyRole('AGENT','ADMIN','BAILLEUR')")
-    public ResponseEntity<?> getAll(Integer idSecteur, String recherche, Boolean sansMandatActif, Pageable pageable,@AuthenticationPrincipal UserDetailsImpl currentUser) {
-        return courService.getAll(idSecteur, recherche, sansMandatActif, pageable, currentUser);
+    public ResponseEntity<?> getAll(Integer idSecteur, String recherche, Boolean sansMandatActif, Integer idVille, Boolean sansVille, Pageable pageable,@AuthenticationPrincipal UserDetailsImpl currentUser) {
+        return courService.getAll(idSecteur, recherche, sansMandatActif, idVille, sansVille, pageable, currentUser);
     }
 
     @Override

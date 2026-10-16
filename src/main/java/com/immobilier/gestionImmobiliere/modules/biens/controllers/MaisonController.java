@@ -24,8 +24,8 @@ public class MaisonController implements MaisonAPI {
 
     @Override
     @PreAuthorize("hasAnyRole('AGENT','ADMIN','BAILLEUR')")
-    public ResponseEntity<?> getAll(Integer idCour, StatutMaison statut, String recherche, Pageable pageable, @AuthenticationPrincipal UserDetailsImpl currentUser) {
-        return maisonService.getAllPourUtilisateur(idCour, statut, recherche, pageable, currentUser);
+    public ResponseEntity<?> getAll(Integer idCour, StatutMaison statut, String recherche, Integer idVille, Boolean sansVille, Pageable pageable, @AuthenticationPrincipal UserDetailsImpl currentUser) {
+        return maisonService.getAllPourUtilisateur(idCour, statut, recherche, idVille, sansVille, pageable, currentUser);
     }
 
     @Override

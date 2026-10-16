@@ -16,6 +16,8 @@ public interface BienServicePublicAPI {
                              @RequestParam(required = false) Integer idCategorie,
                              @RequestParam(required = false) String recherche,
                              @RequestParam(required = false) StatutBienService disponibilite,
+                             @RequestParam(required = false) Integer idVille,
+                             @RequestParam(required = false) Boolean sansVille,
                              Pageable pageable);
 
     @GetMapping("/{id}")

@@ -25,6 +25,8 @@ public interface ContratLocationAPI {
                              @RequestParam(required = false) String recherche,
                              @RequestParam(required = false) StatutLocation statut,
                              @RequestParam(required = false) String referenceCour,
+                             @RequestParam(required = false) Integer idVille,
+                             @RequestParam(required = false) Boolean sansVille,
                              Pageable pageable,
                              @AuthenticationPrincipal UserDetailsImpl currentUser);
 

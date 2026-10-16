@@ -15,7 +15,9 @@ public interface OffreAdminAPI {
 
     @GetMapping
     ResponseEntity<?> getAll(@RequestParam(required = false) StatutOffre statut,
-                             @RequestParam(required = false) String recherche, Pageable pageable);
+                             @RequestParam(required = false) String recherche, @RequestParam(required = false) Integer idVille,
+                             @RequestParam(required = false) Boolean sansVille,
+                             Pageable pageable);
 
     @GetMapping("/{id}")
     ResponseEntity<?> getById(@PathVariable Integer id);

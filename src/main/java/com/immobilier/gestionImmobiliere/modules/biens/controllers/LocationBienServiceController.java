@@ -19,8 +19,8 @@ public class LocationBienServiceController implements LocationBienServiceAPI {
     }
 
     @Override
-    public ResponseEntity<?> getAll(StatutLocationBienService statut, String recherche, Boolean aEcheance, Pageable pageable, UserDetailsImpl currentUser) {
-        return locationService.getAll(statut, recherche, aEcheance, pageable, currentUser);
+    public ResponseEntity<?> getAll(StatutLocationBienService statut, String recherche, Boolean aEcheance, Integer idVille, Boolean sansVille, Pageable pageable, UserDetailsImpl currentUser) {
+        return locationService.getAll(statut, recherche, aEcheance, idVille, sansVille, pageable, currentUser);
     }
 
     @Override

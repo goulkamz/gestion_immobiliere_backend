@@ -27,10 +27,10 @@ public class ContratMandatController implements ContratMandatAPI {
     }
 
     @Override
-    public ResponseEntity<?> getAll(Integer idCour, StatutMandat statut, String recherche, Pageable pageable,
+    public ResponseEntity<?> getAll(Integer idCour, StatutMandat statut, String recherche, Integer idVille, Boolean sansVille, Pageable pageable,
                                     @AuthenticationPrincipal UserDetailsImpl currentUser) {
         boolean isAdminOrAgent = currentUser.hasAnyRole("ADMIN", "AGENT");
-        return mandatService.getAllForCurrentUser(idCour, statut, recherche, currentUser.getIdUser(), isAdminOrAgent, pageable);
+        return mandatService.getAllForCurrentUser(idCour, statut, recherche, currentUser.getIdUser(), isAdminOrAgent, idVille, sansVille, pageable);
     }
 
     @Override

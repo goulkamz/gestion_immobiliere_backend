@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.biens.services;
 
+import com.immobilier.gestionImmobiliere.utils.VilleSpecification;
 import com.immobilier.gestionImmobiliere.donnees.biens.model.BienService;
 import com.immobilier.gestionImmobiliere.donnees.biens.model.CategorieBienService;
 import com.immobilier.gestionImmobiliere.donnees.biens.model.StatutBienService;
@@ -58,10 +59,10 @@ public class BienServiceService {
         this.userRepository = userRepository;
     }
 
-    public ResponseEntity<?> getAll(Integer idSecteur, Integer idCategorie, String recherche, StatutBienService disponibilite, Pageable pageable) {
+    public ResponseEntity<?> getAll(Integer idSecteur, Integer idCategorie, String recherche, StatutBienService disponibilite, Integer idVille, Boolean sansVille, Pageable pageable) {
         // Filtres (secteur, categorie, recherche) appliques cote base avant la pagination ; tous optionnels
         Page<BienServiceResponseDTO> result = bienServiceRepository
-                .findAll(filtrer(idSecteur, idCategorie, recherche, disponibilite), pageable)
+                .findAll(filtrer(idSecteur, idCategorie, recherche, disponibilite).and(VilleSpecification.parVille(idVille, sansVille, "secteur", "ville")), pageable)
                 .map(this::toDto);
         return buildSuccessResponse(HttpStatus.OK, "Liste des biens/services", "BIEN_SERVICE_LIST", result);
     }

@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.biens.services;
 
+import com.immobilier.gestionImmobiliere.utils.VilleSpecification;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
@@ -78,10 +79,10 @@ public class MaisonService {
     }
 
     // Vue authentifiée : agent/admin voient toutes les maisons, un bailleur seulement celles de ses cours
-    public ResponseEntity<?> getAllPourUtilisateur(Integer idCour, StatutMaison statut, String recherche, Pageable pageable,
+    public ResponseEntity<?> getAllPourUtilisateur(Integer idCour, StatutMaison statut, String recherche, Integer idVille, Boolean sansVille, Pageable pageable,
                                                    UserDetailsImpl currentUser) {
         Integer idProprietaire = estBailleur(currentUser) ? currentUser.getIdUser() : null;
-        Page<Maison> page = maisonRepository.findAll(filtrer(idCour, statut, idProprietaire, recherche), pageable);
+        Page<Maison> page = maisonRepository.findAll(filtrer(idCour, statut, idProprietaire, recherche).and(VilleSpecification.parVille(idVille, sansVille, "cour", "secteur", "ville")), pageable);
         return buildSuccessResponse(HttpStatus.OK, "Liste des maisons", "MAISON_LIST", page.map(this::toDto));
     }
 

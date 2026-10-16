@@ -18,6 +18,8 @@ public interface ContratMandatAPI {
     ResponseEntity<?> getAll(@RequestParam(required = false) Integer idCour,
                              @RequestParam(required = false) StatutMandat statut,
                              @RequestParam(required = false) String recherche,
+                             @RequestParam(required = false) Integer idVille,
+                             @RequestParam(required = false) Boolean sansVille,
                              Pageable pageable,@AuthenticationPrincipal UserDetailsImpl currentUser);
 
     // Modes de facturation autorisés, regroupés par type de mandat (GESTION, LOCATION, VENTE).

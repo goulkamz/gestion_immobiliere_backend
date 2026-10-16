@@ -23,8 +23,8 @@ public class BienServicePublicController implements BienServicePublicAPI {
      * @return
      */
     @Override
-    public ResponseEntity<?> getAll(Integer idSecteur, Integer idCategorie, String recherche, StatutBienService disponibilite, Pageable pageable) {
-        return bienServiceService.getAll(idSecteur, idCategorie, recherche, disponibilite, pageable);
+    public ResponseEntity<?> getAll(Integer idSecteur, Integer idCategorie, String recherche, StatutBienService disponibilite, Integer idVille, Boolean sansVille, Pageable pageable) {
+        return bienServiceService.getAll(idSecteur, idCategorie, recherche, disponibilite, idVille, sansVille, pageable);
     }
 
 

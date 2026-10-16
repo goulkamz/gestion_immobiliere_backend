@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.annonces.services;
 
+import com.immobilier.gestionImmobiliere.utils.VilleSpecification;
 import com.immobilier.gestionImmobiliere.donnees.localisation.model.Ville;
 import com.immobilier.gestionImmobiliere.modules.localisation.services.VilleResolver;
 import com.immobilier.gestionImmobiliere.donnees.annonces.model.Annonce;
@@ -37,10 +38,10 @@ public class AnnonceService {
         this.villeResolver = villeResolver;
     }
 
-    public ResponseEntity<?> getAll(StatutAnnonce statut, String recherche, Pageable pageable) {
+    public ResponseEntity<?> getAll(StatutAnnonce statut, String recherche, Integer idVille, Boolean sansVille, Pageable pageable) {
         // Statut et recherche (titre, type, localisation) appliques cote base avant la pagination ; optionnels pour le site public
         Page<Annonce> page = annonceRepository.findAll(
-                RechercheSpecification.<Annonce>statutEtTexte(statut, recherche, "titre", "typeAnnonce", "localisation"), pageable);
+                RechercheSpecification.<Annonce>statutEtTexte(statut, recherche, "titre", "typeAnnonce", "localisation").and(VilleSpecification.parVille(idVille, sansVille, "ville")), pageable);
         return buildSuccessResponse(HttpStatus.OK, "Liste des annonces", "ANNONCE_LIST", page.map(this::toDto));
     }
 

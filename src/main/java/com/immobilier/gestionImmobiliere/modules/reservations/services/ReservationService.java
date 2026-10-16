@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.reservations.services;
 
+import com.immobilier.gestionImmobiliere.utils.VilleSpecification;
 import com.immobilier.gestionImmobiliere.donnees.biens.model.Maison;
 import com.immobilier.gestionImmobiliere.donnees.biens.model.StatutMaison;
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.StatutMandat;
@@ -67,16 +68,16 @@ public class ReservationService {
 
     public ResponseEntity<?> getAllForCurrentUser(Integer idMaison, StatutReservation statut, String recherche,
                                                   Integer currentUserId, boolean isAdminOrAgent, boolean isBailleur,
-                                                  Pageable pageable) {
+                                                  Integer idVille, Boolean sansVille, Pageable pageable) {
         Page<ReservationMaison> page;
         // Filtres appliqués côté serveur pour que la pagination reste cohérente ; bailleur et client restent limités à leur périmètre
         if (isAdminOrAgent) {
-            page = reservationRepository.findAll(filtrer(idMaison, statut, recherche, null, null), pageable);
+            page = reservationRepository.findAll(filtrer(idMaison, statut, recherche, null, null).and(VilleSpecification.parVille(idVille, sansVille, "maison", "cour", "secteur", "ville")), pageable);
         } else if (isBailleur) {
-            page = reservationRepository.findAll(filtrer(idMaison, statut, recherche, currentUserId, null), pageable);
+            page = reservationRepository.findAll(filtrer(idMaison, statut, recherche, currentUserId, null).and(VilleSpecification.parVille(idVille, sansVille, "maison", "cour", "secteur", "ville")), pageable);
         } else {
             // CLIENT : ses propres réservations uniquement
-            page = reservationRepository.findAll(filtrer(idMaison, statut, recherche, null, currentUserId), pageable);
+            page = reservationRepository.findAll(filtrer(idMaison, statut, recherche, null, currentUserId).and(VilleSpecification.parVille(idVille, sansVille, "maison", "cour", "secteur", "ville")), pageable);
         }
         return buildSuccessResponse(HttpStatus.OK, "Liste réservations", "RESERVATION_LIST", page.map(this::toDto));
     }

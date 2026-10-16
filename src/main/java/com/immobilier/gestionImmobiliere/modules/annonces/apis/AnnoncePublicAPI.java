@@ -12,6 +12,8 @@ public interface AnnoncePublicAPI {
     @GetMapping
     ResponseEntity<?> getAll(@RequestParam(required = false) StatutAnnonce statut,
                              @RequestParam(required = false) String recherche,
+                             @RequestParam(required = false) Integer idVille,
+                             @RequestParam(required = false) Boolean sansVille,
                              Pageable pageable);
 
     @GetMapping("/{id}")

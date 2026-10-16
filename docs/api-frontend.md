@@ -120,6 +120,23 @@ interface PagedResponse<T> {
 
 ---
 
+### Filtre par ville (2026-10-16)
+
+Les listes réparties par ville acceptent deux paramètres de requête **facultatifs** :
+
+- `idVille` : ne garde que les lignes de cette ville ;
+- `sansVille=true` : « Autres villes », c'est-à-dire les lignes sans ville répertoriée (si `idVille` est aussi fourni, `idVille` l'emporte).
+
+Listes concernées : `GET /api/cours`, `/api/maisons`, `/api/public/biens-services`, `/api/locations-biens-services`, `/api/reservations`,
+`/api/contrats-location`, `/api/contrats-mandat`, `/api/demandes`, `/api/offres`, `/api/public/annonces`.
+La ville se déduit : cour -> secteur -> ville (maison, mandat, contrat et réservation passent par leur cour ; bien/service et location de bien/service par le secteur du bien) ;
+pour annonces, demandes et offres, la ville est portée directement par `id_ville`. Le filtre est appliqué côté base avant la pagination, donc `page.totalElements`
+et les compteurs par statut restent cohérents. Pour les listes structurées (cours, maisons...), `sansVille=true` ne renvoie que les lignes dont la chaîne secteur -> ville est vide.
+
+**Ville d'une annonce, d'une demande ou d'une offre** : réponses avec `idVille`, `nomVille` et `villeAutre` ; création (`POST`) et modification d'annonce (`PUT`)
+acceptent `idVille` (ville répertoriée, 404 si inconnue) ou `villeAutre` (nom libre de 100 caractères maximum, pour une ville absente de la base). `idVille` l'emporte sur
+`villeAutre`. La ville est facultative côté serveur.
+
 ## 2. Authentification (`/api/auth`) — `AuthentificationAPI`
 
 Toutes publiques (`permitAll`). Contrôleur : `UserController`.

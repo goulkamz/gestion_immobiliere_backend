@@ -1,5 +1,6 @@
 package com.immobilier.gestionImmobiliere.modules.contrats.services;
 
+import com.immobilier.gestionImmobiliere.utils.VilleSpecification;
 import com.immobilier.gestionImmobiliere.modules.notifications.services.AlerteUtilisateurService;
 import com.immobilier.gestionImmobiliere.donnees.contrats.model.Avenant;
 import com.immobilier.gestionImmobiliere.modules.documents.services.ContratLocationDocumentService;
@@ -135,18 +136,18 @@ public class ContratLocationService {
 
     public ResponseEntity<?> getAllForCurrentUser(Integer idMaison, Integer idLocataire, String recherche, StatutLocation statut, String referenceCour,
                                                   Integer currentUserId, boolean isAdminOrAgent,
-                                                  boolean isBailleur, Pageable pageable) {
+                                                  boolean isBailleur, Integer idVille, Boolean sansVille, Pageable pageable) {
         Page<ContratLocation> page;
 
         // Filtres appliqués côté serveur pour que la pagination reste cohérente ;
         // bailleur et client sont restreints à leur périmètre quoi qu'ils demandent (idMaison / idLocataire ignorés pour le client)
         if (isAdminOrAgent) {
-            page = locationRepository.findAll(filtrer(idMaison, idLocataire, null, recherche, statut, referenceCour), pageable);
+            page = locationRepository.findAll(filtrer(idMaison, idLocataire, null, recherche, statut, referenceCour).and(VilleSpecification.parVille(idVille, sansVille, "maison", "cour", "secteur", "ville")), pageable);
         } else if (isBailleur) {
-            page = locationRepository.findAll(filtrer(idMaison, null, currentUserId, recherche, statut, referenceCour), pageable);
+            page = locationRepository.findAll(filtrer(idMaison, null, currentUserId, recherche, statut, referenceCour).and(VilleSpecification.parVille(idVille, sansVille, "maison", "cour", "secteur", "ville")), pageable);
         } else {
             // CLIENT : filtre imposé, ignore toute tentative de consulter un autre id
-            page = locationRepository.findAll(filtrer(idMaison, currentUserId, null, recherche, statut, referenceCour), pageable);
+            page = locationRepository.findAll(filtrer(idMaison, currentUserId, null, recherche, statut, referenceCour).and(VilleSpecification.parVille(idVille, sansVille, "maison", "cour", "secteur", "ville")), pageable);
         }
 
         return buildSuccessResponse(HttpStatus.OK, "Liste des contrats de location", "LOCATION_LIST", page.map(this::toDto));
