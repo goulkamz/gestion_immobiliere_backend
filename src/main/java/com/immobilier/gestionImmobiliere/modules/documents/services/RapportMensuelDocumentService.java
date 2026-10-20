@@ -5,10 +5,11 @@ import com.immobilier.gestionImmobiliere.donnees.documents.model.Document;
 import com.immobilier.gestionImmobiliere.donnees.documents.model.TypeDocument;
 import com.immobilier.gestionImmobiliere.donnees.documents.repository.DocumentRepository;
 import com.immobilier.gestionImmobiliere.donnees.paiements.repository.EcheanceLoyerRepository;
-import com.immobilier.gestionImmobiliere.donnees.paiements.repository.PaiementLocationBienServiceRepository;
-import com.immobilier.gestionImmobiliere.donnees.paiements.repository.RemboursementRepository;
 import com.immobilier.gestionImmobiliere.modules.documents.UtilsDocuments.Utils;
-import com.immobilier.gestionImmobiliere.modules.statistiques.projection.SumRetard;
+import com.immobilier.gestionImmobiliere.modules.statistiques.dto.FinancesPeriodeDTO;
+import com.immobilier.gestionImmobiliere.modules.statistiques.dto.LoyersStatsDTO;
+import com.immobilier.gestionImmobiliere.modules.statistiques.dto.ReversementsStatsDTO;
+import com.immobilier.gestionImmobiliere.modules.statistiques.services.StatsFinanceQueries;
 import com.immobilier.gestionImmobiliere.utils.DateUtils;
 import org.openpdf.text.*;
 import org.openpdf.text.pdf.*;
@@ -35,8 +36,7 @@ public class RapportMensuelDocumentService {
     private static final DecimalFormat FMT_MONTANT = new DecimalFormat("#,##0");
 
     private final EcheanceLoyerRepository echeanceLoyerRepository;
-    private final PaiementLocationBienServiceRepository paiementLocationBienServiceRepository;
-    private final RemboursementRepository remboursementRepository;
+    private final StatsFinanceQueries financeQueries;
     private final DecompteSortieRepository decompteSortieRepository;
     private final DocumentRepository documentRepository;
     private final DocumentRegistrar documentRegistrar;
@@ -44,14 +44,12 @@ public class RapportMensuelDocumentService {
     private final Utils utils;
 
     public RapportMensuelDocumentService(EcheanceLoyerRepository echeanceLoyerRepository,
-                                         PaiementLocationBienServiceRepository paiementLocationBienServiceRepository,
-                                         RemboursementRepository remboursementRepository,
+                                         StatsFinanceQueries financeQueries,
                                          DecompteSortieRepository decompteSortieRepository,
                                          DocumentRepository documentRepository, DocumentRegistrar documentRegistrar,
                                          DocumentStorageService documentStorageService, Utils utils) {
         this.echeanceLoyerRepository = echeanceLoyerRepository;
-        this.paiementLocationBienServiceRepository = paiementLocationBienServiceRepository;
-        this.remboursementRepository = remboursementRepository;
+        this.financeQueries = financeQueries;
         this.decompteSortieRepository = decompteSortieRepository;
         this.documentRepository = documentRepository;
         this.documentRegistrar = documentRegistrar;
@@ -121,9 +119,14 @@ public class RapportMensuelDocumentService {
             utils.ajouterEntete(document);
             utils.ajouterTitre(document, "RAPPORT MENSUEL DE GESTION", libellePeriode);
 
-            ajouterSectionLoyers(document, periode);
-            ajouterSectionRetards(document);
-            ajouterSectionBiensServices(document, periode);
+            // Mêmes définitions que le tableau de bord admin : flux du mois (paiements datés dans le mois)
+            // puis situation à ce jour (impayés, reversements en attente).
+            LocalDate finMois = periode.withDayOfMonth(periode.lengthOfMonth());
+            FinancesPeriodeDTO finances = financeQueries.finances(periode, finMois);
+            ajouterSectionChiffreAffaires(document, finances);
+            ajouterSectionLoyers(document, periode, finances);
+            ajouterSectionBiensServices(document, finances);
+            ajouterSectionSituation(document);
             ajouterSectionDecomptesSortie(document, periode);
 
             Font fontNote = FontFactory.getFont(FontFactory.HELVETICA, 8, Font.ITALIC, Color.GRAY);
@@ -150,44 +153,66 @@ public class RapportMensuelDocumentService {
         return out.toByteArray();
     }
 
-    private void ajouterSectionLoyers(org.openpdf.text.Document document, LocalDate periode) throws DocumentException {
-        ajouterTitreSection(document, "LOYERS & COMMISSIONS");
+    private void ajouterSectionChiffreAffaires(org.openpdf.text.Document document, FinancesPeriodeDTO finances) throws DocumentException {
+        ajouterTitreSection(document, "CHIFFRE D'AFFAIRES DU MOIS");
 
         PdfPTable tableau = utils.creerTableauInfos();
         Font fontLabel  = FontFactory.getFont(FontFactory.HELVETICA, 9, Font.BOLD, COULEUR_ENTETE);
         Font fontValeur = FontFactory.getFont(FontFactory.HELVETICA, 9, Font.NORMAL, Color.DARK_GRAY);
 
-        ajouterLigneMontant(tableau, "Loyers encaissés", echeanceLoyerRepository.sumLoyersEncaissesDuMois(periode), fontLabel, fontValeur);
+        ajouterLigneMontant(tableau, "Volume encaissé (loyers + biens et services nets)", finances.getVolumeEncaisse(), fontLabel, fontValeur);
+        ajouterLigneMontant(tableau, "Revenu de l'agence (commissions acquises + biens et services nets)", finances.getRevenuAgence(), fontLabel, fontValeur);
+
+        document.add(tableau);
+    }
+
+    private void ajouterSectionLoyers(org.openpdf.text.Document document, LocalDate periode, FinancesPeriodeDTO finances) throws DocumentException {
+        ajouterTitreSection(document, "LOYERS & REVERSEMENTS DU MOIS");
+
+        PdfPTable tableau = utils.creerTableauInfos();
+        Font fontLabel  = FontFactory.getFont(FontFactory.HELVETICA, 9, Font.BOLD, COULEUR_ENTETE);
+        Font fontValeur = FontFactory.getFont(FontFactory.HELVETICA, 9, Font.NORMAL, Color.DARK_GRAY);
+
+        ajouterLigneMontant(tableau, "Loyers encaissés", finances.getLoyersEncaisses(), fontLabel, fontValeur);
         ajouterLigneMontant(tableau, "Pénalités de retard encaissées", echeanceLoyerRepository.sumPenalitesEncaisseesDuMois(periode), fontLabel, fontValeur);
-        ajouterLigneMontant(tableau, "Commission de l'agence", echeanceLoyerRepository.sumCommissionAgenceDuMois(periode), fontLabel, fontValeur);
-        ajouterLigneMontant(tableau, "Montant dû aux bailleurs", echeanceLoyerRepository.sumMontantDuAuxBailleursDuMois(periode), fontLabel, fontValeur);
+        ajouterLigneMontant(tableau, "Reversements effectués aux bailleurs", finances.getReversementsEffectues(), fontLabel, fontValeur);
+        ajouterLigneMontant(tableau, "Commissions acquises (sur reversements payés)", finances.getCommissionsAcquises(), fontLabel, fontValeur);
 
         document.add(tableau);
     }
 
-    private void ajouterSectionRetards(org.openpdf.text.Document document) throws DocumentException {
-        ajouterTitreSection(document, "ÉCHÉANCES EN RETARD (situation actuelle)");
-
-        SumRetard retard = echeanceLoyerRepository.sumEnRetard();
-        PdfPTable tableau = utils.creerTableauInfos();
-        Font fontLabel  = FontFactory.getFont(FontFactory.HELVETICA, 9, Font.BOLD, COULEUR_ENTETE);
-        Font fontValeur = FontFactory.getFont(FontFactory.HELVETICA, 9, Font.NORMAL, Color.DARK_GRAY);
-
-        utils.ajouterLigneTableau(tableau, "Nombre d'échéances en retard", String.valueOf(retard.getNombre()), fontLabel, fontValeur);
-        ajouterLigneMontant(tableau, "Montant total en retard", retard.getMontant(), fontLabel, fontValeur);
-
-        document.add(tableau);
-    }
-
-    private void ajouterSectionBiensServices(org.openpdf.text.Document document, LocalDate periode) throws DocumentException {
-        ajouterTitreSection(document, "LOCATIONS BIENS & SERVICES");
+    private void ajouterSectionBiensServices(org.openpdf.text.Document document, FinancesPeriodeDTO finances) throws DocumentException {
+        ajouterTitreSection(document, "LOCATIONS BIENS & SERVICES (revenus propres de l'agence)");
 
         PdfPTable tableau = utils.creerTableauInfos();
         Font fontLabel  = FontFactory.getFont(FontFactory.HELVETICA, 9, Font.BOLD, COULEUR_ENTETE);
         Font fontValeur = FontFactory.getFont(FontFactory.HELVETICA, 9, Font.NORMAL, Color.DARK_GRAY);
 
-        ajouterLigneMontant(tableau, "Total encaissé", paiementLocationBienServiceRepository.sumEncaisseBienServiceDuMois(periode), fontLabel, fontValeur);
-        ajouterLigneMontant(tableau, "Total remboursé", remboursementRepository.sumRembourseDuMois(periode), fontLabel, fontValeur);
+        FinancesPeriodeDTO.BiensServicesFinancesDTO bs = finances.getBiensServices();
+        ajouterLigneMontant(tableau, "Total encaissé", bs.getEncaisse(), fontLabel, fontValeur);
+        ajouterLigneMontant(tableau, "Total remboursé", bs.getRembourse(), fontLabel, fontValeur);
+        ajouterLigneMontant(tableau, "Net conservé par l'agence", bs.getNet(), fontLabel, fontValeur);
+
+        document.add(tableau);
+    }
+
+    /** État au moment de la génération (et non au dernier jour du mois) : impayés et reversements en attente. */
+    private void ajouterSectionSituation(org.openpdf.text.Document document) throws DocumentException {
+        ajouterTitreSection(document, "SITUATION À LA DATE DE GÉNÉRATION");
+
+        LoyersStatsDTO loyers = financeQueries.loyers();
+        ReversementsStatsDTO reversements = financeQueries.reversements();
+
+        PdfPTable tableau = utils.creerTableauInfos();
+        Font fontLabel  = FontFactory.getFont(FontFactory.HELVETICA, 9, Font.BOLD, COULEUR_ENTETE);
+        Font fontValeur = FontFactory.getFont(FontFactory.HELVETICA, 9, Font.NORMAL, Color.DARK_GRAY);
+
+        utils.ajouterLigneTableau(tableau, "Échéances de loyer impayées (date dépassée)", String.valueOf(loyers.getNombreImpayesEchus()), fontLabel, fontValeur);
+        ajouterLigneMontant(tableau, "Montant des loyers impayés (pénalités comprises)", loyers.getResteAEncaisser(), fontLabel, fontValeur);
+        utils.ajouterLigneTableau(tableau, "Taux de recouvrement des loyers dus", loyers.getTauxRecouvrement().toPlainString() + " %", fontLabel, fontValeur);
+        utils.ajouterLigneTableau(tableau, "Reversements aux bailleurs à effectuer", String.valueOf(reversements.getNombreAReverser()), fontLabel, fontValeur);
+        ajouterLigneMontant(tableau, "Montant à reverser aux bailleurs", reversements.getAReverser(), fontLabel, fontValeur);
+        ajouterLigneMontant(tableau, "Commissions prévues (reversements non payés)", reversements.getCommissionsPrevues(), fontLabel, fontValeur);
 
         document.add(tableau);
     }
