@@ -198,6 +198,20 @@ services:
     networks:
       - immobiliere-network
 
+  # Interface web (build de production servi par nginx, /api relayé vers le backend).
+  # Même origine pour le front et l'API : cookies de session Strict OK. Rebuild après chaque modif du front.
+  frontend:
+    build:
+      context: ../frontend
+    container_name: gestion-immo-frontend
+    ports:
+      - "127.0.0.1:5173:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - immobiliere-network
+
   nginx:
     image: nginx:stable-alpine
     container_name: gestion-immo-nginx
@@ -206,6 +220,7 @@ services:
       - "443:443"
     environment:
       - API_DOMAIN=${API_DOMAIN:-api.gestimmo.localhost}
+      - WEB_DOMAIN=${WEB_DOMAIN:-gestimmo.localhost}
     volumes:
       - ./nginx/templates:/etc/nginx/templates:ro
       - ./nginx/letsencrypt:/etc/letsencrypt:ro
@@ -214,6 +229,7 @@ services:
     command: /bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & exec /docker-entrypoint.sh nginx -g "daemon off;"'
     depends_on:
       - backend
+      - frontend
       - minio
     restart: unless-stopped
     networks:

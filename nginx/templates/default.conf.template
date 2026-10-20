@@ -1,7 +1,8 @@
-# Genere au demarrage par l'image nginx (envsubst) : seule la variable
-# d'environnement API_DOMAIN est remplacee, pas $host & co.
+# Genere au demarrage par l'image nginx (envsubst) : seules les variables
+# d'environnement API_DOMAIN et WEB_DOMAIN sont remplacees, pas $host & co.
 #
-# Seuls points d'entree publics : l'API (web et mobile) et, plus tard, le frontend.
+# Points d'entree publics : l'API (mobile, domaine API_DOMAIN) et le site web
+# (domaine WEB_DOMAIN : /api/ va directement au backend, le reste au conteneur frontend).
 # Postgres, Redis et MinIO ne sont joignables que sur le reseau Docker interne ;
 # les photos sont servies par le backend (et mises en cache ici).
 
@@ -22,7 +23,7 @@ proxy_cache_path /var/cache/nginx/medias levels=1:2 keys_zone=medias:10m
 # ---------------------------------------------------------------------------
 server {
     listen 80;
-    server_name ${API_DOMAIN};
+    server_name ${API_DOMAIN} ${WEB_DOMAIN};
 
     location /.well-known/acme-challenge/ {
         root /var/www/acme;
@@ -90,5 +91,51 @@ server {
     location / {
         proxy_pass http://backend:8080;
         proxy_read_timeout 120s;
+    }
+}
+
+# ---------------------------------------------------------------------------
+# Site web -> conteneur frontend (fichiers statiques) ; /api/ directement au
+# backend (meme origine pour le navigateur : cookies Strict, pas de CORS).
+# Ne pas faire transiter /api par le conteneur frontend : le backend ne croit
+# X-Forwarded-For que de ce nginx (limite de connexions par IP).
+# ---------------------------------------------------------------------------
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name ${WEB_DOMAIN};
+
+    ssl_certificate     /etc/letsencrypt/live/${WEB_DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${WEB_DOMAIN}/privkey.pem;
+
+    add_header Strict-Transport-Security "max-age=31536000" always;
+
+    client_max_body_size 200m;
+
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+
+    location ~ ^/api/public/medias/\d+/(fichier|miniature)$ {
+        proxy_pass http://backend:8080;
+        proxy_cache medias;
+        proxy_cache_key $uri;
+        proxy_cache_valid 200 7d;
+        proxy_cache_lock on;
+        proxy_force_ranges on;
+        proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
+        proxy_hide_header Set-Cookie;
+        add_header Strict-Transport-Security "max-age=31536000" always;
+        add_header X-Cache-Status $upstream_cache_status always;
+    }
+
+    location /api/ {
+        proxy_pass http://backend:8080;
+        proxy_read_timeout 120s;
+    }
+
+    location / {
+        proxy_pass http://frontend:80;
     }
 }
