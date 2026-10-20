@@ -20,8 +20,8 @@ public class StatsController implements StatsAPI {
     public ResponseEntity<?> getAdminStats() { return adminStatsService.getStats(); }
 
     @Override
-    public ResponseEntity<?> getStatsParVille() {
-        return adminStatsService.getStatsParVille();
+    public ResponseEntity<?> getStatsParVille(LocalDate debut, LocalDate fin) {
+        return adminStatsService.getStatsParVille(debut, fin);
     }
 
     @Override
@@ -39,4 +39,13 @@ public class StatsController implements StatsAPI {
 
     @Override
     public ResponseEntity<?> getGainAgenceDuMois(LocalDate periode) { return adminStatsService.getGainAgenceDuMois(periode); }
+
+    @Override
+    public ResponseEntity<?> getFinancesPeriode(LocalDate debut, LocalDate fin) { return adminStatsService.getFinancesPeriode(debut, fin); }
+
+    @Override
+    public ResponseEntity<?> viderCacheStats() { return adminStatsService.viderCache(); }
+
+    @Override
+    public ResponseEntity<?> getEvolutionMensuelle(int mois) { return adminStatsService.getEvolutionMensuelle(mois); }
 }

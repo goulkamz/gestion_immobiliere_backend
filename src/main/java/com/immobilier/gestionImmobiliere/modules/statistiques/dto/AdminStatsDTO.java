@@ -1,6 +1,5 @@
 package com.immobilier.gestionImmobiliere.modules.statistiques.dto;
 
-import com.immobilier.gestionImmobiliere.modules.statistiques.projection.SumEncaisse;
 import lombok.Builder;
 import lombok.Data;
 
@@ -28,11 +27,9 @@ public class AdminStatsDTO {
     private Map<String, Long> contratsLocationParStatut;
     private long mandatsExpirantSous30Jours;
 
-    // --- Finances : loyers & commissions (echeance_loyer) ---
-    private BigDecimal montantDuTotal;
-    private BigDecimal montantPayeTotal;
-    private long nombreEcheancesEnRetard;
-    private BigDecimal montantEcheancesEnRetard;
+    // --- Finances : flux entrant (loyers) et flux sortant (reversements), jamais mélangés ---
+    private LoyersStatsDTO loyers;
+    private ReversementsStatsDTO reversements;
 
     // --- Finances : locations biens/services ---
     private Map<String, Long> locationsBienServiceParStatut;

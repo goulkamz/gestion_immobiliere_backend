@@ -56,6 +56,8 @@ public interface UserRepository extends JpaRepository<User, Integer>, org.spring
     @Query("SELECT r.libelleRole, COUNT(u) FROM User u JOIN u.role r WHERE u.isDeleted = false GROUP BY r.libelleRole")
     List<Object[]> countByRole();
 
+    long countByIsDeletedFalse();
+
     @Query(value = "SELECT COUNT(*) FROM users WHERE is_deleted = false AND created_at >= DATE_TRUNC('month', CURRENT_DATE)", nativeQuery = true)
     long countInscriptionsCeMois();
 

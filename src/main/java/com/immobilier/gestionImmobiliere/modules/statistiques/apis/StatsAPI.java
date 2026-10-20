@@ -3,6 +3,7 @@ package com.immobilier.gestionImmobiliere.modules.statistiques.apis;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
@@ -17,7 +18,8 @@ public interface StatsAPI {
 
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/admin/villes")
-    ResponseEntity<?> getStatsParVille();
+    ResponseEntity<?> getStatsParVille(@RequestParam(required = false) LocalDate debut,
+                                       @RequestParam(required = false) LocalDate fin);
 
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/admin/bailleurs/top")
@@ -34,5 +36,18 @@ public interface StatsAPI {
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/admin/gain-mensuel")
     ResponseEntity<?> getGainAgenceDuMois(@RequestParam(required = false) LocalDate periode);
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/admin/finances")
+    ResponseEntity<?> getFinancesPeriode(@RequestParam(required = false) LocalDate debut,
+                                         @RequestParam(required = false) LocalDate fin);
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/admin/cache/vider")
+    ResponseEntity<?> viderCacheStats();
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/admin/evolution")
+    ResponseEntity<?> getEvolutionMensuelle(@RequestParam(defaultValue = "12") int mois);
 
 }

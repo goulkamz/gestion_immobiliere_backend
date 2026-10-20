@@ -101,7 +101,7 @@ public interface EcheanceLoyerRepository extends JpaRepository<EcheanceLoyer, In
     SumRetard sumEnRetard();
 
     @Query(value = "SELECT u.id_user AS idLocataire, u.nom || ' ' || u.prenom AS nomComplet, " +
-            "COUNT(e.id_echeance) FILTER (WHERE e.statut = 'EN_RETARD') AS nbEnRetard, " +
+            "COUNT(e.id_echeance) AS nbEnRetard, " +
             "SUM((e.montant_du + e.penalite) - e.montant_paye) AS montantDu " +
             "FROM echeance_loyer e " +
             "JOIN contra_location cl ON cl.id_contra_location = e.entite_echeance_id AND e.entite_echeance_type = 'LOCATION' " +
@@ -124,14 +124,19 @@ public interface EcheanceLoyerRepository extends JpaRepository<EcheanceLoyer, In
             "AND DATE_TRUNC('month', date_echeance) = DATE_TRUNC('month', CAST(:periode AS date))", nativeQuery = true)
     BigDecimal sumCommissionAgenceDuMois(@Param("periode") LocalDate periode);
 
+    // Reversements échus et non payés, regroupés par bailleur
     @Query(value = "SELECT u.id_user AS idBailleur, u.nom || ' ' || u.prenom AS nomComplet, " +
-            "e.date_echeance AS periode, e.montant_du AS montantDu " +
+            "COUNT(e.id_echeance) AS nbMois, SUM(e.montant_du - COALESCE(e.montant_paye, 0)) AS montantDu, " +
+            "MIN(e.date_echeance) AS plusAncienne " +
             "FROM echeance_loyer e " +
             "JOIN contrat_mandat m ON m.id_mandat = e.entite_echeance_id " +
             "JOIN cour c ON c.id_cour = m.id_cour " +
             "JOIN users u ON u.id_user = c.id_user " +
-            "WHERE e.entite_echeance_type = 'MANDAT' AND e.statut = 'EN_ATTENTE' AND e.is_deleted = false " +
-            "ORDER BY e.date_echeance ASC", nativeQuery = true)
+            "WHERE e.entite_echeance_type = 'MANDAT' AND e.statut NOT IN ('PAYE', 'ANNULE') " +
+            "AND e.date_echeance <= CURRENT_DATE AND e.is_deleted = false " +
+            "GROUP BY u.id_user, u.nom, u.prenom " +
+            "HAVING SUM(e.montant_du - COALESCE(e.montant_paye, 0)) > 0 " +
+            "ORDER BY montantDu DESC", nativeQuery = true)
     List<Object[]> bailleursCreanciers();
 
     // Retard, tous types confondus, pour un agent
