@@ -190,7 +190,8 @@ public class ContratMandatService {
         mandat.setDateResiliation(LocalDateTime.now());
         mandatRepository.save(mandat);
 
-        //echeanceService.supprimerEcheancesFutures(mandat.getIdMandat(), LocalDate.now());
+        // Les reversements déjà calculés au-delà du mois de résiliation n'ont plus lieu d'être (celui qui paie le mois de résiliation reste)
+        echeanceService.supprimerReversementsFuturs(mandat.getIdMandat(), LocalDate.now());
 
         return buildSuccessResponse(HttpStatus.OK, "Mandat résilié", "MANDAT_RESILIE", toDto(mandat));
     }

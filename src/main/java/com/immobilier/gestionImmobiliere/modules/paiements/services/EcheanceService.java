@@ -106,10 +106,20 @@ public class EcheanceService {
                 TypeEcheance.MANDAT, idMandat, LocalDate.of(1900, 1, 1), LocalDate.of(2999, 12, 31)).isEmpty();
     }
 
-    /** Vrai si un reversement a été calculé pour un mois postérieur au mois de {@code dateFin} (mandat qui ne couvre plus ce mois). */
+    /**
+     * Dernier reversement (daté du 1er du mois) qui reste dû à un mandat arrêté à {@code dateFinOuResiliation}.
+     * Un loyer est daté du 1er du mois SUIVANT son mois d'occupation : le reversement daté du 1er du mois qui suit la fin
+     * paie le dernier mois couvert par le mandat. Même lecture pour la date de fin, le calcul mensuel, le calcul cumulé
+     * et la suppression à la résiliation.
+     */
+    private static LocalDate dernierReversementDu(LocalDate dateFinOuResiliation) {
+        return dateFinOuResiliation.withDayOfMonth(1).plusMonths(1);
+    }
+
+    /** Vrai si un reversement a été calculé au-delà du dernier reversement dû pour un mandat qui s'arrête à {@code dateFin}. */
     public boolean reversementApres(Integer idMandat, LocalDate dateFin) {
         return !echeanceRepository.findByEntiteEcheanceTypeAndEntiteEcheanceIdAndDateEcheanceBetween(
-                TypeEcheance.MANDAT, idMandat, dateFin.withDayOfMonth(1).plusDays(1), LocalDate.of(2999, 12, 31)).isEmpty();
+                TypeEcheance.MANDAT, idMandat, dernierReversementDu(dateFin).plusDays(1), LocalDate.of(2999, 12, 31)).isEmpty();
     }
 
     private static final int[] MOIS = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
@@ -311,6 +321,26 @@ public class EcheanceService {
     }
 
 
+    /**
+     * Supprime (soft delete) les reversements (échéances MANDAT) qui ne portent plus sur une période couverte par le mandat.
+     * Un loyer est daté du 1er du mois SUIVANT son mois d'occupation : le reversement daté du 1er du mois suivant la
+     * résiliation paie donc le mois de résiliation, il est dû au bailleur et il est CONSERVÉ. Ceux datés d'après
+     * (même décalage que {@link #premierMoisASupprimer} pour les loyers) disparaissent. Un reversement qui a reçu un
+     * paiement, même partiel, n'est jamais supprimé : la trace du virement reste.
+     * (Ne pas confondre avec {@link #supprimerEcheancesFutures}, qui ne traite que les loyers d'un contrat de location.)
+     */
+    @Transactional
+    public void supprimerReversementsFuturs(Integer idMandat, LocalDate dateResiliation) {
+        LocalDate premierMoisASupprimer = dernierReversementDu(dateResiliation).plusMonths(1);
+        List<EcheanceLoyer> aSupprimer = echeanceRepository
+                .findByEntiteEcheanceTypeAndEntiteEcheanceIdAndDateEcheanceGreaterThanEqualAndStatutNot(
+                        TypeEcheance.MANDAT, idMandat, premierMoisASupprimer, StatutEcheance.PAYE).stream()
+                .filter(e -> e.getMontantPaye() == null || e.getMontantPaye().signum() == 0)
+                .toList();
+
+        echeanceRepository.deleteAll(aSupprimer);
+    }
+
     public ResponseEntity<?> getEcheanceLocationEnRetard() {
         List<EcheanceLoyer> enRetard = echeanceRepository.findByEntiteEcheanceTypeAndStatutAndDateEcheanceBefore(TypeEcheance.LOCATION,StatutEcheance.EN_RETARD, LocalDate.now());
         return buildSuccessResponse(HttpStatus.OK, "Échéances en retard", "ECHEANCE_EN_RETARD_LIST",
@@ -376,13 +406,17 @@ public class EcheanceService {
         ContratMandat mandat = chargerMandatGestion(idMandat, ModeFacturation.MENSUEL);
         LocalDate debutMois = periode.withDayOfMonth(1);
 
-        // Même règle que le calcul cumulé : un mandat résilié reste redevable jusqu'à sa résiliation, jamais au-delà
+        // Même règle que le calcul cumulé : un mandat résilié reste redevable jusqu'au reversement qui paie son dernier mois, jamais au-delà
         if (mandat.getStatut() != StatutMandat.ACTIF && mandat.getStatut() != StatutMandat.RESILIE) {
             throw new IllegalStateException("Le reversement ne peut être calculé que pour un mandat actif ou résilié");
         }
         if (mandat.getDateResiliation() != null
-                && debutMois.isAfter(mandat.getDateResiliation().toLocalDate().withDayOfMonth(1))) {
+                && debutMois.isAfter(dernierReversementDu(mandat.getDateResiliation().toLocalDate()))) {
             throw new IllegalStateException("La période demandée est postérieure à la résiliation du mandat");
+        }
+        if (mandat.getDateFin() != null
+                && debutMois.isAfter(dernierReversementDu(mandat.getDateFin().toLocalDate()))) {
+            throw new IllegalStateException("La période demandée est postérieure à la date de fin du mandat");
         }
         if (!echeancesMandatDuMois(idMandat, debutMois).isEmpty()) {
             throw new IllegalStateException("Le montant a déjà été calculé pour ce mandat sur cette période");
@@ -420,9 +454,15 @@ public class EcheanceService {
 
         LocalDate dernierMois = jusquA.withDayOfMonth(1);
         if (mandat.getDateResiliation() != null) {
-            LocalDate moisResiliation = mandat.getDateResiliation().toLocalDate().withDayOfMonth(1);
-            if (moisResiliation.isBefore(dernierMois)) {
-                dernierMois = moisResiliation;
+            LocalDate dernierDu = dernierReversementDu(mandat.getDateResiliation().toLocalDate());
+            if (dernierDu.isBefore(dernierMois)) {
+                dernierMois = dernierDu;
+            }
+        }
+        if (mandat.getDateFin() != null) {
+            LocalDate dernierDuFin = dernierReversementDu(mandat.getDateFin().toLocalDate());
+            if (dernierDuFin.isBefore(dernierMois)) {
+                dernierMois = dernierDuFin;
             }
         }
         LocalDate premierMois = mandat.getDateDebut() != null
