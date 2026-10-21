@@ -47,6 +47,11 @@ public interface StatsAPI {
     ResponseEntity<?> viderCacheStats();
 
     @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/admin/activite")
+    ResponseEntity<?> getActivitePeriode(@RequestParam(required = false) LocalDate debut,
+                                         @RequestParam(required = false) LocalDate fin);
+
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/admin/evolution")
     ResponseEntity<?> getEvolutionMensuelle(@RequestParam(defaultValue = "12") int mois);
 

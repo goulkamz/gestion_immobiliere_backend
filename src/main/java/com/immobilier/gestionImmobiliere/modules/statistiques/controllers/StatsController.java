@@ -47,5 +47,8 @@ public class StatsController implements StatsAPI {
     public ResponseEntity<?> viderCacheStats() { return adminStatsService.viderCache(); }
 
     @Override
+    public ResponseEntity<?> getActivitePeriode(LocalDate debut, LocalDate fin) { return adminStatsService.getActivitePeriode(debut, fin); }
+
+    @Override
     public ResponseEntity<?> getEvolutionMensuelle(int mois) { return adminStatsService.getEvolutionMensuelle(mois); }
 }

@@ -41,6 +41,7 @@ public class AdminStatsService {
     private final ContactRepository contactRepository;
     private final StatsFinanceQueries financeQueries;
     private final StatsCache cache;
+    private final StatsActiviteQueries activiteQueries;
 
     public AdminStatsService(UserRepository userRepository, CourRepository courRepository, MaisonRepository maisonRepository,
                              BienServiceRepository bienServiceRepository, ContratMandatRepository contratMandatRepository,
@@ -50,7 +51,7 @@ public class AdminStatsService {
                              RemboursementRepository remboursementRepository, AnnonceRepository annonceRepository,
                              DemandeRepository demandeRepository, OffreRepository offreRepository,
                              ContactRepository contactRepository, StatsFinanceQueries financeQueries,
-                             StatsCache cache) {
+                             StatsCache cache, StatsActiviteQueries activiteQueries) {
         this.userRepository = userRepository;
         this.courRepository = courRepository;
         this.maisonRepository = maisonRepository;
@@ -67,6 +68,7 @@ public class AdminStatsService {
         this.contactRepository = contactRepository;
         this.financeQueries = financeQueries;
         this.cache = cache;
+        this.activiteQueries = activiteQueries;
     }
 
     public ResponseEntity<?> getStats() {
@@ -228,6 +230,14 @@ public class AdminStatsService {
             return buildSuccessResponse(HttpStatus.BAD_REQUEST, "La date de fin précède la date de début", "PERIODE_INVALIDE", null);
         }
         return buildSuccessResponse(HttpStatus.OK, "Finances de la période", "FINANCES_PERIODE", cache.get("finances|" + debut + "|" + fin, () -> financeQueries.finances(debut, fin)));
+    }
+
+    public ResponseEntity<?> getActivitePeriode(LocalDate debut, LocalDate fin) {
+        if (debut != null && fin != null && fin.isBefore(debut)) {
+            return buildSuccessResponse(HttpStatus.BAD_REQUEST, "La date de fin précède la date de début", "PERIODE_INVALIDE", null);
+        }
+        return buildSuccessResponse(HttpStatus.OK, "Activité de la période", "ACTIVITE_PERIODE",
+                cache.get("activite|" + debut + "|" + fin, () -> activiteQueries.activite(debut, fin)));
     }
 
     public ResponseEntity<?> getEvolutionMensuelle(int mois) {
