@@ -17,6 +17,7 @@ public class LoyersStatsDTO {
     private long nombreImpayesEchus;       // même définition que la liste des créances locataires
     private BigDecimal tauxRecouvrement;   // encaisseSurEchu / echuTotal, en %
     private BigDecimal aVenir;             // échéances futures non encore exigibles
+    private BigDecimal payeAvance;         // déjà payé sur ces échéances futures (loyers réglés d'avance)
     private AncienneteImpayesDTO anciennete; // répartition des impayés échus selon l'ancienneté de l'échéance
 
     /** Impayés échus par ancienneté (jours écoulés depuis la date d'échéance). */

@@ -24,10 +24,35 @@ public class FinancesPeriodeDTO {
     // Biens et services (revenus propres de l'agence)
     private BiensServicesFinancesDTO biensServices;
 
+    /** Loyers dont la date tombe dans la période (et déjà échus) : combien est payé, combien reste. */
+    private LoyersPeriodeDTO loyersPeriode;
+    /** Reversements dont la date tombe dans la période (et déjà échus) : combien est reversé, combien reste. */
+    private ReversementsPeriodeDTO reversementsPeriode;
+
     /** Argent qui transite par l'agence : loyers encaissés + biens et services encaissés - remboursements. */
     private BigDecimal volumeEncaisse;
     /** Ce qui reste à l'agence : commissions acquises + biens et services nets. */
     private BigDecimal revenuAgence;
+
+    @Data @Builder
+    public static class LoyersPeriodeDTO {
+        private BigDecimal dusPeriode;          // loyers + pénalités des échéances de la période, déjà échues
+        private BigDecimal encaissePeriode;     // déjà payé sur ces échéances (quelle que soit la date du paiement)
+        private BigDecimal resteAEncaisser;     // impayés de la période
+        private long nombreEcheances;
+        private long nombreImpayes;
+        private BigDecimal tauxRecouvrement;    // en %, 0 si rien n'est échu
+    }
+
+    @Data @Builder
+    public static class ReversementsPeriodeDTO {
+        private BigDecimal totalPeriode;        // net dû aux bailleurs pour les reversements de la période, déjà échus
+        private BigDecimal effectue;            // part au statut PAYE
+        private BigDecimal aReverser;           // part non payée
+        private long nombreReversements;
+        private long nombreAReverser;
+        private BigDecimal tauxReverse;         // en %, 0 si rien n'est échu
+    }
 
     @Data @Builder
     public static class BiensServicesFinancesDTO {

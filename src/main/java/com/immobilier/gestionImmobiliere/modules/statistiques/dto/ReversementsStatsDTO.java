@@ -17,4 +17,6 @@ public class ReversementsStatsDTO {
     private BigDecimal aVenir;              // non échus
     private BigDecimal commissionsAcquises; // commissions des reversements payés
     private BigDecimal commissionsPrevues;  // commissions des reversements non encore payés
+    private BigDecimal avanceSansLoyer;     // part des reversements PAYÉS dont les loyers du mois n'ont pas été encaissés (avance de l'agence)
+    private long nombreAvances;             // nombre de reversements payés concernés
 }
