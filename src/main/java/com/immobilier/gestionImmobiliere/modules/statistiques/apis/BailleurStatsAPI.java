@@ -17,8 +17,4 @@ public interface BailleurStatsAPI {
     @PreAuthorize("hasAnyRole('BAILLEUR','ADMIN')")
     @GetMapping("/revenus")
     ResponseEntity<?> getRevenus(@AuthenticationPrincipal UserDetailsImpl currentUser);
-
-    @PreAuthorize("hasAnyRole('BAILLEUR','ADMIN')")
-    @GetMapping("/mandat")
-    ResponseEntity<?> getMandatActif(@AuthenticationPrincipal UserDetailsImpl currentUser);
 }

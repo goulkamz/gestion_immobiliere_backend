@@ -1274,8 +1274,6 @@ interface EcheanceRetardAgentDTO { idEcheance: number; type: 'LOCATION' | 'MANDA
 Réponse (data) : `BailleurPatrimoineDTO`.
 #### GET /api/stats/bailleur/revenus
 Réponse (data) : `BailleurRevenuDTO[]`.
-#### GET /api/stats/bailleur/mandat
-Mandat actif du bailleur connecté. Réponse (data) : `BailleurMandatDTO`. Codes : 404 `MANDAT_ACTIF_NOT_FOUND` si aucun mandat actif.
 
 ```typescript
 interface BailleurPatrimoineDTO { nbCours: number; nbMaisons: number; maisonsParStatut: Record<string, number>; tauxOccupation: number | null; }

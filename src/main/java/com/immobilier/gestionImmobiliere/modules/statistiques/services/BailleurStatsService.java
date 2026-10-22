@@ -2,11 +2,7 @@ package com.immobilier.gestionImmobiliere.modules.statistiques.services;
 
 import com.immobilier.gestionImmobiliere.donnees.biens.repository.CourRepository;
 import com.immobilier.gestionImmobiliere.donnees.biens.repository.MaisonRepository;
-import com.immobilier.gestionImmobiliere.donnees.contrats.model.ContratMandat;
-import com.immobilier.gestionImmobiliere.donnees.contrats.repository.ContratMandatRepository;
 import com.immobilier.gestionImmobiliere.donnees.paiements.repository.EcheanceLoyerRepository;
-import com.immobilier.gestionImmobiliere.exceptions.ResourceNotFoundException;
-import com.immobilier.gestionImmobiliere.modules.statistiques.dto.BailleurMandatDTO;
 import com.immobilier.gestionImmobiliere.modules.statistiques.dto.BailleurPatrimoineDTO;
 import com.immobilier.gestionImmobiliere.modules.statistiques.dto.BailleurRevenuDTO;
 import org.springframework.http.HttpStatus;
@@ -26,14 +22,12 @@ public class BailleurStatsService {
     private final MaisonRepository maisonRepository;
     private final CourRepository courRepository;
     private final EcheanceLoyerRepository echeanceLoyerRepository;
-    private final ContratMandatRepository contratMandatRepository;
 
     public BailleurStatsService(MaisonRepository maisonRepository, CourRepository courRepository,
-                                EcheanceLoyerRepository echeanceLoyerRepository, ContratMandatRepository contratMandatRepository) {
+                                EcheanceLoyerRepository echeanceLoyerRepository) {
         this.maisonRepository = maisonRepository;
         this.courRepository = courRepository;
         this.echeanceLoyerRepository = echeanceLoyerRepository;
-        this.contratMandatRepository = contratMandatRepository;
     }
 
     public ResponseEntity<?> getPatrimoine(Integer idBailleur) {
@@ -67,22 +61,5 @@ public class BailleurStatsService {
                 .toList();
 
         return buildSuccessResponse(HttpStatus.OK, "Vos revenus locatifs", "BAILLEUR_REVENUS", result);
-    }
-
-    public ResponseEntity<?> getMandatActif(Integer idBailleur) {
-        ContratMandat mandat = contratMandatRepository.findMandatActifPourBailleur(idBailleur)
-                .orElseThrow(() -> new ResourceNotFoundException("mandat actif", idBailleur));
-
-        BailleurMandatDTO result = BailleurMandatDTO.builder()
-                .idMandat(mandat.getIdMandat())
-                .referenceCour(mandat.getCour().getReferenceCour())
-                .statut(mandat.getStatut().name())
-                .dateDebut(LocalDate.from(mandat.getDateDebut()))
-                .dateFin(mandat.getDateFin() != null ? LocalDate.from(mandat.getDateFin()) : null)
-                .commissionPourcentage(mandat.getCommission())
-                .nomAgent(mandat.getAgent().getNom() + " " + mandat.getAgent().getPrenom())
-                .build();
-
-        return buildSuccessResponse(HttpStatus.OK, "Votre mandat actif", "BAILLEUR_MANDAT", result);
     }
 }

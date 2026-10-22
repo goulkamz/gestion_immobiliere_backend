@@ -12,7 +12,6 @@ import com.immobilier.gestionImmobiliere.donnees.contrats.model.TypeMandat;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
 
 public interface ContratMandatRepository extends JpaRepository<ContratMandat, Integer>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<ContratMandat> {
     Page<ContratMandat> findByCour_IdCour(Integer idCour, Pageable pageable);
@@ -37,7 +36,4 @@ public interface ContratMandatRepository extends JpaRepository<ContratMandat, In
 
     List<ContratMandat> findByAgent_IdUser(Integer idAgent);
 
-
-    @Query("SELECT m FROM ContratMandat m WHERE m.cour.proprietaire.idUser = :idBailleur AND m.statut = com.immobilier.gestionImmobiliere.donnees.contrats.model.StatutMandat.ACTIF AND m.isDeleted = false")
-    Optional<ContratMandat> findMandatActifPourBailleur(@Param("idBailleur") Integer idBailleur);
 }
