@@ -7,7 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 @RestController
 @PreAuthorize("hasRole('ADMIN')")
@@ -21,7 +21,12 @@ public class JournalController implements JournalAPI {
 
     @Override
     public ResponseEntity<?> getAll(Integer idUser, String action, String entite,
-                                    LocalDateTime dateDebut, LocalDateTime dateFin, Pageable pageable) {
+                                    LocalDate dateDebut, LocalDate dateFin, Pageable pageable) {
         return journalService.getAll(idUser, action, entite, dateDebut, dateFin, pageable);
+    }
+
+    @Override
+    public ResponseEntity<?> getEntites() {
+        return journalService.getEntites();
     }
 }

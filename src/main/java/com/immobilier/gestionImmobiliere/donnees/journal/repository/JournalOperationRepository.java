@@ -11,6 +11,9 @@ import java.time.LocalDateTime;
 
 public interface JournalOperationRepository extends JpaRepository<JournalOperation, Integer> {
 
+    @Query("SELECT DISTINCT j.entite FROM JournalOperation j ORDER BY j.entite")
+    java.util.List<String> findEntitesDistinctes();
+
     @Query("SELECT j FROM JournalOperation j WHERE " +
             "(:idUser IS NULL OR j.idUser = :idUser) AND " +
             "(:action IS NULL OR j.action = :action) AND " +

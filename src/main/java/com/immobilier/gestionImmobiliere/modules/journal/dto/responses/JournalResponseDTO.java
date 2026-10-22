@@ -9,6 +9,8 @@ import java.time.LocalDateTime;
 public class JournalResponseDTO {
     private Integer idJournal;
     private Integer idUser;
+    // « Prénom Nom », null si le compte n'existe plus
+    private String auteur;
     private String action;
     private String entite;
     private Integer ligneEntite;
