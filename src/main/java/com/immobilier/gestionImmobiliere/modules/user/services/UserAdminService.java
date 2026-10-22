@@ -90,6 +90,10 @@ public class UserAdminService {
 
     @Transactional
     public ResponseEntity<?> create(CreateUserByAdminDTO dto, Integer currentUserId, boolean estAdmin) {
+        // Aucun compte admin ne se cree par l'API : il se provisionne hors interface (seed ou base)
+        if (dto.getRole() == ERole.ROLE_ADMIN) {
+            throw new AccessDeniedException("Un compte administrateur ne peut pas être créé ici");
+        }
         // Controle du role AVANT toute verification d'existence : l'agent ne doit pas pouvoir sonder les emails
         if (!estAdmin && !ROLES_CREABLES_PAR_AGENT.contains(dto.getRole())) {
             throw new AccessDeniedException("Vous ne pouvez créer que des comptes client ou bailleur");
@@ -162,13 +166,21 @@ public class UserAdminService {
 
     @Transactional
     public ResponseEntity<?> updateRole(Integer id, UpdateUserRoleDTO dto, Integer currentUserId) {
+        if (id.equals(currentUserId)) {
+            throw new AccessDeniedException("Vous ne pouvez pas modifier votre propre rôle");
+        }
         User user = findOrThrow(id);
         String ancienRole = user.getRole().getLibelleRole().name();
+        // Les comptes admin ne se créent ni ne se modifient par cette route (voir la création d'admin hors interface)
+        if (dto.getRole() == ERole.ROLE_ADMIN || user.getRole().getLibelleRole() == ERole.ROLE_ADMIN) {
+            throw new AccessDeniedException("Le rôle administrateur ne peut pas être attribué ni retiré ici");
+        }
 
         Role nouveauRole = roleRepository.findByLibelleRole(dto.getRole())
                 .orElseThrow(() -> new RoleNotFoundException(dto.getRole().toString()));
         user.setRole(nouveauRole);
         userRepository.save(user);
+        jwtUtils.revokeAllUserTokens(user.getEmail()); // les jetons émis portent l'ancien rôle
         return buildSuccessResponse(HttpStatus.OK, "Rôle mis à jour", "USER_ROLE_UPDATED", toDto(user));
     }
 

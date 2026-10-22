@@ -118,6 +118,18 @@ public class TemoignageService {
         return buildSuccessResponse(HttpStatus.OK, "Statut mis à jour", "TEMOIGNAGE_STATUT_UPDATED", toAdminDto(temoignage));
     }
 
+    // Suppression definitive : un temoignage publie doit d'abord etre retire
+    @Transactional
+    public ResponseEntity<?> supprimerDefinitivement(Integer id) {
+        Temoignage temoignage = temoignageRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("temoignage", id));
+        if (temoignage.getStatut() == StatutTemoignage.PUBLIE) {
+            throw new IllegalStateException("Un témoignage publié ne peut pas être supprimé : retirez-le d'abord");
+        }
+        temoignageRepository.supprimerDefinitivement(id);
+        return buildSuccessResponse(HttpStatus.OK, "Témoignage supprimé définitivement", "TEMOIGNAGE_DELETED", null);
+    }
+
     private TemoignageResponseDTO toDto(Temoignage t) {
         return TemoignageResponseDTO.builder()
                 .idTemoignage(t.getIdTemoignage())

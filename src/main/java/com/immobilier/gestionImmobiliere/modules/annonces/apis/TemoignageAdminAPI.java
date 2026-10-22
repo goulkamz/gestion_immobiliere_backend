@@ -29,4 +29,8 @@ public interface TemoignageAdminAPI {
 
     @PatchMapping("/{id}/statut")
     ResponseEntity<?> updateStatut(@PathVariable Integer id, @Valid @RequestBody UpdateStatutTemoignageDTO dto);
+
+    // Suppression definitive (irreversible), refusee pour un temoignage publie
+    @DeleteMapping("/{id}")
+    ResponseEntity<?> delete(@PathVariable Integer id);
 }

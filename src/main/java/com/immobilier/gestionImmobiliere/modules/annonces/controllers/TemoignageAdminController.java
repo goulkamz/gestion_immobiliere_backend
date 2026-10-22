@@ -42,4 +42,10 @@ public class TemoignageAdminController implements TemoignageAdminAPI {
     public ResponseEntity<?> updateStatut(Integer id, UpdateStatutTemoignageDTO dto) {
         return temoignageService.updateStatut(id, dto);
     }
+
+    @Override
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> delete(Integer id) {
+        return temoignageService.supprimerDefinitivement(id);
+    }
 }
