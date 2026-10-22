@@ -1,13 +1,19 @@
 package com.immobilier.gestionImmobiliere.exceptions;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.*;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -119,6 +125,37 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.BAD_REQUEST, message, "RUNTIME_ERROR", ex);
     }
 
+    // Erreurs HTTP standard de Spring MVC : sans handler dedie, le handler Exception ci-dessous les renverrait en 500.
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<?> handleRouteIntrouvable(NoResourceFoundException ex) {
+        return buildErrorResponse(HttpStatus.NOT_FOUND, "Ressource introuvable", "ROUTE_NOT_FOUND", ex);
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<?> handleMethodeNonSupportee(HttpRequestMethodNotSupportedException ex) {
+        return buildErrorResponse(HttpStatus.METHOD_NOT_ALLOWED, "Méthode HTTP non autorisée pour cette ressource", "METHOD_NOT_ALLOWED", ex);
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<?> handleTypeNonSupporte(HttpMediaTypeNotSupportedException ex) {
+        return buildErrorResponse(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Type de contenu non supporté", "UNSUPPORTED_MEDIA_TYPE", ex);
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<?> handleParametreManquant(MissingServletRequestParameterException ex) {
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, "Paramètre manquant : " + ex.getParameterName(), "MISSING_PARAMETER", ex);
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<?> handleParametreInvalide(MethodArgumentTypeMismatchException ex) {
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, "Valeur invalide pour le paramètre : " + ex.getName(), "INVALID_PARAMETER", ex);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<?> handleCorpsIllisible(HttpMessageNotReadableException ex) {
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, "Corps de la requête illisible ou mal formé", "MALFORMED_BODY", ex);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<?> handleGenericException(Exception ex) {
         ex.printStackTrace();
@@ -197,6 +234,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(CategorieUtiliseeException.class)
     public ResponseEntity<?> handleCategorieUtilisee(CategorieUtiliseeException ex) {
         return buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage(), "CATEGORIE_UTILISEE", ex);
+    }
+
+    @ExceptionHandler(LocalisationUtiliseeException.class)
+    public ResponseEntity<?> handleLocalisationUtilisee(LocalisationUtiliseeException ex) {
+        return buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage(), "LOCALISATION_UTILISEE", ex);
     }
 
     @ExceptionHandler(MandatInsuffisantException.class)
