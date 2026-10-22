@@ -8,4 +8,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface VilleRepository extends JpaRepository<Ville, Integer> {
     Page<Ville> findByPays_IdPays(Integer idPays, Pageable pageable);
     boolean existsByCodeVilleIgnoreCaseAndPays_IdPays(String codeVille, Integer idPays);
+
+    long countByPays_IdPays(Integer idPays);
 }

@@ -1,10 +1,15 @@
 package com.immobilier.gestionImmobiliere.modules.localisation.services;
 
+import com.immobilier.gestionImmobiliere.donnees.annonces.repository.AnnonceRepository;
+import com.immobilier.gestionImmobiliere.donnees.annonces.repository.DemandeRepository;
+import com.immobilier.gestionImmobiliere.donnees.annonces.repository.OffreRepository;
 import com.immobilier.gestionImmobiliere.donnees.localisation.model.Pays;
 import com.immobilier.gestionImmobiliere.donnees.localisation.model.Ville;
 import com.immobilier.gestionImmobiliere.donnees.localisation.repository.PaysRepository;
+import com.immobilier.gestionImmobiliere.donnees.localisation.repository.SecteurRepository;
 import com.immobilier.gestionImmobiliere.donnees.localisation.repository.VilleRepository;
 import com.immobilier.gestionImmobiliere.exceptions.CodeAlreadyExistsException;
+import com.immobilier.gestionImmobiliere.exceptions.LocalisationUtiliseeException;
 import com.immobilier.gestionImmobiliere.exceptions.PaysNotFoundException;
 import com.immobilier.gestionImmobiliere.exceptions.ResourceNotFoundException;
 import com.immobilier.gestionImmobiliere.exceptions.VilleNotFoundException;
@@ -26,9 +31,20 @@ public class VilleService {
     private final VilleRepository villeRepository;
     private final PaysRepository paysRepository;
 
-    public VilleService(VilleRepository villeRepository, PaysRepository paysRepository) {
+    private final SecteurRepository secteurRepository;
+    private final AnnonceRepository annonceRepository;
+    private final DemandeRepository demandeRepository;
+    private final OffreRepository offreRepository;
+
+    public VilleService(VilleRepository villeRepository, PaysRepository paysRepository,
+                        SecteurRepository secteurRepository, AnnonceRepository annonceRepository,
+                        DemandeRepository demandeRepository, OffreRepository offreRepository) {
         this.villeRepository = villeRepository;
         this.paysRepository = paysRepository;
+        this.secteurRepository = secteurRepository;
+        this.annonceRepository = annonceRepository;
+        this.demandeRepository = demandeRepository;
+        this.offreRepository = offreRepository;
     }
 
     public ResponseEntity<?> getAll(Integer idPays, Pageable pageable) {
@@ -79,7 +95,17 @@ public class VilleService {
 
     @Transactional
     public ResponseEntity<?> delete(Integer id) {
-        villeRepository.delete(findOrThrow(id));
+        Ville ville = findOrThrow(id);
+        long nbSecteurs = secteurRepository.countByVille_IdVille(id);
+        long nbAnnonces = annonceRepository.countByVille_IdVille(id);
+        long nbDemandes = demandeRepository.countByVille_IdVille(id);
+        long nbOffres = offreRepository.countByVille_IdVille(id);
+        if (nbSecteurs + nbAnnonces + nbDemandes + nbOffres > 0) {
+            throw new LocalisationUtiliseeException("la ville", ville.getNomVille(),
+                    nbSecteurs + " secteur(s), " + nbAnnonces + " annonce(s), "
+                            + nbDemandes + " demande(s), " + nbOffres + " offre(s)");
+        }
+        villeRepository.delete(ville);
         return buildSuccessResponse(HttpStatus.OK, "Ville supprimée", "VILLE_DELETED", null);
     }
 

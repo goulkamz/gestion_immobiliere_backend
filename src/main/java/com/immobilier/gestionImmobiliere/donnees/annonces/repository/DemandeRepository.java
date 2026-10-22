@@ -17,4 +17,6 @@ public interface DemandeRepository extends JpaRepository<Demande, Integer>, JpaS
 
     @Query("SELECT d.statut, COUNT(d) FROM Demande d WHERE d.isDeleted = false GROUP BY d.statut")
     List<Object[]> countByStatut();   // Demande
+
+    long countByVille_IdVille(Integer idVille);
 }

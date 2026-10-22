@@ -13,4 +13,6 @@ public interface OffreRepository extends JpaRepository<Offre, Integer>, JpaSpeci
     // Statistiques OffreRepository
 
     long countByIsDeletedFalseAndStatut(StatutOffre statut);
+
+    long countByVille_IdVille(Integer idVille);
 }

@@ -1,10 +1,13 @@
 package com.immobilier.gestionImmobiliere.modules.localisation.services;
 
+import com.immobilier.gestionImmobiliere.donnees.biens.repository.BienServiceRepository;
+import com.immobilier.gestionImmobiliere.donnees.biens.repository.CourRepository;
 import com.immobilier.gestionImmobiliere.donnees.localisation.model.Secteur;
 import com.immobilier.gestionImmobiliere.donnees.localisation.model.Ville;
 import com.immobilier.gestionImmobiliere.donnees.localisation.repository.SecteurRepository;
 import com.immobilier.gestionImmobiliere.donnees.localisation.repository.VilleRepository;
 import com.immobilier.gestionImmobiliere.exceptions.CodeAlreadyExistsException;
+import com.immobilier.gestionImmobiliere.exceptions.LocalisationUtiliseeException;
 import com.immobilier.gestionImmobiliere.exceptions.ResourceNotFoundException;
 import com.immobilier.gestionImmobiliere.exceptions.SecteurNotFoundException;
 import com.immobilier.gestionImmobiliere.exceptions.VilleNotFoundException;
@@ -25,10 +28,15 @@ public class SecteurService {
 
     private final SecteurRepository secteurRepository;
     private final VilleRepository villeRepository;
+    private final CourRepository courRepository;
+    private final BienServiceRepository bienServiceRepository;
 
-    public SecteurService(SecteurRepository secteurRepository, VilleRepository villeRepository) {
+    public SecteurService(SecteurRepository secteurRepository, VilleRepository villeRepository,
+                          CourRepository courRepository, BienServiceRepository bienServiceRepository) {
         this.secteurRepository = secteurRepository;
         this.villeRepository = villeRepository;
+        this.courRepository = courRepository;
+        this.bienServiceRepository = bienServiceRepository;
     }
 
     public ResponseEntity<?> getAll(Integer idVille, String recherche, Pageable pageable) {
@@ -78,7 +86,14 @@ public class SecteurService {
 
     @Transactional
     public ResponseEntity<?> delete(Integer id) {
-        secteurRepository.delete(findOrThrow(id));
+        Secteur secteur = findOrThrow(id);
+        long nbCours = courRepository.countBySecteur_IdSecteur(id);
+        long nbBiens = bienServiceRepository.countBySecteur_IdSecteur(id);
+        if (nbCours + nbBiens > 0) {
+            throw new LocalisationUtiliseeException("le secteur", secteur.getNomSecteur(),
+                    nbCours + " cour(s), " + nbBiens + " bien(s) ou service(s)");
+        }
+        secteurRepository.delete(secteur);
         return buildSuccessResponse(HttpStatus.OK, "Secteur supprimé", "SECTEUR_DELETED", null);
     }
 

@@ -31,4 +31,6 @@ public interface BienServiceRepository extends JpaRepository<BienService,Integer
     List<Object[]> countParCategorie(@Param("ids") Collection<Integer> ids);
 
     long countByCategorie_IdCategorieAndIsDeletedFalse(Integer idCategorie);
+
+    long countBySecteur_IdSecteur(Integer idSecteur);
 }

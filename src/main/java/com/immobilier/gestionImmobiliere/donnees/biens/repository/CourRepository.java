@@ -32,4 +32,6 @@ public interface CourRepository extends JpaRepository<Cour, Integer>, org.spring
     List<Object[]> topBailleursParNbMaisons(@Param("limite") int limite);
 
     long countByProprietaire_IdUserAndIsDeletedFalse(Integer idBailleur);
+
+    long countBySecteur_IdSecteur(Integer idSecteur);
 }

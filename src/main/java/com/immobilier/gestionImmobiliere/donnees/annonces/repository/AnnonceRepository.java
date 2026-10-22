@@ -21,4 +21,6 @@ public interface AnnonceRepository extends JpaRepository<Annonce, Integer>, JpaS
     List<Object[]> countByStatut();
 
     List<Annonce> findTop5ByIsDeletedFalseAndStatutOrderByDatePublicationDesc(StatutAnnonce statut);
+
+    long countByVille_IdVille(Integer idVille);
 }

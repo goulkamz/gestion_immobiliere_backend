@@ -2,7 +2,9 @@ package com.immobilier.gestionImmobiliere.modules.localisation.services;
 
 import com.immobilier.gestionImmobiliere.donnees.localisation.model.Pays;
 import com.immobilier.gestionImmobiliere.donnees.localisation.repository.PaysRepository;
+import com.immobilier.gestionImmobiliere.donnees.localisation.repository.VilleRepository;
 import com.immobilier.gestionImmobiliere.exceptions.CodeAlreadyExistsException;
+import com.immobilier.gestionImmobiliere.exceptions.LocalisationUtiliseeException;
 import com.immobilier.gestionImmobiliere.exceptions.ResourceNotFoundException;
 import com.immobilier.gestionImmobiliere.modules.localisation.dto.requests.CreatePaysDTO;
 import com.immobilier.gestionImmobiliere.modules.localisation.dto.requests.UpdatePaysDTO;
@@ -21,8 +23,11 @@ public class PaysService {
 
     private final PaysRepository paysRepository;
 
-    public PaysService(PaysRepository paysRepository) {
+    private final VilleRepository villeRepository;
+
+    public PaysService(PaysRepository paysRepository, VilleRepository villeRepository) {
         this.paysRepository = paysRepository;
+        this.villeRepository = villeRepository;
     }
 
     public ResponseEntity<?> getAll(Pageable pageable) {
@@ -67,6 +72,10 @@ public class PaysService {
     @Transactional
     public ResponseEntity<?> delete(Integer id) {
         Pays pays = findOrThrow(id);
+        long nbVilles = villeRepository.countByPays_IdPays(id);
+        if (nbVilles > 0) {
+            throw new LocalisationUtiliseeException("le pays", pays.getNomPays(), nbVilles + " ville(s)");
+        }
         paysRepository.delete(pays); // intercepté par @SQLDelete -> soft delete
         return buildSuccessResponse(HttpStatus.OK, "Pays supprimé", "PAYS_DELETED", null);
     }

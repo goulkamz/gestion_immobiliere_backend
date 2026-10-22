@@ -27,4 +27,6 @@ public interface SecteurRepository extends JpaRepository<Secteur, Integer> {
     long countVillesCouvertes();
 
     long countByIsDeletedFalse();
+
+    long countByVille_IdVille(Integer idVille);
 }
