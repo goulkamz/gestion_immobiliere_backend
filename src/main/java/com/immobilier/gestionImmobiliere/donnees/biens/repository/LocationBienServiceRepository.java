@@ -14,6 +14,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface LocationBienServiceRepository extends JpaRepository<LocationBienService,Integer>, JpaSpecificationExecutor<LocationBienService> {
+
+    @org.springframework.data.jpa.repository.Query("SELECT MIN(l.dateDebut) FROM LocationBienService l")
+    java.time.LocalDateTime findPremiereDateDebut();
     Page<LocationBienService> findByClient_IdUser(Integer idUser, Pageable pageable);
 
     boolean existsByBienService_IdBienServiceAndStatut(Integer idBien, StatutLocationBienService statut);

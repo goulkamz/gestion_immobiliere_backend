@@ -4,7 +4,9 @@ import com.immobilier.gestionImmobiliere.donnees.contrats.repository.DecompteSor
 import com.immobilier.gestionImmobiliere.donnees.documents.model.Document;
 import com.immobilier.gestionImmobiliere.donnees.documents.model.TypeDocument;
 import com.immobilier.gestionImmobiliere.donnees.documents.repository.DocumentRepository;
+import com.immobilier.gestionImmobiliere.donnees.biens.repository.LocationBienServiceRepository;
 import com.immobilier.gestionImmobiliere.donnees.paiements.repository.EcheanceLoyerRepository;
+import com.immobilier.gestionImmobiliere.donnees.paiements.repository.PaiementRepository;
 import com.immobilier.gestionImmobiliere.modules.documents.UtilsDocuments.Utils;
 import com.immobilier.gestionImmobiliere.modules.statistiques.dto.FinancesPeriodeDTO;
 import com.immobilier.gestionImmobiliere.modules.statistiques.dto.LoyersStatsDTO;
@@ -15,6 +17,8 @@ import org.openpdf.text.*;
 import org.openpdf.text.pdf.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +28,12 @@ import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Comparator;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Stream;
+
+import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
 
 @Service
 public class RapportMensuelDocumentService {
@@ -36,6 +46,8 @@ public class RapportMensuelDocumentService {
     private static final DecimalFormat FMT_MONTANT = new DecimalFormat("#,##0");
 
     private final EcheanceLoyerRepository echeanceLoyerRepository;
+    private final PaiementRepository paiementRepository;
+    private final LocationBienServiceRepository locationBienServiceRepository;
     private final StatsFinanceQueries financeQueries;
     private final DecompteSortieRepository decompteSortieRepository;
     private final DocumentRepository documentRepository;
@@ -44,11 +56,15 @@ public class RapportMensuelDocumentService {
     private final Utils utils;
 
     public RapportMensuelDocumentService(EcheanceLoyerRepository echeanceLoyerRepository,
+                                         PaiementRepository paiementRepository,
+                                         LocationBienServiceRepository locationBienServiceRepository,
                                          StatsFinanceQueries financeQueries,
                                          DecompteSortieRepository decompteSortieRepository,
                                          DocumentRepository documentRepository, DocumentRegistrar documentRegistrar,
                                          DocumentStorageService documentStorageService, Utils utils) {
         this.echeanceLoyerRepository = echeanceLoyerRepository;
+        this.paiementRepository = paiementRepository;
+        this.locationBienServiceRepository = locationBienServiceRepository;
         this.financeQueries = financeQueries;
         this.decompteSortieRepository = decompteSortieRepository;
         this.documentRepository = documentRepository;
@@ -57,6 +73,27 @@ public class RapportMensuelDocumentService {
         this.utils = utils;
     }
 
+
+    /**
+     * Premier mois d'activité (plus ancienne échéance, paiement ou location de bien/service), ramené au 1er du mois.
+     * Sert à ne proposer que des mois qui ont un sens : un rapport de mois passé est figé dès sa première génération.
+     * Sans aucune donnée, le mois en cours.
+     */
+    public ResponseEntity<?> premierMois() {
+        LocalDate premier = Stream.of(
+                        echeanceLoyerRepository.findPremiereDateEcheance(),
+                        toLocalDate(paiementRepository.findPremiereDatePaiement()),
+                        toLocalDate(locationBienServiceRepository.findPremiereDateDebut()))
+                .filter(Objects::nonNull)
+                .min(Comparator.naturalOrder())
+                .orElse(LocalDate.now())
+                .withDayOfMonth(1);
+        return buildSuccessResponse(HttpStatus.OK, "Premier mois d'activité", "RAPPORT_PREMIER_MOIS", Map.of("premierMois", premier));
+    }
+
+    private static LocalDate toLocalDate(LocalDateTime dateTime) {
+        return dateTime != null ? dateTime.toLocalDate() : null;
+    }
 
     /** Vrai si la période demandée est le mois en cours : son rapport est alors provisoire et jamais enregistré. */
     public boolean estProvisoire(LocalDate periode) {

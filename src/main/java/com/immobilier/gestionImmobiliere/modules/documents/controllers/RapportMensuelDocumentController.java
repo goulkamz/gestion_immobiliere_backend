@@ -22,6 +22,11 @@ public class RapportMensuelDocumentController implements RapportMensuelDocumentA
 
 
     @Override
+    public ResponseEntity<?> premierMois() {
+        return rapportMensuelDocumentService.premierMois();
+    }
+
+    @Override
     public ResponseEntity<byte[]> genererOuRecuperer(LocalDate periode, UserDetailsImpl currentUser) {
         byte[] pdf = rapportMensuelDocumentService.genererOuRecuperer(periode, currentUser.getIdUser());
 

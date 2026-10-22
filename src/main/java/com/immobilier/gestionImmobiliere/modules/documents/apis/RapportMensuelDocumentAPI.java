@@ -17,4 +17,9 @@ public interface RapportMensuelDocumentAPI {
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping(produces = MediaType.APPLICATION_PDF_VALUE)
     ResponseEntity<byte[]> genererOuRecuperer(@RequestParam LocalDate periode, @AuthenticationPrincipal UserDetailsImpl currentUser);
+
+    // Premier mois à partir duquel un rapport a un sens (lecture seule, ne génère rien)
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping(value = "/premier-mois", produces = MediaType.APPLICATION_JSON_VALUE)
+    ResponseEntity<?> premierMois();
 }

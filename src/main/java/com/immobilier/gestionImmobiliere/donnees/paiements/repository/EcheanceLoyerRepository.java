@@ -17,6 +17,10 @@ import java.time.LocalDate;
 import java.util.List;
 
 public interface EcheanceLoyerRepository extends JpaRepository<EcheanceLoyer, Integer>, JpaSpecificationExecutor<EcheanceLoyer> {
+
+    // Plus ancienne échéance : début de l'activité locative (null s'il n'y en a aucune)
+    @org.springframework.data.jpa.repository.Query("SELECT MIN(e.dateEcheance) FROM EcheanceLoyer e")
+    java.time.LocalDate findPremiereDateEcheance();
     List<EcheanceLoyer> findByIdEcheanceIn(List<Integer> ids);
     List<EcheanceLoyer> findByEntiteEcheanceTypeAndStatutAndDateEcheanceBefore(TypeEcheance type,StatutEcheance statut, LocalDate date);
     List<EcheanceLoyer> findByEntiteEcheanceTypeAndEntiteEcheanceIdAndStatut(TypeEcheance type, Integer entiteId, StatutEcheance statut);
