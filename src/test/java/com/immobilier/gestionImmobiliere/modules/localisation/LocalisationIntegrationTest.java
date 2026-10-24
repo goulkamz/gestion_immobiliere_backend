@@ -65,18 +65,40 @@ class LocalisationIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void suppressionDUnPays_cascadeEnSoftDeleteSurVillesEtSecteurs() throws Exception {
+    void suppressionDUnPays_refuseeTantQueSesVillesExistent_puisAccepteeUneFoisVide() throws Exception {
         int pays = creerPays("903", "Pays Test C");
         int ville = creerVille(pays, "V03", "Ville Test C");
         int secteur = creerSecteur(ville, "S03", "Secteur Test C");
 
+        // Seul l'admin supprime ; un pays qui contient des villes, ou une ville qui contient des secteurs, est refuse (409)
         mockMvc.perform(delete("/api/pays/" + pays).cookie(agent)).andExpect(status().isForbidden());
+        mockMvc.perform(delete("/api/pays/" + pays).cookie(admin)).andExpect(status().isConflict());
+        mockMvc.perform(delete("/api/villes/" + ville).cookie(admin)).andExpect(status().isConflict());
+        assertThat(estSupprime("pays", "id_pays", pays)).as("refus : rien n'est supprime").isFalse();
+        assertThat(estSupprime("ville", "id_ville", ville)).isFalse();
+
+        // En partant du plus bas, chaque element vide se supprime
+        mockMvc.perform(delete("/api/secteurs/" + secteur).cookie(admin)).andExpect(status().isOk());
+        mockMvc.perform(delete("/api/villes/" + ville).cookie(admin)).andExpect(status().isOk());
         mockMvc.perform(delete("/api/pays/" + pays).cookie(admin)).andExpect(status().isOk());
+
+        assertThat(estSupprime("pays", "id_pays", pays)).isTrue();
+        mockMvc.perform(get("/api/public/pays/" + pays)).andExpect(status().isNotFound());
+    }
+
+    // L'API refuse maintenant de supprimer un parent non vide, mais le trigger reste le filet de securite en base
+    // (suppression manuelle, requete SQL) : il propage la suppression logique du pays aux villes puis aux secteurs.
+    @Test
+    void triggerDeCascade_paysVilleSecteur_auNiveauDeLaBase() throws Exception {
+        int pays = creerPays("904", "Pays Test D");
+        int ville = creerVille(pays, "V04", "Ville Test D");
+        int secteur = creerSecteur(ville, "S04", "Secteur Test D");
+
+        jdbc.update("UPDATE pays SET is_deleted = true WHERE id_pays = ?", pays);
 
         assertThat(estSupprime("pays", "id_pays", pays)).isTrue();
         assertThat(estSupprime("ville", "id_ville", ville)).as("cascade pays -> ville").isTrue();
         assertThat(estSupprime("secteur", "id_secteur", secteur)).as("cascade ville -> secteur").isTrue();
-        mockMvc.perform(get("/api/public/pays/" + pays)).andExpect(status().isNotFound());
     }
 
     private int creerPays(String code, String nom) throws Exception {
