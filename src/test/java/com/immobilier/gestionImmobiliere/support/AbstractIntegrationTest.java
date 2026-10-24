@@ -62,6 +62,8 @@ public abstract class AbstractIntegrationTest {
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
+        // Flyway : schema + donnees de demonstration (db/seed) dont les tests ont besoin
+        registry.add("spring.flyway.locations", () -> "classpath:db/migration,classpath:db/seed");
 
         registry.add("spring.data.redis.host", REDIS::getHost);
         registry.add("spring.data.redis.port", () -> REDIS.getMappedPort(6379));

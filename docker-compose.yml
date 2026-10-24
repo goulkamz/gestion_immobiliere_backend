@@ -108,17 +108,30 @@ services:
       # Profil
       - SPRING_PROFILES_ACTIVE=${PROFILES_ACTIVE}
 
-      # Premier admin (production, base vide) : a renseigner dans .env, puis retirer le mot de passe apres le 1er demarrage
-      - BOOTSTRAP_ADMIN_EMAIL=${BOOTSTRAP_ADMIN_EMAIL:-}
-      - BOOTSTRAP_ADMIN_PASSWORD=${BOOTSTRAP_ADMIN_PASSWORD:-}
-      - BOOTSTRAP_ADMIN_NOM=${BOOTSTRAP_ADMIN_NOM:-Administrateur}
-      - BOOTSTRAP_ADMIN_PRENOM=${BOOTSTRAP_ADMIN_PRENOM:-Principal}
+      # Premier admin (production, base vide) : a renseigner dans .env, puis retirer le mot de passe apres le 1er demarrage.
+      # Spring lit APP_BOOTSTRAP_ADMIN_EMAIL comme la propriete app.bootstrap.admin-email (voir AmorcageAdminService)
+      - APP_BOOTSTRAP_ADMIN_EMAIL=${BOOTSTRAP_ADMIN_EMAIL:-}
+      - APP_BOOTSTRAP_ADMIN_PASSWORD=${BOOTSTRAP_ADMIN_PASSWORD:-}
+      - APP_BOOTSTRAP_ADMIN_NOM=${BOOTSTRAP_ADMIN_NOM:-Administrateur}
+      - APP_BOOTSTRAP_ADMIN_PRENOM=${BOOTSTRAP_ADMIN_PRENOM:-Principal}
 
       # PostgreSQL
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/gestion_immobiliere
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
       - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
+
+      # Migrations (Flyway). Valeurs par defaut sures : seul le schema est charge, jamais le seed de demonstration.
+      # Dev : FLYWAY_LOCATIONS=classpath:db/migration,classpath:db/seed dans .env. Production : ne pas definir FLYWAY_LOCATIONS.
+      - SPRING_FLYWAY_ENABLED=${FLYWAY_ENABLED:-true}
+      - SPRING_FLYWAY_LOCATIONS=${FLYWAY_LOCATIONS:-classpath:db/migration}
+      - SPRING_FLYWAY_BASELINE_ON_MIGRATE=${FLYWAY_BASELINE_ON_MIGRATE:-false}
+      - SPRING_FLYWAY_VALIDATE_ON_MIGRATE=${FLYWAY_VALIDATE_ON_MIGRATE:-true}
+      # Interdit la commande clean (qui viderait toute la base)
+      - SPRING_FLYWAY_CLEAN_DISABLED=${FLYWAY_CLEAN_DISABLED:-true}
+      # Compte de connexion de Flyway : par defaut celui de l'application ; a separer quand l'application passera en role restreint
+      - SPRING_FLYWAY_USER=${FLYWAY_USER:-postgres}
+      - SPRING_FLYWAY_PASSWORD=${FLYWAY_PASSWORD:-${POSTGRES_PASSWORD}}
 
       # JPA
       - SPRING_JPA_HIBERNATE_DDL_AUTO=validate

@@ -22,8 +22,21 @@ La structure de la base est gérée par **Flyway**. Il s'exécute au démarrage 
 ## Données de démonstration (seed)
 
 - Le seed est une migration **répétable** (`R__`) : elle passe après toutes les migrations versionnées, s'exécute une fois sur une base neuve, et ne se rejoue que si le fichier est modifié (elle vide alors les tables avant de réinsérer).
-- Il n'est chargé que par les profils `dev` (`application-dev.properties`) et `test` (`application-test.properties`), via `spring.flyway.locations=classpath:db/migration,classpath:db/seed`.
-- **En production**, ne pas utiliser le profil `dev` (`PROFILES_ACTIVE=prod`) : la configuration par défaut ne charge que `db/migration`, donc aucun compte de test n'est créé.
+- Il n'est chargé que si `FLYWAY_LOCATIONS=classpath:db/migration,classpath:db/seed` est défini : dans le `.env` de **développement**, et dans `AbstractIntegrationTest` pour les tests.
+- **En production**, ne pas définir `FLYWAY_LOCATIONS` : le `docker-compose.yml` charge alors seulement `db/migration`, donc aucun compte de test n'est créé. Ne jamais copier le `.env` de développement sur le serveur.
+
+## Réglages Flyway (variables d'environnement)
+
+Le `docker-compose.yml` les transmet à l'application, avec des valeurs par défaut sûres. Rien n'est à définir en production, sauf besoin particulier.
+
+| Variable (`.env`) | Défaut | Rôle |
+|---|---|---|
+| `FLYWAY_ENABLED` | `true` | Active Flyway |
+| `FLYWAY_LOCATIONS` | `classpath:db/migration` | Dossiers de migrations ; ajouter `classpath:db/seed` en développement seulement |
+| `FLYWAY_BASELINE_ON_MIGRATE` | `false` | Adopter une base existante non gérée par Flyway (voir plus bas) |
+| `FLYWAY_VALIDATE_ON_MIGRATE` | `true` | Refuse de démarrer si une migration déjà appliquée a été modifiée |
+| `FLYWAY_CLEAN_DISABLED` | `true` | Interdit la commande `clean`, qui viderait toute la base |
+| `FLYWAY_USER` / `FLYWAY_PASSWORD` | `postgres` / `POSTGRES_PASSWORD` | Compte de connexion de Flyway ; à séparer de celui de l'application quand elle passera en rôle restreint |
 
 ## Premier administrateur en production
 
@@ -53,8 +66,8 @@ Flyway recrée tout au démarrage du backend.
 
 ## Base existante créée avant Flyway
 
-Non prévu : le projet est reparti d'une base neuve (octobre 2026). Une base de production existante aurait besoin d'une « baseline » (`spring.flyway.baseline-on-migrate=true` avec `baseline-version`), à décider à ce moment-là.
+Non prévu : le projet est reparti d'une base neuve (octobre 2026). Une base de production existante aurait besoin d'une « baseline » (`FLYWAY_BASELINE_ON_MIGRATE=true`, avec une version de départ), à décider à ce moment-là.
 
 ## Compte de connexion
 
-Flyway utilise aujourd'hui le même compte que l'application (`postgres`). Pour un rôle applicatif restreint, donner à Flyway son propre compte avec `spring.flyway.user` et `spring.flyway.password`.
+Flyway utilise aujourd'hui le même compte que l'application (`postgres`). Pour un rôle applicatif restreint, définir `FLYWAY_USER` et `FLYWAY_PASSWORD` (compte propriétaire) dans le `.env`.
