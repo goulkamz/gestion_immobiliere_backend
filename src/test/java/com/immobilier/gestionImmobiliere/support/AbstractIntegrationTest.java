@@ -11,11 +11,10 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
-import org.testcontainers.utility.MountableFile;
 
 /**
  * Base des tests d'integration : demarre les memes conteneurs que docker-compose.yml
- * (Postgres initialise avec les memes scripts SQL, Redis, MinIO).
+ * (Postgres dont le schema et le seed viennent de Flyway, Redis, MinIO).
  * Conteneurs singleton (demarres une fois par JVM, arretes par Ryuk) : avec des
  * @Container par classe, le contexte Spring mis en cache pointerait vers des
  * conteneurs deja arretes des la deuxieme classe de test.
@@ -30,10 +29,7 @@ public abstract class AbstractIntegrationTest {
     static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17")
             .withDatabaseName("gestion_immobiliere")
             .withUsername("postgres")
-            .withPassword("test")
-            .withCopyFileToContainer(MountableFile.forHostPath("SystemImmo.sql"), "/docker-entrypoint-initdb.d/01-init.sql")
-            .withCopyFileToContainer(MountableFile.forHostPath("cascade_soft_delete_triggers.sql"), "/docker-entrypoint-initdb.d/02-trigger.sql")
-            .withCopyFileToContainer(MountableFile.forHostPath("seed-data.sql"), "/docker-entrypoint-initdb.d/03-seed-data.sql");
+            .withPassword("test");
 
     static final GenericContainer<?> REDIS = new GenericContainer<>("redis:7-alpine")
             .withExposedPorts(6379);

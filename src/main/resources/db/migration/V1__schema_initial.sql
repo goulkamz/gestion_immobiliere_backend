@@ -1,81 +1,9 @@
 /*==============================================================*/
 /* SGBD : PostgreSQL                                            */
-/* Date : 12/07/2026 (mise à jour)                              */
+/* Migration Flyway V1 : schema initial (base neuve uniquement).  */
+/* Les evolutions suivantes sont de nouveaux fichiers V3__, V4__... */
 /* Version snake_case - Compatible avec PostgreSQL et JPA      */
 /*==============================================================*/
-
--- ==============================================================
--- Nettoyage des objets existants
--- ==============================================================
-
-DROP TYPE IF EXISTS type_echeance_contrat CASCADE;
-DROP TYPE IF EXISTS type_entite_media CASCADE;
-
-DROP TABLE IF EXISTS paiement_echeance CASCADE;
-DROP TABLE IF EXISTS medias CASCADE;
-DROP TABLE IF EXISTS echeance_loyer CASCADE;
-DROP TABLE IF EXISTS location_bien_service CASCADE;
-DROP TABLE IF EXISTS reservation_maison CASCADE;
-DROP TABLE IF EXISTS contra_location CASCADE;
-DROP TABLE IF EXISTS contrat_mandat CASCADE;
-DROP TABLE IF EXISTS journal_operation CASCADE;
-DROP TABLE IF EXISTS maison CASCADE;
-DROP TABLE IF EXISTS cour CASCADE;
-DROP TABLE IF EXISTS bien_service CASCADE;
-DROP TABLE IF EXISTS demande CASCADE;
-DROP TABLE IF EXISTS offre CASCADE;
-DROP TABLE IF EXISTS notification CASCADE;
-DROP TABLE IF EXISTS temoignage CASCADE;
-DROP TABLE IF EXISTS contact CASCADE;
-DROP TABLE IF EXISTS annonce CASCADE;
-DROP TABLE IF EXISTS categorie_bien_service CASCADE;
-DROP TABLE IF EXISTS secteur CASCADE;
-DROP TABLE IF EXISTS ville CASCADE;
-DROP TABLE IF EXISTS pays CASCADE;
-DROP TABLE IF EXISTS users CASCADE;
-DROP TABLE IF EXISTS role CASCADE;
-DROP TABLE IF EXISTS paiement CASCADE;
-DROP TABLE IF EXISTS pending_registration CASCADE;
-DROP TABLE IF EXISTS password_reset_token CASCADE;
-DROP TABLE IF EXISTS remboursement CASCADE;
-DROP TABLE IF EXISTS decompte_sortie CASCADE;
-DROP TABLE IF EXISTS parametre_systeme CASCADE;
-DROP TABLE IF EXISTS avenant_ligne CASCADE;
-DROP TABLE IF EXISTS avenant CASCADE;
-DROP TABLE IF EXISTS document CASCADE;
-
-DROP SEQUENCE IF EXISTS seq_annonce CASCADE;
-DROP SEQUENCE IF EXISTS seq_bien_service CASCADE;
-DROP SEQUENCE IF EXISTS seq_categorie CASCADE;
-DROP SEQUENCE IF EXISTS seq_contact CASCADE;
-DROP SEQUENCE IF EXISTS seq_contra_location CASCADE;
-DROP SEQUENCE IF EXISTS seq_contrat_mandat CASCADE;
-DROP SEQUENCE IF EXISTS seq_cour CASCADE;
-DROP SEQUENCE IF EXISTS seq_demande CASCADE;
-DROP SEQUENCE IF EXISTS seq_echeance CASCADE;
-DROP SEQUENCE IF EXISTS seq_journal CASCADE;
-DROP SEQUENCE IF EXISTS seq_location_service CASCADE;
-DROP SEQUENCE IF EXISTS seq_maison CASCADE;
-DROP SEQUENCE IF EXISTS seq_media CASCADE;
-DROP SEQUENCE IF EXISTS seq_offre CASCADE;
-DROP SEQUENCE IF EXISTS seq_notification CASCADE;
-DROP SEQUENCE IF EXISTS seq_temoignage CASCADE;
-DROP SEQUENCE IF EXISTS seq_paiement CASCADE;
-DROP SEQUENCE IF EXISTS seq_pays CASCADE;
-DROP SEQUENCE IF EXISTS seq_reservation CASCADE;
-DROP SEQUENCE IF EXISTS seq_role CASCADE;
-DROP SEQUENCE IF EXISTS seq_secteur CASCADE;
-DROP SEQUENCE IF EXISTS seq_users CASCADE;
-DROP SEQUENCE IF EXISTS seq_ville CASCADE;
-DROP SEQUENCE IF EXISTS seq_pending_registration CASCADE;
-DROP SEQUENCE IF EXISTS seq_password_reset_token CASCADE;
-DROP SEQUENCE IF EXISTS seq_paiement_echeance CASCADE;
-DROP SEQUENCE IF EXISTS seq_remboursement CASCADE;
-DROP SEQUENCE IF EXISTS seq_decompte_sortie CASCADE;
-DROP SEQUENCE IF EXISTS seq_parametre CASCADE;
-DROP SEQUENCE IF EXISTS seq_avenant_ligne CASCADE;
-DROP SEQUENCE IF EXISTS seq_avenant CASCADE;
-DROP SEQUENCE IF EXISTS seq_document CASCADE;
 
 -- ==============================================================
 -- Séquences
@@ -518,6 +446,14 @@ CREATE TABLE echeance_loyer (
     CONSTRAINT chk_echeance_entite CHECK (
         (entite_echeance_type = 'MANDAT' AND entite_echeance_id IS NOT NULL) OR
         (entite_echeance_type = 'LOCATION' AND entite_echeance_id IS NOT NULL)
+    ),
+    -- Une echeance ne peut etre PAYE que si le montant paye couvre le du et la penalite (tolerance 0,01).
+    -- Exception : un du nul ou negatif (reversement a zero, cloture sans paiement).
+    CONSTRAINT chk_echeance_paye_montant CHECK (
+        statut IS DISTINCT FROM 'PAYE'
+        OR montant_du IS NULL
+        OR montant_du <= 0
+        OR COALESCE(montant_paye, 0) >= montant_du + COALESCE(penalite, 0) - 0.01
     )
 );
 

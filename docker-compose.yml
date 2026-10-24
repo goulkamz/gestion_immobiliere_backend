@@ -10,9 +10,6 @@ services:
       - "127.0.0.1:5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./SystemImmo.sql:/docker-entrypoint-initdb.d/01-init.sql
-      - ./cascade_soft_delete_triggers.sql:/docker-entrypoint-initdb.d/02-trigger.sql
-      - ./seed-data.sql:/docker-entrypoint-initdb.d/03-seed-data.sql
     networks:
       - immobiliere-network
     restart: unless-stopped

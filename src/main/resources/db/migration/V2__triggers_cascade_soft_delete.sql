@@ -1,7 +1,7 @@
 /*==============================================================*/
 /* Migration : Cascade Soft Delete / Restore (triggers)        */
 /* SGBD      : PostgreSQL                                       */
-/* Prérequis : V1__init_schema.sql (SystemImmo.sql) déjà exécuté */
+/* Migration Flyway V2 (apres V1__schema_initial.sql)           */
 /*==============================================================*/
 
 -- ==============================================================
