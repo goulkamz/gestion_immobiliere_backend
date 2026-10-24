@@ -25,6 +25,22 @@ La structure de la base est gérée par **Flyway**. Il s'exécute au démarrage 
 - Il n'est chargé que par les profils `dev` (`application-dev.properties`) et `test` (`application-test.properties`), via `spring.flyway.locations=classpath:db/migration,classpath:db/seed`.
 - **En production**, ne pas utiliser le profil `dev` (`PROFILES_ACTIVE=prod`) : la configuration par défaut ne charge que `db/migration`, donc aucun compte de test n'est créé.
 
+## Premier administrateur en production
+
+En production la base est vide (pas de seed) : le premier compte admin est créé au démarrage par `AmorcageAdminService`, à partir du `.env` du serveur :
+
+```
+BOOTSTRAP_ADMIN_EMAIL=directeur@votre-agence.bf
+BOOTSTRAP_ADMIN_PASSWORD=un-mot-de-passe-fort-12-caracteres-ou-plus
+BOOTSTRAP_ADMIN_NOM=Ouedraogo        # facultatif (défaut : Administrateur)
+BOOTSTRAP_ADMIN_PRENOM=Salif         # facultatif (défaut : Principal)
+```
+
+- Le compte n'est créé que s'il n'existe **aucun admin actif** et que l'e-mail et le mot de passe sont renseignés. Sinon, rien ne se passe : on peut laisser les variables en place sans risque de doublon.
+- Mot de passe : 12 caractères minimum, avec majuscule, minuscule, chiffre et caractère spécial, sans espace. Un mot de passe faible est refusé (message dans les journaux, aucun compte créé).
+- Il est stocké chiffré, jamais écrit dans les journaux. **Après la première connexion, changer le mot de passe depuis l'application puis retirer `BOOTSTRAP_ADMIN_PASSWORD` du `.env`.**
+- Les autres comptes se créent ensuite depuis l'interface (page Utilisateurs). Pays, villes, secteurs et catégories se créent depuis les pages Localisation et Catégories.
+
 ## Repartir d'une base vide (dev)
 
 ```

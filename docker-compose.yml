@@ -108,6 +108,12 @@ services:
       # Profil
       - SPRING_PROFILES_ACTIVE=${PROFILES_ACTIVE}
 
+      # Premier admin (production, base vide) : a renseigner dans .env, puis retirer le mot de passe apres le 1er demarrage
+      - BOOTSTRAP_ADMIN_EMAIL=${BOOTSTRAP_ADMIN_EMAIL:-}
+      - BOOTSTRAP_ADMIN_PASSWORD=${BOOTSTRAP_ADMIN_PASSWORD:-}
+      - BOOTSTRAP_ADMIN_NOM=${BOOTSTRAP_ADMIN_NOM:-Administrateur}
+      - BOOTSTRAP_ADMIN_PRENOM=${BOOTSTRAP_ADMIN_PRENOM:-Principal}
+
       # PostgreSQL
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/gestion_immobiliere
       - SPRING_DATASOURCE_USERNAME=postgres
