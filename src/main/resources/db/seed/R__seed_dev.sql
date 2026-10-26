@@ -1,9 +1,13 @@
 /*==============================================================*/
-/* Script de seed COMPLET — couvre tous les modules + les corrections */
-/* de cette session : échéances calendaires, reversement bailleur,   */
-/* remboursement lié à paiement, résiliation avec nettoyage.         */
-/* Idempotent dans le sens où il utilise des dates relatives à NOW().*/
-/* Mot de passe commun (clair) pour tous les comptes : Password123!  */
+/* Seed de DEVELOPPEMENT : donnees de base uniquement.           */
+/* 1 admin, 3 agents, 5 bailleurs, 10 clients, 3 villes,         */
+/* 10 cours, 50 maisons, 5 categories, 30 biens/services,        */
+/* 25 annonces, 15 contacts, 60 offres, 40 demandes.             */
+/* Mandats, contrats, echeances, paiements, reservations et      */
+/* locations de biens/services ne sont PAS semes : ils se creent */
+/* en manipulant l'application (toutes les maisons sont libres). */
+/* Mot de passe commun (clair) pour tous les comptes : Password123! */
+/* Les parametres systeme viennent de la migration V3.           */
 /*==============================================================*/
 
 TRUNCATE TABLE remboursement, paiement_location_bien_service, location_bien_service,
@@ -12,407 +16,245 @@ TRUNCATE TABLE remboursement, paiement_location_bien_service, location_bien_serv
     contact, offre, temoignage, demande, annonce, secteur, ville, pays, users
 RESTART IDENTITY CASCADE;
 
-
-DO $$
-DECLARE
-    mois_courant        DATE := DATE_TRUNC('month', CURRENT_DATE)::date;
-    mois_precedent       DATE := (DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '1 month')::date;
-    mois_avant_precedent DATE := (DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '2 months')::date;
-    mois_suivant         DATE := (DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month')::date;
-
-    id_admin      INTEGER;
-    id_agent       INTEGER;
-    id_bailleur1   INTEGER;
-    id_bailleur2   INTEGER;
-    id_client1     INTEGER;
-    id_client2     INTEGER;
-
-    id_secteur_s12 INTEGER;
-    id_secteur_s15 INTEGER;
-    id_secteur_s03 INTEGER;
-
-    id_cour1 INTEGER; -- Ouagadougou, bailleur1
-    id_cour2 INTEGER; -- Bobo-Dioulasso, bailleur2
-    id_cour3 INTEGER; -- Ouagadougou (secteur 15), bailleur2 — bailleur2 a donc 2 cours (filtre multi-cours)
-    id_cour4 INTEGER; -- Ouagadougou (secteur 12), bailleur1 — mandat en facturation CUMUL
-
-    id_maison_a INTEGER; -- LOUEE (client1) - cour1
-    id_maison_b INTEGER; -- DISPONIBLE - cour1
-    id_maison_e INTEGER; -- LOUEE puis RESILIEE mi-mois - cour1
-    id_maison_c INTEGER; -- LOUEE (client2) - cour2
-    id_maison_g INTEGER; -- LOUEE (client2) - cour4 (mandat CUMUL)
-    id_maison_d INTEGER; -- DISPONIBLE - cour2
-
-    id_mandat1 INTEGER; -- cour1, commission 10%
-    id_mandat2 INTEGER; -- cour2, commission 12%
-    id_mandat3 INTEGER; -- cour4, commission 10%, facturation CUMUL
-
-    id_contrat1 INTEGER; -- client1 / maison A, ACTIF
-    id_contrat2 INTEGER; -- client2 / maison C, ACTIF
-    id_contrat3 INTEGER; -- client1 / maison E, RESILIE mi-mois
-    id_contrat4 INTEGER; -- client2 / maison G, ACTIF (cour4, mandat CUMUL)
-    r RECORD;
-    id_paiement_auto INTEGER;
-
-    id_categorie_vehicule INTEGER;
-    id_categorie_equipement INTEGER;
-    id_bien_vehicule INTEGER;
-    id_bien_sono INTEGER;
-
-    id_paiement_loyer_a_precedent INTEGER;
-    id_paiement_loyer_c_precedent INTEGER;
-    id_paiement_reversement_mandat1_ancien INTEGER;
-    id_paiement_remboursement INTEGER;
-
-    id_echeance_a_retard INTEGER;
-    id_echeance_a_payee INTEGER;
-    id_echeance_c_payee INTEGER;
-    id_echeance_mandat1_ancienne INTEGER;
-BEGIN
-
 -- ==============================================================
--- Users
+-- Users : emails du type agent@, agent2@, agent3@, bailleur@, bailleur2@ ... client@, client2@ ...
 -- ==============================================================
 INSERT INTO users (id_role, nom, prenom, sexe, email, mot_de_passe, date_naissance, telephone, flag_actif, created_at)
-VALUES
-    ((SELECT id_role FROM role WHERE libelle_role = 'ROLE_ADMIN'), 'Admin', 'Système', 'M', 'admin@gestimmo.test',
-     '$2b$10$Cd6ZzZLgeG241M75v0ub1ea7cFQNsXwIwUpj0sXEGSyoEBhrI4NMu', '1985-01-15', '70000001', TRUE, NOW()),
-    ((SELECT id_role FROM role WHERE libelle_role = 'ROLE_AGENT'), 'Diallo', 'Amadou', 'M', 'agent@gestimmo.test',
-     '$2b$10$Cd6ZzZLgeG241M75v0ub1ea7cFQNsXwIwUpj0sXEGSyoEBhrI4NMu', '1990-03-22', '70000002', TRUE, NOW()),
-    ((SELECT id_role FROM role WHERE libelle_role = 'ROLE_BAILLEUR'), 'Ouedraogo', 'Fatou', 'F', 'bailleur@gestimmo.test',
-     '$2b$10$Cd6ZzZLgeG241M75v0ub1ea7cFQNsXwIwUpj0sXEGSyoEBhrI4NMu', '1978-07-10', '70000003', TRUE, NOW()),
-    ((SELECT id_role FROM role WHERE libelle_role = 'ROLE_BAILLEUR'), 'Compaore', 'Jean', 'M', 'bailleur2@gestimmo.test',
-     '$2b$10$Cd6ZzZLgeG241M75v0ub1ea7cFQNsXwIwUpj0sXEGSyoEBhrI4NMu', '1982-09-02', '70000006', TRUE, NOW()),
-    ((SELECT id_role FROM role WHERE libelle_role = 'ROLE_CLIENT'), 'Kone', 'Ibrahim', 'M', 'client@gestimmo.test',
-     '$2b$10$Cd6ZzZLgeG241M75v0ub1ea7cFQNsXwIwUpj0sXEGSyoEBhrI4NMu', '1995-11-05', '70000004', TRUE, NOW()),
-    ((SELECT id_role FROM role WHERE libelle_role = 'ROLE_CLIENT'), 'Sawadogo', 'Fatimata', 'F', 'client2@gestimmo.test',
-     '$2b$10$Cd6ZzZLgeG241M75v0ub1ea7cFQNsXwIwUpj0sXEGSyoEBhrI4NMu', '1993-06-18', '70000005', TRUE, NOW());
-
-SELECT id_user INTO id_admin FROM users WHERE email = 'admin@gestimmo.test';
-SELECT id_user INTO id_agent FROM users WHERE email = 'agent@gestimmo.test';
-SELECT id_user INTO id_bailleur1 FROM users WHERE email = 'bailleur@gestimmo.test';
-SELECT id_user INTO id_bailleur2 FROM users WHERE email = 'bailleur2@gestimmo.test';
-SELECT id_user INTO id_client1 FROM users WHERE email = 'client@gestimmo.test';
-SELECT id_user INTO id_client2 FROM users WHERE email = 'client2@gestimmo.test';
+SELECT (SELECT id_role FROM role WHERE libelle_role = u.role), u.nom, u.prenom, u.sexe, u.email,
+       '$2b$10$Cd6ZzZLgeG241M75v0ub1ea7cFQNsXwIwUpj0sXEGSyoEBhrI4NMu',
+       DATE '1975-01-01' + (u.n * 397), '7000' || LPAD(u.n::text, 4, '0'), TRUE, NOW() - (u.n * INTERVAL '3 days')
+FROM (VALUES
+    (1,  'ROLE_ADMIN',    'Zongo',     'Mariam',   'F', 'admin@gestimmo.test'),
+    (2,  'ROLE_AGENT',    'Diallo',    'Amadou',   'M', 'agent@gestimmo.test'),
+    (3,  'ROLE_AGENT',    'Sankara',   'Aminata',  'F', 'agent2@gestimmo.test'),
+    (4,  'ROLE_AGENT',    'Tapsoba',   'Issouf',   'M', 'agent3@gestimmo.test'),
+    (5,  'ROLE_BAILLEUR', 'Ouedraogo', 'Fatou',    'F', 'bailleur@gestimmo.test'),
+    (6,  'ROLE_BAILLEUR', 'Compaore',  'Jean',     'M', 'bailleur2@gestimmo.test'),
+    (7,  'ROLE_BAILLEUR', 'Nikiema',   'Salamata', 'F', 'bailleur3@gestimmo.test'),
+    (8,  'ROLE_BAILLEUR', 'Barry',     'Moussa',   'M', 'bailleur4@gestimmo.test'),
+    (9,  'ROLE_BAILLEUR', 'Ilboudo',   'Rasmata',  'F', 'bailleur5@gestimmo.test'),
+    (10, 'ROLE_CLIENT',   'Kone',      'Ibrahim',  'M', 'client@gestimmo.test'),
+    (11, 'ROLE_CLIENT',   'Sawadogo',  'Fatimata', 'F', 'client2@gestimmo.test'),
+    (12, 'ROLE_CLIENT',   'Kabore',    'Seydou',   'M', 'client3@gestimmo.test'),
+    (13, 'ROLE_CLIENT',   'Ouattara',  'Awa',      'F', 'client4@gestimmo.test'),
+    (14, 'ROLE_CLIENT',   'Zida',      'Boukary',  'M', 'client5@gestimmo.test'),
+    (15, 'ROLE_CLIENT',   'Yameogo',   'Clarisse', 'F', 'client6@gestimmo.test'),
+    (16, 'ROLE_CLIENT',   'Some',      'Lassina',  'M', 'client7@gestimmo.test'),
+    (17, 'ROLE_CLIENT',   'Traore',    'Nadège',   'F', 'client8@gestimmo.test'),
+    (18, 'ROLE_CLIENT',   'Belem',     'Hamidou',  'M', 'client9@gestimmo.test'),
+    (19, 'ROLE_CLIENT',   'Coulibaly', 'Estelle',  'F', 'client10@gestimmo.test')
+) AS u(n, role, nom, prenom, sexe, email);
 
 -- ==============================================================
--- Localisation
+-- Localisation : 1 pays, 3 villes, 9 secteurs
 -- ==============================================================
 INSERT INTO pays (code_pays, nom_pays) VALUES ('226', 'Burkina Faso');
 
 INSERT INTO ville (id_pays, code_ville, nom_ville)
-VALUES
-    ((SELECT id_pays FROM pays WHERE code_pays = '226'), 'OUA', 'Ouagadougou'),
-    ((SELECT id_pays FROM pays WHERE code_pays = '226'), 'BOB', 'Bobo-Dioulasso');
+SELECT (SELECT id_pays FROM pays WHERE code_pays = '226'), v.code, v.nom
+FROM (VALUES ('OUA', 'Ouagadougou'), ('BOB', 'Bobo-Dioulasso'), ('KDG', 'Koudougou')) AS v(code, nom);
 
 INSERT INTO secteur (id_ville, code_secteur, nom_secteur)
-VALUES
-    ((SELECT id_ville FROM ville WHERE code_ville = 'OUA'), 'S12', 'Secteur 12'),
-    ((SELECT id_ville FROM ville WHERE code_ville = 'OUA'), 'S15', 'Secteur 15'),
-    ((SELECT id_ville FROM ville WHERE code_ville = 'BOB'), 'S03', 'Secteur 3');
-
-SELECT id_secteur INTO id_secteur_s12 FROM secteur WHERE code_secteur = 'S12';
-SELECT id_secteur INTO id_secteur_s15 FROM secteur WHERE code_secteur = 'S15';
-SELECT id_secteur INTO id_secteur_s03 FROM secteur WHERE code_secteur = 'S03';
+SELECT (SELECT id_ville FROM ville WHERE code_ville = s.ville), s.code, s.nom
+FROM (VALUES
+    ('OUA', 'S12', 'Secteur 12'),
+    ('OUA', 'S15', 'Secteur 15'),
+    ('OUA', 'S30', 'Secteur 30'),
+    ('OUA', 'S05', 'Secteur 5'),
+    ('BOB', 'S03', 'Secteur 3'),
+    ('BOB', 'S07', 'Secteur 7'),
+    ('BOB', 'S22', 'Secteur 22'),
+    ('KDG', 'K01', 'Secteur 1'),
+    ('KDG', 'K04', 'Secteur 4')
+) AS s(ville, code, nom);
 
 -- ==============================================================
--- Catégories + Biens/Services
+-- 10 cours : chaque bailleur en possede 2, repartis sur les 3 villes
+-- ==============================================================
+INSERT INTO cour (id_secteur, id_user, reference_cour, lot_cour, numero_porte, description, created_at)
+SELECT (SELECT id_secteur FROM secteur ORDER BY id_secteur OFFSET ((n * 4) % 9) LIMIT 1),
+       (SELECT id_user FROM users WHERE email = CASE (n + 1) / 2 WHEN 1 THEN 'bailleur@gestimmo.test'
+            ELSE 'bailleur' || ((n + 1) / 2) || '@gestimmo.test' END),
+       'COUR-2026-' || LPAD(n::text, 3, '0'),
+       'Lot ' || (10 + n * 7),
+       n * 3,
+       'Cour clôturée avec 5 logements, point d''eau et électricité, gardien de nuit.',
+       NOW() - (n * INTERVAL '10 days')
+FROM generate_series(1, 10) AS n;
+
+-- ==============================================================
+-- 50 maisons : 5 par cour, toutes DISPONIBLE (aucun mandat ni contrat)
+-- ==============================================================
+INSERT INTO maison (id_cour, type_maison, nom_commun_maison, nombre_piece, loyer, caution, nombre_mois_caution, statut, description, created_at)
+SELECT c.id_cour, t.type, t.type || ' ' || c.id_cour || '-' || g.num, t.pieces, t.loyer,
+       t.loyer * 2, 2, 'DISPONIBLE', t.description, NOW() - (c.id_cour * INTERVAL '9 days')
+FROM cour c
+CROSS JOIN generate_series(1, 5) AS g(num)
+JOIN (VALUES
+    (1, 'Studio',          1,  45000, 'Studio avec douche interne, carrelé, proche des commerces.'),
+    (2, 'Chambre-salon',   2,  65000, 'Une chambre et un salon, cuisine externe, douche interne.'),
+    (3, 'Appartement',     3,  95000, 'Appartement de 3 pièces, cuisine équipée, balcon.'),
+    (4, 'Villa',           4, 150000, 'Villa de 4 pièces avec cour privée et place de parking.'),
+    (5, 'Duplex',          5, 220000, 'Duplex de 5 pièces avec terrasse, climatisation prévue.')
+) AS t(k, type, pieces, loyer, description) ON t.k = ((g.num + c.id_cour) % 5) + 1;
+
+-- ==============================================================
+-- 5 categories + 30 biens/services (6 par categorie), proposes par les 3 agents
 -- ==============================================================
 INSERT INTO categorie_bien_service (libelle, description, created_at)
 VALUES
-    ('Véhicule', 'Location de véhicules', NOW()),
-    ('Équipement', 'Location de matériel événementiel', NOW());
-
-SELECT id_categorie INTO id_categorie_vehicule FROM categorie_bien_service WHERE libelle = 'Véhicule';
-SELECT id_categorie INTO id_categorie_equipement FROM categorie_bien_service WHERE libelle = 'Équipement';
+    ('Véhicule', 'Location de véhicules avec ou sans chauffeur', NOW()),
+    ('Équipement événementiel', 'Sonorisation, bâches, chaises et tables', NOW()),
+    ('Matériel de chantier', 'Outillage et engins pour travaux', NOW()),
+    ('Salle et espace', 'Salles de réunion, de fête et espaces de stockage', NOW()),
+    ('Électroménager', 'Appareils à louer pour la maison ou le bureau', NOW());
 
 INSERT INTO bien_service (id_secteur, id_categorie, id_user, libelle, description, prix_journalier, prix_mensuel, disponibilite, created_at)
-VALUES
-    (id_secteur_s12, id_categorie_vehicule, id_agent, 'Toyota Hilux 2022', 'Pick-up 4x4 climatisé, idéal chantier ou voyage', 35000, 800000, 'DISPONIBLE', NOW()),
-    (id_secteur_s15, id_categorie_equipement, id_agent, 'Kit sonorisation 500W', 'Sono complète avec micros et enceintes', 15000, NULL, 'DISPONIBLE', NOW());
-
-SELECT id_bien_service INTO id_bien_vehicule FROM bien_service WHERE libelle = 'Toyota Hilux 2022';
-SELECT id_bien_service INTO id_bien_sono FROM bien_service WHERE libelle = 'Kit sonorisation 500W';
-
--- ==============================================================
--- Cours (2 bailleurs, 2 villes)
--- ==============================================================
-INSERT INTO cour (id_secteur, id_user, reference_cour, lot_cour, numero_porte, created_at)
-VALUES
-    (id_secteur_s12, id_bailleur1, 'COUR-2026-001', 'Lot 45', 12, NOW()),
-    (id_secteur_s03, id_bailleur2, 'COUR-2026-002', 'Lot 8', 3, NOW()),
-    -- bailleur2 possède une 2e cour (secteur 15, Ouagadougou) pour tester
-    -- le filtre multi-cours côté frontend (masqué si un seul bailleur n'a qu'une cour)
-    (id_secteur_s15, id_bailleur2, 'COUR-2026-003', 'Lot 22', 7, NOW()),
-    -- 2e cour de bailleur1, confiée en facturation CUMUL (versement groupé à la demande de l'agent)
-    (id_secteur_s12, id_bailleur1, 'COUR-2026-004', 'Lot 50', 15, NOW());
-
-SELECT id_cour INTO id_cour1 FROM cour WHERE reference_cour = 'COUR-2026-001';
-SELECT id_cour INTO id_cour2 FROM cour WHERE reference_cour = 'COUR-2026-002';
-SELECT id_cour INTO id_cour3 FROM cour WHERE reference_cour = 'COUR-2026-003';
-SELECT id_cour INTO id_cour4 FROM cour WHERE reference_cour = 'COUR-2026-004';
-
--- ==============================================================
--- Maisons — cour1 : A (louée), B (disponible), E (louée puis résiliée)
---            cour2 : C (louée), D (disponible)
---            cour3 : F (disponible) — 2e cour de bailleur2
---            cour4 : G (louée) — 2e cour de bailleur1, mandat CUMUL
--- ==============================================================
-INSERT INTO maison (id_cour, type_maison, nom_commun_maison, nombre_piece, loyer, caution, nombre_mois_caution, statut, created_at)
-VALUES
-    (id_cour1, 'Villa', 'Maison A - Villa 3 pièces', 3, 150000, 300000, 2, 'LOUEE', NOW()),
-    (id_cour1, 'Studio', 'Maison B - Studio', 1, 60000, 120000, 2, 'DISPONIBLE', NOW()),
-    (id_cour1, 'Studio', 'Maison E - Studio annexe', 1, 70000, 140000, 2, 'DISPONIBLE', NOW()), -- redevenue disponible après résiliation
-    (id_cour2, 'Villa', 'Maison C - Villa 2 pièces', 2, 100000, 200000, 2, 'LOUEE', NOW()),
-    (id_cour2, 'Studio', 'Maison D - Studio', 1, 55000, 110000, 2, 'DISPONIBLE', NOW()),
-    (id_cour3, 'Studio', 'Maison F - Studio annexe', 1, 65000, 130000, 2, 'DISPONIBLE', NOW()),
-    (id_cour4, 'Studio', 'Maison G - Studio meublé', 1, 50000, 100000, 2, 'LOUEE', NOW());
-
-SELECT id_maison INTO id_maison_a FROM maison WHERE nom_commun_maison = 'Maison A - Villa 3 pièces';
-SELECT id_maison INTO id_maison_b FROM maison WHERE nom_commun_maison = 'Maison B - Studio';
-SELECT id_maison INTO id_maison_e FROM maison WHERE nom_commun_maison = 'Maison E - Studio annexe';
-SELECT id_maison INTO id_maison_c FROM maison WHERE nom_commun_maison = 'Maison C - Villa 2 pièces';
-SELECT id_maison INTO id_maison_d FROM maison WHERE nom_commun_maison = 'Maison D - Studio';
-SELECT id_maison INTO id_maison_g FROM maison WHERE nom_commun_maison = 'Maison G - Studio meublé';
+SELECT (SELECT id_secteur FROM secteur ORDER BY id_secteur OFFSET (b.n % 9) LIMIT 1),
+       (SELECT id_categorie FROM categorie_bien_service WHERE libelle = b.categorie),
+       (SELECT id_user FROM users WHERE email = CASE b.n % 3 WHEN 0 THEN 'agent@gestimmo.test'
+            WHEN 1 THEN 'agent2@gestimmo.test' ELSE 'agent3@gestimmo.test' END),
+       b.libelle, b.description, b.prix_jour, b.prix_mois, 'DISPONIBLE', NOW() - (b.n * INTERVAL '2 days')
+FROM (VALUES
+    (1,  'Véhicule', 'Toyota Hilux 2022', 'Pick-up 4x4 climatisé, idéal chantier ou voyage', 35000, 800000),
+    (2,  'Véhicule', 'Toyota Corolla 2020', 'Berline économique et confortable', 25000, 550000),
+    (3,  'Véhicule', 'Minibus Toyota Hiace 18 places', 'Transport de groupe, climatisé', 60000, 1300000),
+    (4,  'Véhicule', 'Hyundai Tucson 2021', 'SUV familial, boîte automatique', 40000, 900000),
+    (5,  'Véhicule', 'Moto Yamaha 125', 'Moto de ville, casque fourni', 6000, 120000),
+    (6,  'Véhicule', 'Camion benne 10 tonnes', 'Transport de matériaux, chauffeur disponible', 90000, NULL),
+    (7,  'Équipement événementiel', 'Kit sonorisation 500W', 'Sono complète avec micros et enceintes', 15000, NULL),
+    (8,  'Équipement événementiel', 'Bâche 100 places', 'Grande bâche avec montage et démontage', 50000, NULL),
+    (9,  'Équipement événementiel', 'Lot de 100 chaises', 'Chaises plastiques empilables', 20000, NULL),
+    (10, 'Équipement événementiel', 'Groupe électrogène 20 kVA', 'Alimentation de secours pour événement', 30000, 600000),
+    (11, 'Équipement événementiel', 'Vidéoprojecteur et écran', 'Projecteur HD avec écran de 3 mètres', 12000, NULL),
+    (12, 'Équipement événementiel', 'Lot de 20 tables rondes', 'Tables de banquet pour 8 personnes', 25000, NULL),
+    (13, 'Matériel de chantier', 'Bétonnière 350 L', 'Bétonnière électrique sur roues', 10000, 200000),
+    (14, 'Matériel de chantier', 'Échafaudage 50 m²', 'Éléments modulaires avec stabilisateurs', 18000, 350000),
+    (15, 'Matériel de chantier', 'Perforateur burineur', 'Perforateur professionnel avec jeu de forets', 7000, NULL),
+    (16, 'Matériel de chantier', 'Compacteur à plaque', 'Compactage de tranchées et de plateformes', 20000, NULL),
+    (17, 'Matériel de chantier', 'Mini-pelle 1,8 tonne', 'Terrassement avec conducteur', 120000, NULL),
+    (18, 'Matériel de chantier', 'Poste à souder inverter', 'Poste 200 A avec électrodes', 8000, NULL),
+    (19, 'Salle et espace', 'Salle de réunion 20 places', 'Salle climatisée avec paperboard et wifi', 30000, 600000),
+    (20, 'Salle et espace', 'Salle des fêtes 200 places', 'Salle avec scène, cuisine et parking', 150000, NULL),
+    (21, 'Salle et espace', 'Entrepôt de 150 m²', 'Stockage sécurisé avec quai de chargement', 20000, 450000),
+    (22, 'Salle et espace', 'Bureau partagé', 'Poste de travail avec connexion fibre', 5000, 90000),
+    (23, 'Salle et espace', 'Terrain de réception', 'Espace extérieur clôturé de 1000 m²', 70000, NULL),
+    (24, 'Salle et espace', 'Salle de formation 30 places', 'Salle équipée de vidéoprojecteur', 45000, 900000),
+    (25, 'Électroménager', 'Réfrigérateur 300 L', 'Réfrigérateur double porte', 3000, 60000),
+    (26, 'Électroménager', 'Climatiseur split 2 CV', 'Climatiseur avec installation incluse', 5000, 100000),
+    (27, 'Électroménager', 'Machine à laver 8 kg', 'Lave-linge chargement frontal', 3500, 70000),
+    (28, 'Électroménager', 'Congélateur coffre 400 L', 'Idéal pour événements et commerces', 4000, 80000),
+    (29, 'Électroménager', 'Cuisinière 4 feux avec four', 'Cuisinière à gaz', 3000, 55000),
+    (30, 'Électroménager', 'Lot de 3 ventilateurs sur pied', 'Ventilateurs puissants pour salle ou bureau', 2500, 45000)
+) AS b(n, categorie, libelle, description, prix_jour, prix_mois);
 
 -- ==============================================================
--- Contrats de mandat — 3 mandats GESTION ACTIF, même agent : 2 en facturation MENSUEL, 1 en CUMUL
--- (aucun mandat résilié : un mandat ne peut pas être résilié tant qu'une maison de sa cour a une location ACTIF)
--- ==============================================================
-INSERT INTO contrat_mandat (id_cour, id_user, date_debut, date_fin, type_mandat, commission, mode_facturation, statut)
-VALUES
-    (id_cour1, id_agent, mois_avant_precedent - INTERVAL '2 months', mois_avant_precedent - INTERVAL '2 months' + INTERVAL '1 year', 'GESTION', 10, 'MENSUEL', 'ACTIF'),
-    (id_cour2, id_agent, mois_avant_precedent - INTERVAL '1 month', mois_avant_precedent - INTERVAL '1 month' + INTERVAL '1 year', 'GESTION', 12, 'MENSUEL', 'ACTIF'),
-    (id_cour4, id_agent, mois_avant_precedent - INTERVAL '1 month', NULL, 'GESTION', 10, 'CUMUL', 'ACTIF');
-
-SELECT id_mandat INTO id_mandat1 FROM contrat_mandat WHERE id_cour = id_cour1;
-SELECT id_mandat INTO id_mandat2 FROM contrat_mandat WHERE id_cour = id_cour2;
-SELECT id_mandat INTO id_mandat3 FROM contrat_mandat WHERE id_cour = id_cour4;
-
--- ==============================================================
--- Contrats de location
--- Contrat1 : client1 / Maison A, ACTIF, entré il y a 3 mois
--- Contrat2 : client2 / Maison C, ACTIF, entré il y a 2 mois
--- Contrat3 : client1 / Maison E, entré il y a 2 mois, RESILIE mi-mois courant
--- Contrat4 : client2 / Maison G (cour4), ACTIF, entré il y a 3 mois
--- ==============================================================
-INSERT INTO contra_location (id_user, id_maison, date_entree, date_sortie, montant_loyer, statut, type_contrat, depot_garantie, etat_des_lieux_entree, created_at)
-VALUES
-    (id_client1, id_maison_a, mois_avant_precedent - INTERVAL '1 month', NULL, 150000, 'ACTIF', 'HABITATION', 300000, 'RAS - état correct à l''entrée', NOW()),
-    (id_client2, id_maison_c, mois_avant_precedent, NULL, 100000, 'ACTIF', 'HABITATION', 200000, 'RAS - état correct à l''entrée', NOW()),
-    (id_client1, id_maison_e, mois_avant_precedent, mois_courant + INTERVAL '14 days', 70000, 'RESILIE', 'HABITATION', 140000, 'RAS - état correct à l''entrée', NOW()),
-    (id_client2, id_maison_g, mois_avant_precedent - INTERVAL '1 month', NULL, 50000, 'ACTIF', 'HABITATION', 100000, 'RAS - état correct à l''entrée', NOW());
-
-SELECT id_contra_location INTO id_contrat1 FROM contra_location WHERE id_maison = id_maison_a;
-SELECT id_contra_location INTO id_contrat2 FROM contra_location WHERE id_maison = id_maison_c;
-SELECT id_contra_location INTO id_contrat3 FROM contra_location WHERE id_maison = id_maison_e;
-SELECT id_contra_location INTO id_contrat4 FROM contra_location WHERE id_maison = id_maison_g;
-
--- ==============================================================
--- Échéances LOCATION — modèle CALENDAIRE (échéance du 1er du mois M = occupation du mois M-1)
--- Chaque contrat a une échéance pour CHAQUE mois depuis son entrée : le calcul du reversement d'un mandat
--- somme les échéances LOCATION de sa cour pour le mois, elles doivent donc exister.
--- Contrat1 (Maison A, entré il y a 3 mois) : 1er mois PAYE, mois précédent = EN_RETARD (jamais payé), mois courant = PAYE, mois suivant = EN_ATTENTE
--- Contrat2 (Maison C, entré il y a 2 mois) : mois précédent et courant = PAYE, mois suivant = EN_ATTENTE
--- Contrat3 (Maison E, entré il y a 2 mois, résiliée mi-mois courant) : mois précédent et courant = PAYE ;
---   l'échéance du mois suivant (occupation du mois de résiliation) est la dernière, aucune au-delà
---   (simule le nettoyage de supprimerEcheancesFutures())
--- Contrat4 (Maison G, cour4 en CUMUL, entré il y a 3 mois) : 3 premiers mois PAYE, mois suivant = EN_ATTENTE
--- ==============================================================
-INSERT INTO echeance_loyer (entite_echeance_type, entite_echeance_id, date_echeance, montant_du, montant_paye, statut, created_at)
-VALUES
-    ('LOCATION', id_contrat1, mois_avant_precedent, 150000, 150000, 'PAYE', NOW()),
-    ('LOCATION', id_contrat1, mois_precedent, 150000, 0, 'EN_RETARD', NOW()),
-    ('LOCATION', id_contrat1, mois_courant, 150000, 150000, 'PAYE', NOW()),
-    ('LOCATION', id_contrat1, mois_suivant, 150000, 0, 'EN_ATTENTE', NOW()),
-    ('LOCATION', id_contrat2, mois_precedent, 100000, 100000, 'PAYE', NOW()),
-    ('LOCATION', id_contrat2, mois_courant, 100000, 100000, 'PAYE', NOW()),
-    ('LOCATION', id_contrat2, mois_suivant, 100000, 0, 'EN_ATTENTE', NOW()),
-    ('LOCATION', id_contrat3, mois_precedent, 70000, 70000, 'PAYE', NOW()),
-    ('LOCATION', id_contrat3, mois_courant, 70000, 70000, 'PAYE', NOW()),
-    ('LOCATION', id_contrat3, mois_suivant, 70000, 0, 'EN_ATTENTE', NOW()),
-    ('LOCATION', id_contrat4, mois_avant_precedent, 50000, 50000, 'PAYE', NOW()),
-    ('LOCATION', id_contrat4, mois_precedent, 50000, 50000, 'PAYE', NOW()),
-    ('LOCATION', id_contrat4, mois_courant, 50000, 50000, 'PAYE', NOW()),
-    ('LOCATION', id_contrat4, mois_suivant, 50000, 0, 'EN_ATTENTE', NOW());
-
-SELECT id_echeance INTO id_echeance_a_retard FROM echeance_loyer WHERE entite_echeance_id = id_contrat1 AND date_echeance = mois_precedent;
-SELECT id_echeance INTO id_echeance_a_payee FROM echeance_loyer WHERE entite_echeance_id = id_contrat1 AND date_echeance = mois_courant;
-SELECT id_echeance INTO id_echeance_c_payee FROM echeance_loyer WHERE entite_echeance_id = id_contrat2 AND date_echeance = mois_courant;
-
--- ==============================================================
--- Paiements ENTREE (loyers réglés par les locataires) + liaison paiement_echeance
--- ==============================================================
-INSERT INTO paiement (date_paiement, montant_paiement, mode_paiement, reference_paiement, sens, user_create)
-VALUES
-    (mois_courant, 150000, 'MOBILE_MONEY', 'PAY-2026-LOYER-A', 'ENTREE', id_client1),
-    (mois_courant, 100000, 'MOBILE_MONEY', 'PAY-2026-LOYER-C', 'ENTREE', id_client2);
-
-SELECT id_paiement INTO id_paiement_loyer_a_precedent FROM paiement WHERE reference_paiement = 'PAY-2026-LOYER-A';
-SELECT id_paiement INTO id_paiement_loyer_c_precedent FROM paiement WHERE reference_paiement = 'PAY-2026-LOYER-C';
-
-INSERT INTO paiement_echeance (id_echeance, id_paiement)
-VALUES
-    (id_echeance_a_payee, id_paiement_loyer_a_precedent),
-    (id_echeance_c_payee, id_paiement_loyer_c_precedent);
-
--- Toute autre échéance LOCATION PAYE reçoit son paiement ENTREE (jamais d'échéance payée sans paiement)
-FOR r IN
-    SELECT e.id_echeance, e.date_echeance, e.montant_paye, cl.id_user AS id_locataire
-    FROM echeance_loyer e
-    JOIN contra_location cl ON cl.id_contra_location = e.entite_echeance_id
-    WHERE e.entite_echeance_type = 'LOCATION' AND e.statut = 'PAYE'
-      AND NOT EXISTS (SELECT 1 FROM paiement_echeance pe WHERE pe.id_echeance = e.id_echeance)
-LOOP
-    INSERT INTO paiement (date_paiement, montant_paiement, mode_paiement, reference_paiement, sens, user_create)
-    VALUES (r.date_echeance, r.montant_paye, 'MOBILE_MONEY', 'PAY-AUTO-LOYER-' || r.id_echeance, 'ENTREE', r.id_locataire)
-    RETURNING id_paiement INTO id_paiement_auto;
-    INSERT INTO paiement_echeance (id_echeance, id_paiement) VALUES (r.id_echeance, id_paiement_auto);
-END LOOP;
-
--- ==============================================================
--- Échéances MANDAT — modèle reversement bailleur (montant_du = NET, commission_deduite = gain agence)
--- Mandat1 (cour1, 10%, MENSUEL) : ancienne (2 mois avant, PAYE, déjà reversée) + actuelle (mois précédent, EN_ATTENTE)
--- Mandat2 (cour2, 12%, MENSUEL) : actuelle (mois précédent, EN_ATTENTE)
--- Mandat3 (cour4, 10%, CUMUL) : aucune échéance, à calculer via le calcul cumulé
--- Les montants sont ceux du calcul réel : loyers dus = somme des échéances LOCATION de la cour pour le mois.
--- ==============================================================
-
--- Ancienne échéance mandat1, déjà reversée : loyers encaissés 150000, commission 15000, net 135000
-INSERT INTO echeance_loyer (entite_echeance_type, entite_echeance_id, date_echeance, montant_du, montant_paye, commission_deduite, statut, created_at)
-VALUES ('MANDAT', id_mandat1, mois_avant_precedent, 135000, 135000, 15000, 'PAYE', NOW());
-
-SELECT id_echeance INTO id_echeance_mandat1_ancienne FROM echeance_loyer
-    WHERE entite_echeance_id = id_mandat1 AND entite_echeance_type = 'MANDAT' AND date_echeance = mois_avant_precedent;
-
-INSERT INTO paiement (date_paiement, montant_paiement, mode_paiement, reference_paiement, sens, user_create)
-VALUES (mois_precedent, 135000, 'VIREMENT_BANCAIRE', 'REV-2026-MANDAT1-001', 'SORTIE', id_agent);
-
-SELECT id_paiement INTO id_paiement_reversement_mandat1_ancien FROM paiement WHERE reference_paiement = 'REV-2026-MANDAT1-001';
-
-INSERT INTO paiement_echeance (id_echeance, id_paiement)
-VALUES (id_echeance_mandat1_ancienne, id_paiement_reversement_mandat1_ancien);
-
--- Échéance actuelle mandat1, pas encore reversée : loyers dus du mois précédent 220000 (maisons A + E), commission 22000, net 198000
-INSERT INTO echeance_loyer (entite_echeance_type, entite_echeance_id, date_echeance, montant_du, montant_paye, commission_deduite, statut, created_at)
-VALUES ('MANDAT', id_mandat1, mois_precedent, 198000, 0, 22000, 'EN_ATTENTE', NOW());
-
--- Échéance actuelle mandat2, pas encore reversée : loyers dus du mois précédent 100000, commission 12000, net 88000
-INSERT INTO echeance_loyer (entite_echeance_type, entite_echeance_id, date_echeance, montant_du, montant_paye, commission_deduite, statut, created_at)
-VALUES ('MANDAT', id_mandat2, mois_precedent, 88000, 0, 12000, 'EN_ATTENTE', NOW());
-
--- ==============================================================
--- Annonces / Demande / Offre / Contact / Réservation (inchangés)
+-- 25 annonces : 20 ACTIVE, 3 EXPIREE, 2 SUSPENDUE ; 20 LOCATION, 5 VENTE
 -- ==============================================================
 INSERT INTO annonce (titre, description, type_annonce, date_publication, date_expiration, statut, prix, localisation)
-VALUES
-    ('Studio à louer - Secteur 12', 'Studio meublé, calme, proche marché', 'LOCATION', NOW(), NOW() + INTERVAL '30 days', 'ACTIVE', 60000, 'Ouagadougou, Secteur 12'),
-    ('Villa 3 pièces disponible bientôt', 'Villa moderne, cour clôturée', 'LOCATION', NOW(), NOW() + INTERVAL '15 days', 'ACTIVE', 150000, 'Ouagadougou, Secteur 12');
+SELECT CASE WHEN n % 5 = 0 THEN 'Terrain à vendre - ' ELSE t.type || ' à louer - ' END || s.nom_secteur,
+       CASE WHEN n % 5 = 0 THEN 'Parcelle viabilisée, titre foncier disponible, accès facile.'
+            ELSE t.type || ' en bon état, ' || t.pieces || ' pièce(s), eau et électricité, quartier calme.' END,
+       CASE WHEN n % 5 = 0 THEN 'VENTE' ELSE 'LOCATION' END,
+       NOW() - (n * INTERVAL '2 days'),
+       CASE WHEN n IN (3, 11, 19) THEN NOW() - INTERVAL '1 day' ELSE NOW() + INTERVAL '30 days' END,
+       CASE WHEN n IN (3, 11, 19) THEN 'EXPIREE' WHEN n IN (8, 22) THEN 'SUSPENDUE' ELSE 'ACTIVE' END,
+       CASE WHEN n % 5 = 0 THEN 8000000 + n * 250000 ELSE t.loyer END,
+       v.nom_ville || ', ' || s.nom_secteur
+FROM generate_series(1, 25) AS n
+JOIN (SELECT ROW_NUMBER() OVER (ORDER BY id_secteur) AS r, id_secteur, id_ville, nom_secteur FROM secteur) s ON s.r = ((n - 1) % 9) + 1
+JOIN ville v ON v.id_ville = s.id_ville
+JOIN (VALUES
+    (0, 'Studio', 1, 45000), (1, 'Chambre-salon', 2, 65000), (2, 'Appartement', 3, 95000),
+    (3, 'Villa', 4, 150000), (4, 'Duplex', 5, 220000)
+) AS t(k, type, pieces, loyer) ON t.k = n % 5;
 
-INSERT INTO demande (nom_complet, email, telephone, type_bien, localisation_souhaite, budget_max, description, date_demande, statut)
-VALUES ('Sana Awa', 'sana.awa@test.com', '70123456', 'Appartement', 'Ouagadougou', 100000, 'Recherche 2 pièces proche université', NOW(), 'EN_ATTENTE');
-
-INSERT INTO offre (nom_complet, email, telephone, type_offre, titre, description, adresse, date_offre, statut)
-VALUES ('Traore Boureima', 'traore.b@test.com', '70654321', 'MAISON', 'Cour à confier en gestion', 'Cour de 4 maisons, secteur 15, bon état', 'Secteur 15, Ouagadougou', NOW(), 'EN_ATTENTE');
-
--- Temoignages : 4 PUBLIE (page d'accueil), 1 EN_ATTENTE (depot public a valider), 1 RETIRE (ecarte par un admin)
-INSERT INTO temoignage (nom_auteur, role, texte, note, date_temoignage, statut)
-VALUES
-    ('Fatou Ouédraogo', 'PROPRIETAIRE', 'Depuis que j''ai confié la gestion de ma cour à l''agence, je reçois mes loyers sans retard et je suis informée de chaque paiement.', 5, CURRENT_DATE - 20, 'PUBLIE'),
-    ('Ibrahim Kaboré', 'LOCATAIRE', 'Studio propre, démarches simples et un agent toujours joignable quand un problème se présente.', 4, CURRENT_DATE - 45, 'PUBLIE'),
-    ('Équipe de l''agence', 'AGENCE', 'Notre priorité : des biens bien entretenus, des loyers suivis et des échanges transparents avec chaque propriétaire.', NULL, CURRENT_DATE - 60, 'PUBLIE'),
-    ('Salimata Compaoré', 'LOCATAIRE', 'La réservation en ligne m''a évité plusieurs déplacements, et le contrat a été prêt rapidement.', 5, CURRENT_DATE - 90, 'PUBLIE'),
-    ('Visiteur Anonyme', 'AUTRE', 'Site clair et agence réactive, je recommande.', 4, CURRENT_DATE - 1, 'EN_ATTENTE'),
-    ('Anonyme Retiré', 'AUTRE', 'Texte écarté par la modération.', 1, CURRENT_DATE - 30, 'RETIRE');
-
+-- ==============================================================
+-- 15 contacts : 6 NON_LU, 5 LU, 4 TRAITE
+-- ==============================================================
 INSERT INTO contact (nom_complet, email, telephone, sujet, message, date_envoi, statut)
-VALUES ('Zongo Salif', 'zongo.salif@test.com', '70999888', 'Question sur une annonce', 'Bonjour, le studio du secteur 12 est-il toujours disponible ?', NOW(), 'NON_LU');
-
-INSERT INTO reservation_maison (id_user, id_maison, date_debut, date_fin, statut)
-VALUES (id_client1, id_maison_b, NOW() + INTERVAL '5 days', NOW() + INTERVAL '10 days', 'EN_ATTENTE');
-
--- ==============================================================
--- Locations Biens & Services — scénarios A à E (inchangés, cohérents avec la session précédente)
--- ==============================================================
-
--- Scénario A — Demande EN_ATTENTE
-INSERT INTO location_bien_service (id_user, id_bien_service, destination, date_debut, date_fin, duree, montant_total, statut, user_create, created_at)
-VALUES (id_client1, id_bien_vehicule, 'Déplacement Bobo-Dioulasso', NOW() + INTERVAL '2 days', NOW() + INTERVAL '5 days', 3, 105000, 'EN_ATTENTE', id_client1, NOW());
-
--- Scénario B — ACTIF avec paiement initial
-INSERT INTO paiement (date_paiement, montant_paiement, mode_paiement, reference_paiement, sens, user_create)
-VALUES (NOW(), 45000, 'MOBILE_MONEY', 'PAY-2026-0002', 'ENTREE', id_agent);
-
-INSERT INTO location_bien_service (id_user, id_bien_service, destination, date_debut, date_fin, duree, montant_total, statut, user_create, user_update, created_at)
-VALUES (id_client2, id_bien_sono, 'Événement mariage', NOW() - INTERVAL '2 days', NOW() + INTERVAL '1 day', 3, 45000, 'ACTIF', id_agent, id_agent, NOW());
-
-INSERT INTO paiement_location_bien_service (id_location_bien_service, id_paiement, type_paiement)
-VALUES ((SELECT id_location_bien_service FROM location_bien_service WHERE destination = 'Événement mariage'),
-        (SELECT id_paiement FROM paiement WHERE reference_paiement = 'PAY-2026-0002'), 'NORMAL');
-
--- Scénario C — ACTIF prolongée
-INSERT INTO paiement (date_paiement, montant_paiement, mode_paiement, reference_paiement, sens, user_create)
-VALUES (NOW() - INTERVAL '5 days', 140000, 'MOBILE_MONEY', 'PAY-2026-0003', 'ENTREE', id_agent);
-
-INSERT INTO location_bien_service (id_user, id_bien_service, destination, date_debut, date_fin, duree, montant_total, statut, user_create, user_update, created_at)
-VALUES (id_client1, id_bien_vehicule, 'Mission terrain prolongée', NOW() - INTERVAL '5 days', NOW() + INTERVAL '2 days', 7, 245000, 'ACTIF', id_agent, id_agent, NOW());
-
-INSERT INTO paiement_location_bien_service (id_location_bien_service, id_paiement, type_paiement)
-VALUES ((SELECT id_location_bien_service FROM location_bien_service WHERE destination = 'Mission terrain prolongée'),
-        (SELECT id_paiement FROM paiement WHERE reference_paiement = 'PAY-2026-0003'), 'NORMAL');
-
-INSERT INTO paiement (date_paiement, montant_paiement, mode_paiement, reference_paiement, sens, user_create)
-VALUES (NOW(), 105000, 'ESPECES', 'PAY-2026-0004', 'ENTREE', id_agent);
-
-INSERT INTO paiement_location_bien_service (id_location_bien_service, id_paiement, type_paiement)
-VALUES ((SELECT id_location_bien_service FROM location_bien_service WHERE destination = 'Mission terrain prolongée'),
-        (SELECT id_paiement FROM paiement WHERE reference_paiement = 'PAY-2026-0004'), 'PROLONGATION');
-
--- Scénario D — ACTIF raccourcie + remboursement partiel
-INSERT INTO paiement (date_paiement, montant_paiement, mode_paiement, reference_paiement, sens, user_create)
-VALUES (NOW() - INTERVAL '3 days', 210000, 'MOBILE_MONEY', 'PAY-2026-0005', 'ENTREE', id_agent);
-
-INSERT INTO location_bien_service (id_user, id_bien_service, destination, date_debut, date_fin, duree, montant_total, statut, user_create, user_update, created_at)
-VALUES (id_client2, id_bien_vehicule, 'Location raccourcie test', NOW() - INTERVAL '3 days', NOW() + INTERVAL '1 day', 4, 140000, 'ACTIF', id_agent, id_agent, NOW());
-
-INSERT INTO paiement_location_bien_service (id_location_bien_service, id_paiement, type_paiement)
-VALUES ((SELECT id_location_bien_service FROM location_bien_service WHERE destination = 'Location raccourcie test'),
-        (SELECT id_paiement FROM paiement WHERE reference_paiement = 'PAY-2026-0005'), 'NORMAL');
-
--- Remboursement : lié à un NOUVEAU paiement SORTIE (pas au paiement d'origine) — corrige l'erreur de l'ancien seed
-INSERT INTO paiement (date_paiement, montant_paiement, mode_paiement, reference_paiement, sens, user_create)
-VALUES (NOW(), 40000, 'ESPECES', 'RMB-2026-0001', 'SORTIE', id_agent);
-
-SELECT id_paiement INTO id_paiement_remboursement FROM paiement WHERE reference_paiement = 'RMB-2026-0001';
-
-INSERT INTO remboursement (entite_type, id_paiement, entite_id, motif, user_create)
-VALUES ('LOCATION_BIEN_SERVICE', id_paiement_remboursement,
-        (SELECT id_location_bien_service FROM location_bien_service WHERE destination = 'Location raccourcie test'),
-        'Raccourcissement de durée', id_agent);
-
-
--- Les parametres systeme viennent de la migration V3 (donnees de reference, aussi en production).
-
--- Scénario E — ANNULEE
-INSERT INTO location_bien_service (id_user, id_bien_service, destination, date_debut, date_fin, duree, montant_total, statut, user_create, user_update, created_at)
-VALUES (id_client1, id_bien_sono, 'Demande annulée', NOW() + INTERVAL '10 days', NOW() + INTERVAL '12 days', 2, 30000, 'ANNULE', id_client1, id_agent, NOW());
-
-RAISE NOTICE 'Seed complet terminé avec succès.';
-
-END $$;
+SELECT p.prenom || ' ' || p.nom,
+       LOWER(p.prenom) || '.' || LOWER(p.nom) || '@test.com',
+       '7600' || LPAD(n::text, 4, '0'),
+       sj.sujet, sj.message, NOW() - (n * INTERVAL '1 day' + n * INTERVAL '3 hours'),
+       CASE WHEN n <= 6 THEN 'NON_LU' WHEN n <= 11 THEN 'LU' ELSE 'TRAITE' END
+FROM generate_series(1, 15) AS n
+JOIN (VALUES
+    (0, 'Zongo', 'Salif'), (1, 'Kinda', 'Mariam'), (2, 'Ouedraogo', 'Adama'), (3, 'Sanou', 'Rokia'),
+    (4, 'Bationo', 'Elie'), (5, 'Dabire', 'Pascaline'), (6, 'Konate', 'Drissa'), (7, 'Lankoande', 'Estelle')
+) AS p(k, nom, prenom) ON p.k = n % 8
+JOIN (VALUES
+    (0, 'Disponibilité d''une annonce', 'Bonjour, l''annonce que j''ai vue est-elle toujours disponible ?'),
+    (1, 'Demande de visite', 'Je souhaite visiter une maison cette semaine, quels sont vos horaires ?'),
+    (2, 'Confier ma cour en gestion', 'Je possède une cour et je voudrais connaître vos conditions de gestion.'),
+    (3, 'Location de véhicule', 'Quels sont les tarifs pour un pick-up sur une semaine ?'),
+    (4, 'Problème avec mon compte', 'Je n''arrive plus à me connecter à mon espace, pouvez-vous m''aider ?')
+) AS sj(k, sujet, message) ON sj.k = n % 5;
 
 -- ==============================================================
--- Vérification finale
+-- 60 offres : 40 EN_ATTENTE, 12 TRAITEE, 8 REFUSEE
 -- ==============================================================
+INSERT INTO offre (nom_complet, email, telephone, type_offre, titre, description, adresse, date_offre, statut)
+SELECT p.prenom || ' ' || p.nom,
+       LOWER(p.prenom) || '.' || LOWER(p.nom) || n || '@test.com',
+       '7500' || LPAD(n::text, 4, '0'),
+       t.type, t.titre, t.description,
+       s.nom_secteur || ', ' || v.nom_ville,
+       NOW() - (n * INTERVAL '14 hours'),
+       CASE WHEN n % 5 = 0 THEN 'TRAITEE' WHEN n % 7 = 0 THEN 'REFUSEE' ELSE 'EN_ATTENTE' END
+FROM generate_series(1, 60) AS n
+JOIN (VALUES
+    (0, 'Sawadogo', 'Boureima'), (1, 'Traore', 'Aïcha'), (2, 'Ouedraogo', 'Paul'), (3, 'Kabore', 'Rasmata'),
+    (4, 'Compaore', 'Hamidou'), (5, 'Nikiema', 'Judith'), (6, 'Zerbo', 'Tiéba'), (7, 'Sory', 'Mariétou'),
+    (8, 'Diarra', 'Oumar'), (9, 'Bambara', 'Clarisse')
+) AS p(k, nom, prenom) ON p.k = n % 10
+JOIN (VALUES
+    (0, 'MAISON',   'Cour à confier en gestion', 'Cour de plusieurs logements en bon état, à confier à l''agence.'),
+    (1, 'MAISON',   'Villa à louer', 'Villa de 4 pièces avec cour privée, libre immédiatement.'),
+    (2, 'TERRAIN',  'Parcelle à vendre', 'Parcelle de 600 m² avec attestation d''attribution.'),
+    (3, 'MAISON',   'Studios à mettre en location', 'Quatre studios neufs, je cherche une agence pour la gestion.'),
+    (4, 'VEHICULE', 'Véhicule à mettre en location', 'Pick-up en excellent état, disponible pour la location.'),
+    (5, 'AUTRE',    'Salle des fêtes à proposer', 'Salle de 150 places avec parking, à proposer à votre clientèle.')
+) AS t(k, type, titre, description) ON t.k = n % 6
+JOIN (SELECT ROW_NUMBER() OVER (ORDER BY id_secteur) AS r, id_ville, nom_secteur FROM secteur) s ON s.r = ((n - 1) % 9) + 1
+JOIN ville v ON v.id_ville = s.id_ville;
+
+-- ==============================================================
+-- 40 demandes : 20 EN_ATTENTE, 10 EN_COURS, 6 SATISFAITE, 4 ANNULEE
+-- ==============================================================
+INSERT INTO demande (nom_complet, email, telephone, type_bien, localisation_souhaite, budget_max, description, date_demande, statut)
+SELECT p.prenom || ' ' || p.nom,
+       LOWER(p.prenom) || '.' || LOWER(p.nom) || n || '@test.com',
+       '7400' || LPAD(n::text, 4, '0'),
+       t.type, v.nom_ville, t.budget,
+       t.description,
+       NOW() - (n * INTERVAL '18 hours'),
+       CASE WHEN n % 10 IN (1, 2) THEN 'EN_COURS' WHEN n % 20 = 3 THEN 'SATISFAITE' WHEN n % 10 = 4 THEN 'ANNULEE'
+            WHEN n % 20 = 13 THEN 'SATISFAITE' WHEN n % 20 = 18 THEN 'SATISFAITE' WHEN n % 20 = 8 THEN 'SATISFAITE'
+            ELSE 'EN_ATTENTE' END
+FROM generate_series(1, 40) AS n
+JOIN (VALUES
+    (0, 'Sana', 'Awa'), (1, 'Kiemde', 'Boukary'), (2, 'Zoungrana', 'Alice'), (3, 'Ouoba', 'Daouda'),
+    (4, 'Tiendrebeogo', 'Lydie'), (5, 'Kafando', 'Moussa'), (6, 'Thiombiano', 'Sylvie'), (7, 'Nana', 'Issa'),
+    (8, 'Bagagnan', 'Fanta'), (9, 'Pare', 'Wendyam')
+) AS p(k, nom, prenom) ON p.k = n % 10
+JOIN (VALUES
+    (0, 'Studio',        50000, 'Recherche un studio proche du centre-ville, eau et électricité.'),
+    (1, 'Chambre-salon', 70000, 'Recherche une chambre-salon calme pour un couple.'),
+    (2, 'Appartement',  100000, 'Recherche un appartement de 3 pièces proche d''une école.'),
+    (3, 'Villa',        160000, 'Recherche une villa avec cour pour une famille.'),
+    (4, 'Duplex',       230000, 'Recherche un duplex pour un cadre expatrié.')
+) AS t(k, type, budget, description) ON t.k = n % 5
+JOIN (SELECT ROW_NUMBER() OVER (ORDER BY id_ville) AS r, nom_ville FROM ville) v ON v.r = ((n * 7) % 3) + 1;
+
 SELECT 'Seed terminé avec succès !' AS status;
 SELECT
     (SELECT COUNT(*) FROM users) AS nb_users,
     (SELECT COUNT(*) FROM cour) AS nb_cours,
     (SELECT COUNT(*) FROM maison) AS nb_maisons,
-    (SELECT COUNT(*) FROM contrat_mandat) AS nb_mandats,
-    (SELECT COUNT(*) FROM contra_location) AS nb_contrats_location,
-    (SELECT COUNT(*) FROM echeance_loyer WHERE entite_echeance_type = 'LOCATION') AS nb_echeances_location,
-    (SELECT COUNT(*) FROM echeance_loyer WHERE entite_echeance_type = 'MANDAT') AS nb_echeances_mandat,
-    (SELECT COUNT(*) FROM remboursement) AS nb_remboursements,
-    (SELECT COUNT(*) FROM location_bien_service) AS nb_locations_bien_service,
-    (SELECT COUNT(*) FROM annonce) AS nb_annonces;
+    (SELECT COUNT(*) FROM categorie_bien_service) AS nb_categories,
+    (SELECT COUNT(*) FROM bien_service) AS nb_biens_services,
+    (SELECT COUNT(*) FROM annonce) AS nb_annonces,
+    (SELECT COUNT(*) FROM contact) AS nb_contacts,
+    (SELECT COUNT(*) FROM offre) AS nb_offres,
+    (SELECT COUNT(*) FROM demande) AS nb_demandes;

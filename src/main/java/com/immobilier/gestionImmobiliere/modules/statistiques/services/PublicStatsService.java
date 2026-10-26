@@ -46,7 +46,7 @@ public class PublicStatsService {
 
 
     public ResponseEntity<?> getStats() {
-        long maisonsDisponibles = maisonRepository.countByIsDeletedFalseAndStatut(StatutMaison.DISPONIBLE);
+        long maisonsDisponibles = maisonRepository.countCataloguePublic();
         long biensDisponibles = bienServiceRepository.countByIsDeletedFalseAndDisponibilite(StatutBienService.DISPONIBLE);
 
         long locationsRealisees = locationBienServiceRepository.countByIsDeletedFalseAndStatutIn(

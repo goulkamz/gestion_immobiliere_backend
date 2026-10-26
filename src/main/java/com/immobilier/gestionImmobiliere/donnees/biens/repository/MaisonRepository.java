@@ -26,6 +26,14 @@ public interface MaisonRepository extends JpaRepository<Maison, Integer>, org.sp
             "com.immobilier.gestionImmobiliere.donnees.contrats.model.TypeMandat.LOCATION))")
     Page<Maison> findCataloguePublic(@Param("idCour") Integer idCour, @Param("motif") String motif, Pageable pageable);
 
+    // Même règle que le catalogue public, pour que le compteur de l'accueil corresponde à ce qui est affiché
+    @Query("SELECT COUNT(m) FROM Maison m WHERE m.statut = com.immobilier.gestionImmobiliere.donnees.biens.model.StatutMaison.DISPONIBLE " +
+            "AND EXISTS (SELECT 1 FROM ContratMandat c WHERE c.cour = m.cour " +
+            "AND c.statut = com.immobilier.gestionImmobiliere.donnees.contrats.model.StatutMandat.ACTIF " +
+            "AND c.typeMandat IN (com.immobilier.gestionImmobiliere.donnees.contrats.model.TypeMandat.GESTION, " +
+            "com.immobilier.gestionImmobiliere.donnees.contrats.model.TypeMandat.LOCATION))")
+    long countCataloguePublic();
+
     @Query("SELECT COALESCE(SUM(m.loyer), 0) FROM Maison m WHERE m.cour.idCour = :idCour AND m.statut = 'LOUEE'")
     Double sumLoyerMaisonsLoueesByCour(@Param("idCour") Integer idCour);
 

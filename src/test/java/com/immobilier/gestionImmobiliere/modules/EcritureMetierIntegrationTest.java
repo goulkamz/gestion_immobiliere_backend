@@ -251,14 +251,26 @@ class EcritureMetierIntegrationTest extends AbstractIntegrationTest {
         appel(agent, patch("/api/contrats-mandat/2/resilierContratLocation"), """
                 {"motifResiliation":"Fin de collaboration"}""", status().isOk());
         assertThat(statutMandat(2)).isEqualTo("RESILIE");
+        assertThat(notificationsBailleurMandat("MANDAT_RESILIE:2", 2)).as("le bailleur est prévenu de la résiliation").isEqualTo(1);
 
         appel(agent, post("/api/contrats-mandat"), mandat(2), status().isCreated());
         int idNouveau = dernierMandat(2);
+        assertThat(notificationsBailleurMandat("MANDAT_ACTIVE:" + idNouveau, idNouveau)).as("pas de notification à la création").isZero();
         appel(agent, patch("/api/contrats-mandat/" + idNouveau + "/activer"), null, status().isOk());
         assertThat(statutMandat(idNouveau)).isEqualTo("ACTIF");
+        assertThat(notificationsBailleurMandat("MANDAT_ACTIVE:" + idNouveau, idNouveau)).as("le bailleur est prévenu de l'activation").isEqualTo(1);
     }
 
     // ---------- Outils ----------
+
+    // Notifications du bailleur propriétaire de la cour du mandat, pour une clé d'alerte donnée
+    private int notificationsBailleurMandat(String cle, int idMandat) {
+        return jdbc.queryForObject("""
+                SELECT COUNT(*) FROM notification n
+                JOIN contrat_mandat m ON m.id_mandat = ?
+                JOIN cour c ON c.id_cour = m.id_cour
+                WHERE n.id_user = c.id_user AND n.cle_alerte = ?""", Integer.class, idMandat, cle);
+    }
 
     private String mandat(int idCour) {
         LocalDateTime debut = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);

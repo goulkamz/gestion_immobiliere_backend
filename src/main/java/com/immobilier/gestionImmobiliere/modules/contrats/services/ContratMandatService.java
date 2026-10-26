@@ -163,6 +163,7 @@ public class ContratMandatService {
         mandat.setStatut(StatutMandat.ACTIF);
         mandat.setAgent(agent);
         mandatRepository.save(mandat);
+        alerteUtilisateurService.mandatActive(mandat);
         return buildSuccessResponse(HttpStatus.OK, "Mandat activé", "MANDAT_ACTIVATED", toDto(mandat));
     }
 
@@ -192,6 +193,7 @@ public class ContratMandatService {
 
         // Les reversements déjà calculés au-delà du mois de résiliation n'ont plus lieu d'être (celui qui paie le mois de résiliation reste)
         echeanceService.supprimerReversementsFuturs(mandat.getIdMandat(), LocalDate.now());
+        alerteUtilisateurService.mandatResilie(mandat);
 
         return buildSuccessResponse(HttpStatus.OK, "Mandat résilié", "MANDAT_RESILIE", toDto(mandat));
     }

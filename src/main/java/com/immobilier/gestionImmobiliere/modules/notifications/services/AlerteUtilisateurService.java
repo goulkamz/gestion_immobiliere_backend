@@ -178,6 +178,26 @@ public class AlerteUtilisateurService {
         }
     }
 
+    // Mandat active : le bailleur sait que la gestion de sa cour commence (ses maisons disponibles sont publiees)
+    public void mandatActive(ContratMandat m) {
+        User bailleur = m.getCour().getProprietaire();
+        if (bailleur == null) return;
+        envoyer(bailleur, false, TypeNotification.INFO, "Mandat activé",
+                "Votre mandat de gestion sur la cour " + m.getCour().getReferenceCour()
+                        + " est actif : vos maisons disponibles sont désormais publiées sur le site.",
+                cible(LIEN_BAILLEUR_MANDATS, m.getIdMandat()), "MANDAT_ACTIVE:" + m.getIdMandat());
+    }
+
+    // Mandat resilie par l'agent : le bailleur est informe, avec le motif saisi
+    public void mandatResilie(ContratMandat m) {
+        User bailleur = m.getCour().getProprietaire();
+        if (bailleur == null) return;
+        String motif = m.getMotifResiliation() == null || m.getMotifResiliation().isBlank() ? "" : " Motif : " + m.getMotifResiliation() + ".";
+        envoyer(bailleur, false, TypeNotification.INFO, "Mandat résilié",
+                "Votre mandat sur la cour " + m.getCour().getReferenceCour() + " a été résilié." + motif,
+                cible(LIEN_BAILLEUR_MANDATS, m.getIdMandat()), "MANDAT_RESILIE:" + m.getIdMandat());
+    }
+
     // Virement du loyer reverse au bailleur (confirme par l'agent)
     public void virementMandatConfirme(EcheanceLoyer echeance) {
         try {
