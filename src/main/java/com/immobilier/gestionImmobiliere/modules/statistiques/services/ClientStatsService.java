@@ -17,7 +17,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static com.immobilier.gestionImmobiliere.utils.BuildSuccessResponse.buildSuccessResponse;
 
@@ -67,8 +69,11 @@ public class ClientStatsService {
     }
 
     public ResponseEntity<?> getMesEcheances(Integer idClient) {
-        List<Integer> idsContrats = contratLocationRepository.findByLocataire_IdUser(idClient).stream()
-                .map(ContratLocation::getIdContratLocation).toList();
+        Map<Integer, String> maisonParContrat = new HashMap<>();
+        for (ContratLocation c : contratLocationRepository.findByLocataire_IdUser(idClient)) {
+            maisonParContrat.put(c.getIdContratLocation(), c.getMaison().getNomCommunMaison());
+        }
+        List<Integer> idsContrats = List.copyOf(maisonParContrat.keySet());
 
         List<ClientEcheanceDTO> result = (idsContrats.isEmpty()
                 ? List.<EcheanceLoyer>of()
@@ -77,6 +82,7 @@ public class ClientStatsService {
                 .map(e -> ClientEcheanceDTO.builder()
                         .idEcheance(e.getIdEcheance())
                         .moisLibelle(DateUtils.nomMoisFrancais(e.getDateEcheance()) + " " + e.getDateEcheance().getYear())
+                        .nomCommunMaison(maisonParContrat.get(e.getEntiteEcheanceId()))
                         .dateEcheance(e.getDateEcheance())
                         .montantDu(e.getMontantDu())
                         .montantPaye(e.getMontantPaye())

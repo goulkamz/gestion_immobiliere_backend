@@ -11,6 +11,8 @@ import java.time.LocalDate;
 public class ClientEcheanceDTO {
     private Integer idEcheance;
     private String moisLibelle;
+    // Maison concernée : un locataire de plusieurs maisons a plusieurs échéances par mois
+    private String nomCommunMaison;
     private LocalDate dateEcheance;
     private BigDecimal montantDu;
     private BigDecimal montantPaye;
