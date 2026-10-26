@@ -263,6 +263,35 @@ services:
     entrypoint: /bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/acme --quiet; sleep 12h & wait $${!}; done'
     restart: unless-stopped
 
+  # Sauvegardes quotidiennes (base + fichiers MinIO), verifiees par restauration dans une base temporaire.
+  # Production : docker compose --profile prod up -d sauvegarde. Voir docs/sauvegardes.md
+  sauvegarde:
+    build: ./sauvegarde
+    container_name: gestion-immo-sauvegarde
+    profiles: ["prod"]
+    environment:
+      TZ: ${BACKUP_TZ:-Africa/Ouagadougou}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      BACKUP_HEURE: ${BACKUP_HEURE:-02:00}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+      BACKUP_AU_DEMARRAGE: ${BACKUP_AU_DEMARRAGE:-false}
+      BACKUP_S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:-}
+      BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-}
+      BACKUP_S3_ACCESS_KEY: ${BACKUP_S3_ACCESS_KEY:-}
+      BACKUP_S3_SECRET_KEY: ${BACKUP_S3_SECRET_KEY:-}
+    volumes:
+      - ./sauvegardes:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - immobiliere-network
+    restart: unless-stopped
+
 volumes:
   postgres-data:
     driver: local

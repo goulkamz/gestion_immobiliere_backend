@@ -36,3 +36,6 @@ build/
 # Reverse proxy nginx : certificats (auto-signes en local, Let's Encrypt en prod)
 nginx/letsencrypt/
 nginx/acme/
+
+# Sauvegardes produites par le service sauvegarde (donnees reelles, ne jamais commiter)
+sauvegardes/
