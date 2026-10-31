@@ -297,6 +297,17 @@ public class StatsFinanceQueries {
                 WHERE e.entite_echeance_type = 'LOCATION' AND e.is_deleted = false AND e.statut <> 'ANNULE'
                   AND e.date_echeance >= :d AND e.date_echeance <= LEAST(CAST(:f AS date), CURRENT_DATE)
                 """).setParameter("d", d).setParameter("f", f).getSingleResult();
+        // Mêmes échéances mais pas encore échues : visibles (et payées d'avance) même si le mois choisi n'est pas commencé
+        Object[] lpAvenir = (Object[]) em.createNativeQuery("""
+                SELECT
+                  COALESCE(SUM(e.montant_du + e.penalite), 0),
+                  COALESCE(SUM(COALESCE(e.montant_paye, 0)), 0),
+                  COUNT(*)
+                FROM echeance_loyer e
+                WHERE e.entite_echeance_type = 'LOCATION' AND e.is_deleted = false AND e.statut <> 'ANNULE'
+                  AND e.date_echeance > CURRENT_DATE
+                  AND e.date_echeance >= :d AND e.date_echeance <= :f
+                """).setParameter("d", d).setParameter("f", f).getSingleResult();
         BigDecimal dusPeriode = dec(lp[0]);
         BigDecimal encaissePeriode = dec(lp[1]);
         BigDecimal tauxLoyers = dusPeriode.signum() == 0 ? BigDecimal.ZERO
@@ -313,6 +324,16 @@ public class StatsFinanceQueries {
                 WHERE e.entite_echeance_type = 'MANDAT' AND e.is_deleted = false AND e.statut <> 'ANNULE'
                   AND e.date_echeance >= :d AND e.date_echeance <= LEAST(CAST(:f AS date), CURRENT_DATE)
                 """).setParameter("d", d).setParameter("f", f).getSingleResult();
+        Object[] rpAvenir = (Object[]) em.createNativeQuery("""
+                SELECT
+                  COALESCE(SUM(e.montant_du), 0),
+                  COALESCE(SUM(CASE WHEN e.statut = 'PAYE' THEN e.montant_du END), 0),
+                  COUNT(*)
+                FROM echeance_loyer e
+                WHERE e.entite_echeance_type = 'MANDAT' AND e.is_deleted = false AND e.statut <> 'ANNULE'
+                  AND e.date_echeance > CURRENT_DATE
+                  AND e.date_echeance >= :d AND e.date_echeance <= :f
+                """).setParameter("d", d).setParameter("f", f).getSingleResult();
         BigDecimal totalReversements = dec(rp[0]);
         BigDecimal effectue = dec(rp[1]);
         BigDecimal tauxReverse = totalReversements.signum() == 0 ? BigDecimal.ZERO
@@ -322,11 +343,15 @@ public class StatsFinanceQueries {
                 .loyersPeriode(FinancesPeriodeDTO.LoyersPeriodeDTO.builder()
                         .dusPeriode(dusPeriode).encaissePeriode(encaissePeriode).resteAEncaisser(dec(lp[2]))
                         .nombreEcheances(((Number) lp[3]).longValue()).nombreImpayes(((Number) lp[4]).longValue())
-                        .tauxRecouvrement(tauxLoyers).build())
+                        .tauxRecouvrement(tauxLoyers)
+                        .aVenirPeriode(dec(lpAvenir[0])).payeAvancePeriode(dec(lpAvenir[1])).nombreAVenir(((Number) lpAvenir[2]).longValue())
+                        .build())
                 .reversementsPeriode(FinancesPeriodeDTO.ReversementsPeriodeDTO.builder()
                         .totalPeriode(totalReversements).effectue(effectue).aReverser(dec(rp[2]))
                         .nombreReversements(((Number) rp[3]).longValue()).nombreAReverser(((Number) rp[4]).longValue())
-                        .tauxReverse(tauxReverse).build())
+                        .tauxReverse(tauxReverse)
+                        .aVenirTotal(dec(rpAvenir[0])).aVenirEffectue(dec(rpAvenir[1])).nombreAVenir(((Number) rpAvenir[2]).longValue())
+                        .build())
                 .debut(debut).fin(fin)
                 .loyersEncaisses(loyers)
                 .reversementsEffectues(reversements)

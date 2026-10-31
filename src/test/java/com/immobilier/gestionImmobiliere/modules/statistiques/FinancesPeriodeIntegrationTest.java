@@ -95,6 +95,43 @@ class FinancesPeriodeIntegrationTest extends AbstractIntegrationTest {
         assertThat(fin.getReversementsPeriode().getTotalPeriode()).isEqualByComparingTo(BigDecimal.ZERO);
     }
 
+    @Test
+    void periodeFuture_montreCePayeAvanceSansLeCompterCommeDuNiCommeImpaye() {
+        LocalDate debut = LocalDate.of(2099, 1, 1);
+        LocalDate fin = LocalDate.of(2099, 1, 31);
+        int idAgent = jdbc.queryForObject("SELECT id_user FROM users WHERE email = 'agent@gestimmo.test'", Integer.class);
+        idMandat = jdbc.queryForObject(
+                "INSERT INTO contrat_mandat (id_cour, id_user, date_debut, type_mandat, commission, mode_facturation, statut) "
+                        + "VALUES (?, ?, '2019-06-01', 'GESTION', 10, 'MENSUEL', 'ACTIF') RETURNING id_mandat",
+                Integer.class, COUR_3, idAgent);
+        int idMaison = jdbc.queryForObject("SELECT MIN(id_maison) FROM maison WHERE id_cour = ?", Integer.class, COUR_3);
+        int idLocataire = jdbc.queryForObject("SELECT id_user FROM users WHERE email = 'client2@gestimmo.test'", Integer.class);
+        idContrat = jdbc.queryForObject(
+                "INSERT INTO contra_location (id_user, id_maison, date_entree, montant_loyer, statut) "
+                        + "VALUES (?, ?, '2019-06-01', 100000, 'TERMINE') RETURNING id_contra_location",
+                Integer.class, idLocataire, idMaison);
+
+        // Janvier 2099 : un loyer payé d'avance en entier, un loyer pas encore payé, un reversement déjà fait
+        loyer(debut, 100000, 100000, "PAYE");
+        loyer(debut, 60000, 0, "EN_ATTENTE");
+        reversement(debut, 80000, "PAYE");
+
+        FinancesPeriodeDTO resultat = queries.finances(debut, fin);
+
+        FinancesPeriodeDTO.LoyersPeriodeDTO l = resultat.getLoyersPeriode();
+        assertThat(l.getDusPeriode()).as("rien n'est échu").isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(l.getResteAEncaisser()).as("un loyer à venir n'est pas un impayé").isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(l.getAVenirPeriode()).isEqualByComparingTo(new BigDecimal("160000"));
+        assertThat(l.getPayeAvancePeriode()).isEqualByComparingTo(new BigDecimal("100000"));
+        assertThat(l.getNombreAVenir()).isEqualTo(2);
+
+        FinancesPeriodeDTO.ReversementsPeriodeDTO r = resultat.getReversementsPeriode();
+        assertThat(r.getTotalPeriode()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(r.getAVenirTotal()).isEqualByComparingTo(new BigDecimal("80000"));
+        assertThat(r.getAVenirEffectue()).isEqualByComparingTo(new BigDecimal("80000"));
+        assertThat(r.getNombreAVenir()).isEqualTo(1);
+    }
+
     private void loyer(LocalDate date, int du, int paye, String statut) {
         jdbc.update("INSERT INTO echeance_loyer (entite_echeance_type, entite_echeance_id, date_echeance, montant_du, montant_paye, "
                         + "commission_deduite, penalite, statut) VALUES ('LOCATION', ?, ?, ?, ?, 0, 0, ?)",

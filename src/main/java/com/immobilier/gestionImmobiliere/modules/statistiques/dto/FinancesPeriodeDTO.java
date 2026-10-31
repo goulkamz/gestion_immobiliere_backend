@@ -42,6 +42,10 @@ public class FinancesPeriodeDTO {
         private long nombreEcheances;
         private long nombreImpayes;
         private BigDecimal tauxRecouvrement;    // en %, 0 si rien n'est échu
+        // Échéances de la période pas encore exigibles (le mois choisi est dans le futur ou en cours)
+        private BigDecimal aVenirPeriode;       // loyers + pénalités des échéances de la période pas encore échues
+        private BigDecimal payeAvancePeriode;   // déjà payé sur ces échéances à venir
+        private long nombreAVenir;
     }
 
     @Data @Builder
@@ -52,6 +56,10 @@ public class FinancesPeriodeDTO {
         private long nombreReversements;
         private long nombreAReverser;
         private BigDecimal tauxReverse;         // en %, 0 si rien n'est échu
+        // Reversements de la période pas encore exigibles
+        private BigDecimal aVenirTotal;         // net dû aux bailleurs pour les reversements pas encore échus
+        private BigDecimal aVenirEffectue;      // part déjà reversée (payée d'avance)
+        private long nombreAVenir;
     }
 
     @Data @Builder
