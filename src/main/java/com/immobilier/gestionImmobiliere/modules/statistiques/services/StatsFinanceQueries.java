@@ -308,6 +308,20 @@ public class StatsFinanceQueries {
                   AND e.date_echeance > CURRENT_DATE
                   AND e.date_echeance >= :d AND e.date_echeance <= :f
                 """).setParameter("d", d).setParameter("f", f).getSingleResult();
+        // Argent reçu avant le début de la période pour des loyers de la période (chaque paiement compté une seule fois)
+        Object[] avance = (Object[]) em.createNativeQuery("""
+                SELECT COALESCE(SUM(x.montant), 0), MIN(x.jour), MAX(x.jour)
+                FROM (
+                  SELECT DISTINCT p.id_paiement, p.montant_paiement AS montant, CAST(p.date_paiement AS date) AS jour
+                  FROM paiement p
+                  JOIN paiement_echeance pe ON pe.id_paiement = p.id_paiement AND pe.is_deleted = false
+                  JOIN echeance_loyer e ON e.id_echeance = pe.id_echeance
+                  WHERE e.entite_echeance_type = 'LOCATION' AND e.is_deleted = false AND e.statut <> 'ANNULE'
+                    AND p.sens = 'ENTREE' AND p.is_deleted = false
+                    AND e.date_echeance >= :d AND e.date_echeance <= :f
+                    AND p.date_paiement < :d
+                ) x
+                """).setParameter("d", d).setParameter("f", f).getSingleResult();
         BigDecimal dusPeriode = dec(lp[0]);
         BigDecimal encaissePeriode = dec(lp[1]);
         BigDecimal tauxLoyers = dusPeriode.signum() == 0 ? BigDecimal.ZERO
@@ -345,6 +359,9 @@ public class StatsFinanceQueries {
                         .nombreEcheances(((Number) lp[3]).longValue()).nombreImpayes(((Number) lp[4]).longValue())
                         .tauxRecouvrement(tauxLoyers)
                         .aVenirPeriode(dec(lpAvenir[0])).payeAvancePeriode(dec(lpAvenir[1])).nombreAVenir(((Number) lpAvenir[2]).longValue())
+                        .payeAvantPeriode(dec(avance[0]))
+                        .premierPaiementAvance(jour(avance[1]))
+                        .dernierPaiementAvance(jour(avance[2]))
                         .build())
                 .reversementsPeriode(FinancesPeriodeDTO.ReversementsPeriodeDTO.builder()
                         .totalPeriode(totalReversements).effectue(effectue).aReverser(dec(rp[2]))
@@ -361,6 +378,14 @@ public class StatsFinanceQueries {
                 .volumeEncaisse(loyers.add(bsNet))
                 .revenuAgence(commissions.add(bsNet))
                 .build();
+    }
+
+    /** Date renvoyée par une requête native : java.sql.Date ou LocalDate selon le pilote. */
+    private static LocalDate jour(Object valeur) {
+        if (valeur == null) return null;
+        if (valeur instanceof LocalDate d) return d;
+        if (valeur instanceof Date d) return d.toLocalDate();
+        return LocalDate.parse(valeur.toString().substring(0, 10));
     }
 
     /** Montants par ville (clé = nom de la ville) : une requête par indicateur, fusionnées par l'appelant. */

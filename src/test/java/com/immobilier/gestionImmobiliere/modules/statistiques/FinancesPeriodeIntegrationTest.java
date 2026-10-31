@@ -33,9 +33,14 @@ class FinancesPeriodeIntegrationTest extends AbstractIntegrationTest {
 
     private Integer idMandat;
     private Integer idContrat;
+    private final java.util.List<Integer> paiementsCrees = new java.util.ArrayList<>();
 
     @AfterEach
     void nettoyer() {
+        for (Integer idPaiement : paiementsCrees) {
+            jdbc.update("DELETE FROM paiement_echeance WHERE id_paiement = ?", idPaiement);
+            jdbc.update("DELETE FROM paiement WHERE id_paiement = ?", idPaiement);
+        }
         if (idMandat != null) {
             jdbc.update("DELETE FROM echeance_loyer WHERE entite_echeance_type = 'MANDAT' AND entite_echeance_id = ?", idMandat);
             jdbc.update("DELETE FROM contrat_mandat WHERE id_mandat = ?", idMandat);
@@ -132,10 +137,50 @@ class FinancesPeriodeIntegrationTest extends AbstractIntegrationTest {
         assertThat(r.getNombreAVenir()).isEqualTo(1);
     }
 
-    private void loyer(LocalDate date, int du, int paye, String statut) {
-        jdbc.update("INSERT INTO echeance_loyer (entite_echeance_type, entite_echeance_id, date_echeance, montant_du, montant_paye, "
-                        + "commission_deduite, penalite, statut) VALUES ('LOCATION', ?, ?, ?, ?, 0, 0, ?)",
-                idContrat, Date.valueOf(date), du, paye, statut);
+    @Test
+    void loyersPayesAvantLaPeriode_sontSepares_avecLesDatesReellesDesPaiements() {
+        LocalDate debut = LocalDate.of(2099, 1, 1);
+        LocalDate fin = LocalDate.of(2099, 1, 31);
+        int idAgent = jdbc.queryForObject("SELECT id_user FROM users WHERE email = 'agent@gestimmo.test'", Integer.class);
+        idMandat = jdbc.queryForObject(
+                "INSERT INTO contrat_mandat (id_cour, id_user, date_debut, type_mandat, commission, mode_facturation, statut) "
+                        + "VALUES (?, ?, '2019-06-01', 'GESTION', 10, 'MENSUEL', 'ACTIF') RETURNING id_mandat",
+                Integer.class, COUR_3, idAgent);
+        int idMaison = jdbc.queryForObject("SELECT MIN(id_maison) FROM maison WHERE id_cour = ?", Integer.class, COUR_3);
+        int idLocataire = jdbc.queryForObject("SELECT id_user FROM users WHERE email = 'client2@gestimmo.test'", Integer.class);
+        idContrat = jdbc.queryForObject(
+                "INSERT INTO contra_location (id_user, id_maison, date_entree, montant_loyer, statut) "
+                        + "VALUES (?, ?, '2019-06-01', 100000, 'TERMINE') RETURNING id_contra_location",
+                Integer.class, idLocataire, idMaison);
+
+        // Deux loyers de janvier 2099 payés avant : l'un le 15 novembre 2098, l'autre le 20 décembre 2098 ; un troisième payé en janvier
+        paiementDeLoyer(loyer(debut, 40000, 40000, "PAYE"), "2098-11-15 10:00:00", 40000);
+        paiementDeLoyer(loyer(debut, 25000, 25000, "PAYE"), "2098-12-20 10:00:00", 25000);
+        paiementDeLoyer(loyer(debut, 10000, 10000, "PAYE"), "2099-01-10 10:00:00", 10000);
+
+        FinancesPeriodeDTO.LoyersPeriodeDTO l = queries.finances(debut, fin).getLoyersPeriode();
+        assertThat(l.getPayeAvantPeriode()).as("seuls les paiements antérieurs au 1er janvier").isEqualByComparingTo(new BigDecimal("65000"));
+        assertThat(l.getPremierPaiementAvance()).isEqualTo(LocalDate.of(2098, 11, 15));
+        assertThat(l.getDernierPaiementAvance()).isEqualTo(LocalDate.of(2098, 12, 20));
+
+        // Une période sans paiement anticipé ne produit rien : la mention disparaît d'elle-même
+        FinancesPeriodeDTO.LoyersPeriodeDTO vide = queries.finances(LocalDate.of(2099, 3, 1), LocalDate.of(2099, 3, 31)).getLoyersPeriode();
+        assertThat(vide.getPayeAvantPeriode()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(vide.getPremierPaiementAvance()).isNull();
+    }
+
+    private int loyer(LocalDate date, int du, int paye, String statut) {
+        return jdbc.queryForObject("INSERT INTO echeance_loyer (entite_echeance_type, entite_echeance_id, date_echeance, montant_du, montant_paye, "
+                        + "commission_deduite, penalite, statut) VALUES ('LOCATION', ?, ?, ?, ?, 0, 0, ?) RETURNING id_echeance",
+                Integer.class, idContrat, Date.valueOf(date), du, paye, statut);
+    }
+
+    private void paiementDeLoyer(int idEcheance, String datePaiement, int montant) {
+        int idPaiement = jdbc.queryForObject("INSERT INTO paiement (date_paiement, montant_paiement, mode_paiement, reference_paiement, sens) "
+                        + "VALUES (CAST(? AS timestamp), ?, 'ESPECES', 'TEST-AVANCE-' || ?, 'ENTREE') RETURNING id_paiement",
+                Integer.class, datePaiement, montant, idEcheance);
+        jdbc.update("INSERT INTO paiement_echeance (id_echeance, id_paiement) VALUES (?, ?)", idEcheance, idPaiement);
+        paiementsCrees.add(idPaiement);
     }
 
     private void reversement(LocalDate date, int net, String statut) {

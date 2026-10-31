@@ -46,6 +46,10 @@ public class FinancesPeriodeDTO {
         private BigDecimal aVenirPeriode;       // loyers + pénalités des échéances de la période pas encore échues
         private BigDecimal payeAvancePeriode;   // déjà payé sur ces échéances à venir
         private long nombreAVenir;
+        // Paiements faits AVANT le début de la période pour des échéances de la période (loyers payés d'avance)
+        private BigDecimal payeAvantPeriode;
+        private LocalDate premierPaiementAvance;   // null si aucun
+        private LocalDate dernierPaiementAvance;   // null si aucun
     }
 
     @Data @Builder
