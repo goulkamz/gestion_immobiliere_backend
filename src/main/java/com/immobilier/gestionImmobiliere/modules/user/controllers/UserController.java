@@ -28,6 +28,11 @@ public class UserController implements AuthentificationAPI {
     }
 
     @Override
+    public ResponseEntity<?> verifierDeuxFacteurs(@Valid @RequestBody com.immobilier.gestionImmobiliere.modules.user.dto.requests.VerifierDeuxFacteursDTO dto, HttpServletRequest request, HttpServletResponse response) {
+        return userService.verifierDeuxFacteurs(dto, request, response);
+    }
+
+    @Override
     public ResponseEntity<?> createUser(@Valid @RequestBody CreateUserDTO createUserDTO, HttpServletRequest request) throws Exception {
            return userService.createUser(createUserDTO, request);
     }

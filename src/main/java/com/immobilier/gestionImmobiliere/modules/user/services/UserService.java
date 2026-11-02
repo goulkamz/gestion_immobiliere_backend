@@ -18,6 +18,9 @@ import com.immobilier.gestionImmobiliere.modules.user.dto.requests.AuthenticateD
 import com.immobilier.gestionImmobiliere.modules.user.dto.requests.CreateUserDTO;
 import com.immobilier.gestionImmobiliere.modules.user.dto.requests.ResendCodeEmailDTO;
 import com.immobilier.gestionImmobiliere.modules.user.dto.responses.UserInfoDTO;
+import com.immobilier.gestionImmobiliere.modules.user.deuxfacteurs.DeuxFacteursService;
+import com.immobilier.gestionImmobiliere.modules.user.dto.requests.VerifierDeuxFacteursDTO;
+import com.immobilier.gestionImmobiliere.modules.user.jwtService.UserDetailsServiceImpl;
 import com.immobilier.gestionImmobiliere.modules.user.jwt.JwtUtils;
 import com.immobilier.gestionImmobiliere.modules.user.jwt.RateLimitService;
 import com.immobilier.gestionImmobiliere.modules.user.jwtService.UserDetailsImpl;
@@ -69,10 +72,14 @@ public class UserService {
     private final RateLimitService rateLimitService;
     private final ClientIpResolver clientIpResolver;
     private final AlerteAgentService alerteAgentService;
+    private final DeuxFacteursService deuxFacteursService;
+    private final UserDetailsServiceImpl userDetailsService;
 
 
-    public UserService(AuthenticationManager authenticationManager, JwtUtils jwtUtils, RoleRepository roleRepository, PasswordEncoder encoder, UserRepository userRepository, PendingRegistrationRepository pendingRegistrationRepository, NotificationService notificationService, RateLimitService rateLimitService, ClientIpResolver clientIpResolver, AlerteAgentService alerteAgentService) {
+    public UserService(AuthenticationManager authenticationManager, JwtUtils jwtUtils, RoleRepository roleRepository, PasswordEncoder encoder, UserRepository userRepository, PendingRegistrationRepository pendingRegistrationRepository, NotificationService notificationService, RateLimitService rateLimitService, ClientIpResolver clientIpResolver, AlerteAgentService alerteAgentService, DeuxFacteursService deuxFacteursService, UserDetailsServiceImpl userDetailsService) {
         this.alerteAgentService = alerteAgentService;
+        this.deuxFacteursService = deuxFacteursService;
+        this.userDetailsService = userDetailsService;
         this.authenticationManager = authenticationManager;
         this.jwtUtils = jwtUtils;
         this.roleRepository = roleRepository;
@@ -118,7 +125,38 @@ public class UserService {
             }
             rateLimitService.reinitialiser(cleCompteIp);
 
-                UserDetailsImpl user = (UserDetailsImpl) authentication.getPrincipal();
+            UserDetailsImpl user = (UserDetailsImpl) authentication.getPrincipal();
+
+            // Double authentification activee et appareil non reconnu : pas de session tant que
+            // le code n'a pas ete verifie (voir verifierDeuxFacteurs).
+            if (deuxFacteursService.exigePourConnexion(user.getIdUser(), request)) {
+                return buildSuccessResponse(HttpStatus.OK, "Code de vérification requis", "TWO_FACTOR_REQUIRED",
+                        Map.of("challengeToken", deuxFacteursService.creerDefi(user.getIdUser())));
+            }
+            return ouvrirSession(user, request, response);
+    }
+
+    @Transactional
+    public ResponseEntity<?> verifierDeuxFacteurs(VerifierDeuxFacteursDTO dto, HttpServletRequest request, HttpServletResponse response) {
+        if (rateLimitService.estLimiteDepassee("2fa-verify:" + extraireIp(request), 20, LOGIN_FENETRE_ECHECS)) {
+            throw new TooManyRequestsException("Trop de tentatives. Veuillez réessayer plus tard.");
+        }
+        Integer idUser = deuxFacteursService.idUserDuDefi(dto.challengeToken());
+        deuxFacteursService.verifierPourConnexion(idUser, dto.code());
+        deuxFacteursService.supprimerDefi(dto.challengeToken());
+
+        String email = userRepository.findById(idUser).orElseThrow().getEmail();
+        UserDetailsImpl user = (UserDetailsImpl) userDetailsService.loadUserByUsername(email);
+        if (!user.isEnabled()) {
+            throw new org.springframework.security.authentication.DisabledException("Compte désactivé");
+        }
+        if (dto.faireConfiance()) {
+            deuxFacteursService.marquerAppareilDeConfiance(idUser, response);
+        }
+        return ouvrirSession(user, request, response);
+    }
+
+    private ResponseEntity<?> ouvrirSession(UserDetailsImpl user, HttpServletRequest request, HttpServletResponse response) {
                 userRepository.touchLastLogin(user.getUsername(), LocalDateTime.now());
                 List<String> roles=getUserRoles(user);
 

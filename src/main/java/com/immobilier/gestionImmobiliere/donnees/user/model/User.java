@@ -64,6 +64,14 @@ import java.util.Date;
         @Column(name = "date_last_login")
         private LocalDateTime dateLastLogin;
 
+        // Double authentification (TOTP) : secret chiffre par DeuxFacteursService, jamais expose
+        @Column(name = "totp_secret", length = 512)
+        @JsonIgnore
+        private String totpSecret;
+
+        @Column(name = "totp_actif", nullable = false)
+        private boolean totpActif;
+
         @ManyToOne(fetch = FetchType.LAZY)
         @JoinColumn(name = "id_role", nullable = false)
         private Role role;

@@ -63,8 +63,8 @@ class AnnoncesIntegrationTest extends AbstractIntegrationTest {
         assertThat(jdbc.queryForObject("SELECT statut FROM annonce WHERE id_annonce = ?", String.class, id))
                 .isEqualTo("SUSPENDUE");
 
-        mockMvc.perform(delete("/api/annonces/" + id).cookie(agent)).andExpect(status().isForbidden());
-        mockMvc.perform(delete("/api/annonces/" + id).cookie(admin)).andExpect(status().isOk());
+        // La suppression est ouverte aux agents et a l'admin (depuis le 2026-11-02)
+        mockMvc.perform(delete("/api/annonces/" + id).cookie(agent)).andExpect(status().isOk());
         assertThat(jdbc.queryForObject("SELECT is_deleted FROM annonce WHERE id_annonce = ?", Boolean.class, id))
                 .as("soft delete").isTrue();
         mockMvc.perform(get("/api/public/annonces/" + id)).andExpect(status().isNotFound());

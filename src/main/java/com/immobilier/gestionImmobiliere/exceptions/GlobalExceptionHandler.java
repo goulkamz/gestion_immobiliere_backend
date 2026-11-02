@@ -302,6 +302,11 @@ public class GlobalExceptionHandler {
     }
 
 
+    @ExceptionHandler(DeuxFacteursException.class)
+    public ResponseEntity<?> handleDeuxFacteurs(DeuxFacteursException ex) {
+        return buildErrorResponse(ex.getStatus(), ex.getMessage(), ex.getCode(), ex);
+    }
+
     @ExceptionHandler(TooManyRequestsException.class)
     public ResponseEntity<?> handleTooManyRequests(TooManyRequestsException ex) {
         return buildErrorResponse(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage(), "TOO_MANY_REQUESTS", ex);

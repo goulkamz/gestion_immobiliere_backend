@@ -159,6 +159,10 @@ services:
       # Documents (signature QR)
       - DOCUMENTS_SECRET=${GI_BF_DOCUMENTS_SECRET}
 
+      # Double authentification (TOTP) : cle de chiffrement des secrets, duree de confiance d un appareil
+      - APP_SECURITY_TWOFA_KEY=${TWOFA_ENCRYPTION_KEY:-}
+      - APP_SECURITY_TWOFA_TRUST_HOURS=${TWOFA_TRUST_HOURS:-12}
+
       # App
       - APP_BASE_URL=${BASE_URL}
       - APP_CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}

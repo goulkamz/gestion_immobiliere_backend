@@ -18,6 +18,10 @@ public interface AuthentificationAPI {
         @PostMapping("/signin")
         ResponseEntity<?> authenticateUser(@Valid AuthenticateDTO authenticateDTO, HttpServletRequest request, HttpServletResponse response);
 
+        // Deuxième étape de connexion quand la double authentification est activée
+        @PostMapping("/2fa/verify")
+        ResponseEntity<?> verifierDeuxFacteurs(@Valid VerifierDeuxFacteursDTO dto, HttpServletRequest request, HttpServletResponse response);
+
         @PostMapping("/signup")
         ResponseEntity<?> createUser(@Valid CreateUserDTO createUserDTO, HttpServletRequest request) throws Exception;
 
