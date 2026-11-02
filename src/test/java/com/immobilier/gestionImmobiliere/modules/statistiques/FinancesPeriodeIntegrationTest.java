@@ -31,15 +31,24 @@ class FinancesPeriodeIntegrationTest extends AbstractIntegrationTest {
     @Autowired
     private JdbcTemplate jdbc;
 
+    @Autowired
+    private javax.sql.DataSource dataSource;
+
     private Integer idMandat;
     private Integer idContrat;
     private final java.util.List<Integer> paiementsCrees = new java.util.ArrayList<>();
 
     @AfterEach
-    void nettoyer() {
-        for (Integer idPaiement : paiementsCrees) {
-            jdbc.update("DELETE FROM paiement_echeance WHERE id_paiement = ?", idPaiement);
-            jdbc.update("DELETE FROM paiement WHERE id_paiement = ?", idPaiement);
+    void nettoyer() throws Exception {
+        // Les preuves de paiement sont immuables (V5) : seule une maintenance explicite peut les effacer
+        try (java.sql.Connection c = dataSource.getConnection(); java.sql.Statement st = c.createStatement()) {
+            c.setAutoCommit(false);
+            st.execute("SET LOCAL gestimmo.maintenance = 'on'");
+            for (Integer idPaiement : paiementsCrees) {
+                st.execute("DELETE FROM paiement_echeance WHERE id_paiement = " + idPaiement);
+                st.execute("DELETE FROM paiement WHERE id_paiement = " + idPaiement);
+            }
+            c.commit();
         }
         if (idMandat != null) {
             jdbc.update("DELETE FROM echeance_loyer WHERE entite_echeance_type = 'MANDAT' AND entite_echeance_id = ?", idMandat);

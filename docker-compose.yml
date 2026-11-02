@@ -117,8 +117,10 @@ services:
 
       # PostgreSQL
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/gestion_immobiliere
-      - SPRING_DATASOURCE_USERNAME=postgres
-      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      # Role restreint cree par la migration V4 (droits de lecture et d'ecriture seulement) ; Flyway garde le compte proprietaire
+      - SPRING_DATASOURCE_USERNAME=gestimmo_app
+      - SPRING_DATASOURCE_PASSWORD=${APP_DB_PASSWORD:?Definir APP_DB_PASSWORD dans le .env}
+      - SPRING_FLYWAY_PLACEHOLDERS_APPPASSWORD=${APP_DB_PASSWORD:?Definir APP_DB_PASSWORD dans le .env}
       - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
 
       # Migrations (Flyway). Valeurs par defaut sures : seul le schema est charge, jamais le seed de demonstration.
@@ -203,6 +205,13 @@ services:
       - APP_MINIO_BUCKET_MEDIAS_PRIVE=medias-prives
       - APP_MINIO_BUCKET_DOCUMENTS=documents
       - APP_MINIO_REGION=${MINIO_REGION}
+
+      # Supervision des sauvegardes : en production, BACKUP_SURVEILLANCE_DOSSIER=/backups (vide = pas de surveillance)
+      - APP_SAUVEGARDES_DOSSIER=${BACKUP_SURVEILLANCE_DOSSIER:-}
+      - APP_SAUVEGARDES_DELAI_HEURES=${BACKUP_ALERTE_DELAI_HEURES:-26}
+    # Lecture seule : l'application ne fait que lire le fichier d'etat ecrit par le service de sauvegarde
+    volumes:
+      - ./sauvegardes:/backups:ro
     depends_on:
       postgres:
         condition: service_healthy

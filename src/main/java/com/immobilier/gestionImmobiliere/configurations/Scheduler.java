@@ -4,6 +4,7 @@ import com.immobilier.gestionImmobiliere.modules.annonces.services.AnnonceServic
 import com.immobilier.gestionImmobiliere.modules.documents.services.RapportMensuelDocumentService;
 import com.immobilier.gestionImmobiliere.modules.medias.services.MediaReconciliationService;
 import com.immobilier.gestionImmobiliere.modules.notifications.services.AlerteAgentService;
+import com.immobilier.gestionImmobiliere.modules.notifications.services.AlerteSauvegardeService;
 import com.immobilier.gestionImmobiliere.modules.notifications.services.AlerteUtilisateurService;
 import com.immobilier.gestionImmobiliere.modules.notifications.services.NotificationInAppService;
 import com.immobilier.gestionImmobiliere.modules.paiements.services.EcheanceGenerationService;
@@ -36,6 +37,7 @@ public class Scheduler {
     private final NotificationInAppService notificationInAppService;
     private final AlerteAgentService alerteAgentService;
     private final AlerteUtilisateurService alerteUtilisateurService;
+    private final AlerteSauvegardeService alerteSauvegardeService;
 
     // Nettoyage tous les jours a 2h du matin
     @Scheduled(cron = "0 0 2 * * *")
@@ -53,6 +55,12 @@ public class Scheduler {
     @Scheduled(cron = "0 0 2 * * *")
     public void cleanExpiredToken() {
         jwtUtils.cleanupExpiredTokens();
+    }
+
+    // Toutes les heures : previent les administrateurs si la derniere sauvegarde a echoue ou est trop ancienne
+    @Scheduled(cron = "${app.sauvegardes.cron:0 5 * * * *}")
+    public void surveillerSauvegardes() {
+        alerteSauvegardeService.verifier();
     }
 
     // dimanche 3h du matin, hors heures de charge

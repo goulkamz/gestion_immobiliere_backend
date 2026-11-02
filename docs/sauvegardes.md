@@ -26,6 +26,15 @@ Le dossier `sauvegardes/` est ignoré par git.
 
 Une sauvegarde qui reste sur la machine ne protège pas d'une panne de cette machine (disque, incendie, piratage). Choisir un stockage distant compatible S3 (Backblaze B2, Wasabi, Scaleway, AWS S3...) et renseigner `BACKUP_S3_ENDPOINT`, `BACKUP_S3_BUCKET`, `BACKUP_S3_ACCESS_KEY` et `BACKUP_S3_SECRET_KEY`. Créer pour cela une clé d'accès limitée à ce seul bucket. Sans ces variables, le service écrit un avertissement à chaque passage.
 
+## Supervision : alerte en cas d'échec
+
+Le backend lit `sauvegardes/dernier-statut.txt` (monté en lecture seule) toutes les heures. Les administrateurs reçoivent une **notification dans l'application et un e-mail**, une fois par jour et par problème, si :
+- la dernière sauvegarde a échoué (`ECHEC`) ;
+- aucune sauvegarde n'a réussi depuis plus de `BACKUP_ALERTE_DELAI_HEURES` heures (26 par défaut), par exemple parce que le service est arrêté ;
+- le fichier d'état est introuvable ou illisible.
+
+Activation : `BACKUP_SURVEILLANCE_DOSSIER=/backups` dans le `.env` de production (vide en développement : pas de surveillance). Au tout premier déploiement, mettre `BACKUP_AU_DEMARRAGE=true` pour qu'une sauvegarde soit faite immédiatement, sinon l'alerte « introuvable » part la première heure.
+
 ## Restauration après un sinistre
 
 À faire sur le serveur, dans le dossier du `docker-compose.yml`.
@@ -60,4 +69,4 @@ Sauvegarde complète : base (122 Ko), fichiers MinIO (28,8 Mo), vérification pa
 
 - Les sauvegardes sont quotidiennes : en cas de sinistre, jusqu'à 24 h de données peuvent être perdues. Pour réduire cette fenêtre, augmenter la fréquence (adapter `planificateur.sh`) ou activer l'archivage continu de PostgreSQL (WAL).
 - Les sessions Redis et les caches ne sont pas sauvegardés : ils se reconstruisent (les utilisateurs devront se reconnecter).
-- Aucune alerte n'est envoyée en cas d'échec : surveiller `dernier-statut.txt` (par exemple par une supervision externe qui vérifie que la date est récente et que la ligne commence par `OK`).
+- Si le serveur entier tombe, le backend ne peut plus alerter : une supervision externe (vérification de la disponibilité du site) reste utile en complément.

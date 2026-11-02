@@ -25,6 +25,8 @@ import org.testcontainers.containers.wait.strategy.Wait;
 public abstract class AbstractIntegrationTest {
 
     protected static final String MOT_DE_PASSE_SEED = "Password123!";
+    protected static final String ROLE_APPLICATIF = "gestimmo_app";
+    protected static final String MOT_DE_PASSE_ROLE_APPLICATIF = "mdp-test-role-applicatif";
 
     static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17")
             .withDatabaseName("gestion_immobiliere")
@@ -60,8 +62,12 @@ public abstract class AbstractIntegrationTest {
     @DynamicPropertySource
     static void dynamicProperties(DynamicPropertyRegistry registry) {
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-        registry.add("spring.datasource.username", POSTGRES::getUsername);
-        registry.add("spring.datasource.password", POSTGRES::getPassword);
+        // Comme en production : l'application tourne avec le role restreint (V4), Flyway avec le compte proprietaire
+        registry.add("spring.datasource.username", () -> ROLE_APPLICATIF);
+        registry.add("spring.datasource.password", () -> MOT_DE_PASSE_ROLE_APPLICATIF);
+        registry.add("spring.flyway.user", POSTGRES::getUsername);
+        registry.add("spring.flyway.password", POSTGRES::getPassword);
+        registry.add("spring.flyway.placeholders.apppassword", () -> MOT_DE_PASSE_ROLE_APPLICATIF);
         // Flyway : schema + fixtures de test (db/testdata, ancien jeu de donnees avec contrats et mandats) dont les tests ont besoin
         registry.add("spring.flyway.locations", () -> "classpath:db/migration,classpath:db/testdata");
 
