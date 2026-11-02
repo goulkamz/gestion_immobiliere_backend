@@ -67,7 +67,7 @@ public class PublicStatsService {
     }
 
     public ResponseEntity<?> getDernieresAnnonces() {
-        List<Annonce> annonces = annonceRepository.findTop5ByIsDeletedFalseAndStatutOrderByDatePublicationDesc(StatutAnnonce.ACTIVE);
+        List<Annonce> annonces = annonceRepository.findByIsDeletedFalseAndStatutOrderByDatePublicationDesc(StatutAnnonce.ACTIVE);
         // mapping vers un DTO annonce simple, sans donnée sensible
         return buildSuccessResponse(HttpStatus.OK, "Dernières annonces", "PUBLIC_ANNONCES", annonces);
     }
