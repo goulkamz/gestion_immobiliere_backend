@@ -318,7 +318,14 @@ public class ContratMandatService {
 
     @Transactional
     public ResponseEntity<?> delete(Integer id) {
-        mandatRepository.delete(findOrThrow(id));
+        ContratMandat mandat = findOrThrow(id);
+        // Un mandat activé (puis résilié ou expiré) porte des reversements, des avenants et des documents : on le résilie, on ne le supprime pas
+        if (mandat.getStatut() != StatutMandat.EN_ATTENTE) {
+            throw new IllegalStateException("Seul un mandat en attente d'activation peut être supprimé ; un mandat activé se résilie");
+        }
+        // Le PDF éventuellement généré n'était qu'un brouillon
+        contratMandatDocumentService.supprimerBrouillon(id);
+        mandatRepository.delete(mandat);
         return buildSuccessResponse(HttpStatus.OK, "Mandat supprimé", "MANDAT_DELETED", null);
     }
 

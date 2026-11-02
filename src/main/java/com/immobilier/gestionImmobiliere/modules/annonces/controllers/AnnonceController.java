@@ -42,7 +42,7 @@ public class AnnonceController implements AnnonceAPI {
     }
 
     @Override
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
     public ResponseEntity<?> delete(Integer id) {
         return annonceService.delete(id);
     }
