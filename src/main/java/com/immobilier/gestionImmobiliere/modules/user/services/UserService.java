@@ -131,7 +131,8 @@ public class UserService {
             // le code n'a pas ete verifie (voir verifierDeuxFacteurs).
             if (deuxFacteursService.exigePourConnexion(user.getIdUser(), request)) {
                 return buildSuccessResponse(HttpStatus.OK, "Code de vérification requis", "TWO_FACTOR_REQUIRED",
-                        Map.of("challengeToken", deuxFacteursService.creerDefi(user.getIdUser())));
+                        Map.of("challengeToken", deuxFacteursService.creerDefi(user.getIdUser()),
+                                "heuresConfiance", deuxFacteursService.dureeConfianceHeures()));
             }
             return ouvrirSession(user, request, response);
     }

@@ -7,6 +7,8 @@ import com.immobilier.gestionImmobiliere.donnees.user.repository.CodeSecours2faR
 import com.immobilier.gestionImmobiliere.donnees.user.repository.UserRepository;
 import com.immobilier.gestionImmobiliere.exceptions.DeuxFacteursException;
 import com.immobilier.gestionImmobiliere.exceptions.ResourceNotFoundException;
+import com.immobilier.gestionImmobiliere.donnees.parametres.model.CleParametre;
+import com.immobilier.gestionImmobiliere.modules.parametres.services.ParametreService;
 import com.immobilier.gestionImmobiliere.modules.user.jwt.JwtUtils;
 import com.immobilier.gestionImmobiliere.modules.user.jwt.RateLimitService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -58,11 +60,12 @@ public class DeuxFacteursService {
     private final PasswordEncoder encoder;
     private final RateLimitService rateLimitService;
     private final JwtUtils jwtUtils;
-    private final Duration dureeConfiance;
+    private final ParametreService parametreService;
     private final boolean cookieSecure;
     private final String cookieSameSite;
     private final SecureRandom random = new SecureRandom();
 
+    /** Reçoit les dépôts et services utilisés, ainsi que les réglages de cookie (sécurisé, SameSite) issus de la configuration. */
     public DeuxFacteursService(UserRepository userRepository,
                                CodeSecours2faRepository codeSecoursRepository,
                                StringRedisTemplate redis,
@@ -71,7 +74,7 @@ public class DeuxFacteursService {
                                PasswordEncoder encoder,
                                RateLimitService rateLimitService,
                                JwtUtils jwtUtils,
-                               @Value("${app.security.twofa-trust-hours:12}") long heuresConfiance,
+                               ParametreService parametreService,
                                @Value("${jwt.cookie.secure:true}") boolean cookieSecure,
                                @Value("${jwt.cookie.same-site:Strict}") String cookieSameSite) {
         this.userRepository = userRepository;
@@ -82,24 +85,37 @@ public class DeuxFacteursService {
         this.encoder = encoder;
         this.rateLimitService = rateLimitService;
         this.jwtUtils = jwtUtils;
-        this.dureeConfiance = Duration.ofHours(heuresConfiance);
+        this.parametreService = parametreService;
         this.cookieSecure = cookieSecure;
         this.cookieSameSite = cookieSameSite;
     }
 
     // ===================== Gestion du compte =====================
 
+    /**
+     * État de la 2FA renvoyé au front : disponible pour ce rôle, active ou non, codes de secours restants, durée de confiance en heures.
+     */
     public record Statut(boolean disponible, boolean actif, long codesSecoursRestants, long heuresConfiance) {}
 
+    /**
+     * Résultat du début d'activation : secret en clair (saisie manuelle), adresse otpauth et QR code en image.
+     */
     public record Initialisation(String secret, String urlOtpAuth, String qrCode) {}
 
+    /**
+     * Renvoie l'état de la 2FA d'un utilisateur (lecture seule).
+     */
     @Transactional(readOnly = true)
     public Statut statut(Integer idUser) {
         User user = charger(idUser);
         long restants = user.isTotpActif() ? codeSecoursRepository.countByIdUserAndUtiliseLeIsNull(idUser) : 0;
-        return new Statut(estDisponiblePour(user), user.isTotpActif(), restants, dureeConfiance.toHours());
+        return new Statut(estDisponiblePour(user), user.isTotpActif(), restants, dureeConfianceHeures());
     }
 
+    /**
+     * Début d'activation : génère un secret, le stocke chiffré (2FA toujours inactive) et prépare le QR code.
+     * Refusée pour un client ou un bailleur, ou si la 2FA est déjà active.
+     */
     @Transactional
     public Initialisation initier(Integer idUser) {
         User user = charger(idUser);
@@ -130,6 +146,9 @@ public class DeuxFacteursService {
         return genererCodesSecours(idUser);
     }
 
+    /**
+     * Désactive la 2FA de l'utilisateur après contrôle de son mot de passe puis d'un code valide, et efface secret, codes de secours et appareils de confiance.
+     */
     @Transactional
     public void desactiver(Integer idUser, String motDePasse, String code) {
         User user = charger(idUser);
@@ -144,6 +163,9 @@ public class DeuxFacteursService {
         effacer(user);
     }
 
+    /**
+     * Remplace les codes de secours par 10 nouveaux (les anciens deviennent inutilisables) après contrôle d'un code TOTP valide.
+     */
     @Transactional
     public List<String> regenererCodesSecours(Integer idUser, String code) {
         User user = charger(idUser);
@@ -175,12 +197,18 @@ public class DeuxFacteursService {
         return user.isTotpActif() && !appareilDeConfiance(request, idUser);
     }
 
+    /**
+     * Crée le jeton de défi remis après un mot de passe correct : valable 5 minutes dans Redis, il prouve que l'étape du mot de passe a réussi.
+     */
     public String creerDefi(Integer idUser) {
         String jeton = jetonAleatoire();
         redis.opsForValue().set(cleDefi(jeton), String.valueOf(idUser), DUREE_DEFI);
         return jeton;
     }
 
+    /**
+     * Retrouve l'utilisateur lié à un jeton de défi ; refuse un jeton inconnu ou expiré.
+     */
     public Integer idUserDuDefi(String jeton) {
         String valeur = jeton == null ? null : redis.opsForValue().get(cleDefi(jeton));
         if (valeur == null) {
@@ -190,6 +218,9 @@ public class DeuxFacteursService {
         return Integer.valueOf(valeur);
     }
 
+    /**
+     * Détruit le jeton de défi une fois la connexion terminée, pour qu'il ne serve qu'une fois.
+     */
     public void supprimerDefi(String jeton) {
         redis.delete(cleDefi(jeton));
     }
@@ -200,8 +231,12 @@ public class DeuxFacteursService {
         exigerCodeValide(charger(idUser), code, true);
     }
 
+    /**
+     * Marque l'appareil comme reconnu : dépose un cookie aléatoire (HttpOnly) et enregistre son empreinte dans Redis pour la durée du paramètre admin.
+     */
     public void marquerAppareilDeConfiance(Integer idUser, HttpServletResponse response) {
         String jeton = jetonAleatoire();
+        Duration dureeConfiance = Duration.ofHours(dureeConfianceHeures());
         redis.opsForValue().set(cleConfiance(idUser, jeton), "1", dureeConfiance);
         ResponseCookie cookie = ResponseCookie.from(COOKIE_APPAREIL, jeton)
                 .httpOnly(true)
@@ -213,6 +248,9 @@ public class DeuxFacteursService {
         response.addHeader("Set-Cookie", cookie.toString());
     }
 
+    /**
+     * Vrai si la requête porte un cookie d'appareil de confiance encore valide dans Redis pour cet utilisateur.
+     */
     private boolean appareilDeConfiance(HttpServletRequest request, Integer idUser) {
         jakarta.servlet.http.Cookie cookie = WebUtils.getCookie(request, COOKIE_APPAREIL);
         return cookie != null && Boolean.TRUE.equals(redis.hasKey(cleConfiance(idUser, cookie.getValue())));
@@ -220,6 +258,10 @@ public class DeuxFacteursService {
 
     // ===================== Internes =====================
 
+    /**
+     * Contrôle central d'un code : refuse après 5 échecs en 15 minutes, accepte un code TOTP (ou un code de secours si autorisé),
+     * compte les échecs et remet le compteur à zéro en cas de réussite.
+     */
     private void exigerCodeValide(User user, String code, boolean accepteSecours) {
         Integer idUser = user.getIdUser();
         String cleEchecs = "2fa-fail:" + idUser;
@@ -239,6 +281,9 @@ public class DeuxFacteursService {
         rateLimitService.reinitialiser(cleEchecs);
     }
 
+    /**
+     * Vérifie un code TOTP contre le secret déchiffré, puis le note dans Redis pour interdire de le réutiliser dans sa fenêtre de validité.
+     */
     private boolean totpValide(User user, String code) {
         if (user.getTotpSecret() == null) {
             return false;
@@ -252,6 +297,9 @@ public class DeuxFacteursService {
                 .setIfAbsent("2fa-used:" + user.getIdUser() + ":" + periode, "1", Duration.ofSeconds(120)));
     }
 
+    /**
+     * Vérifie un code de secours par son empreinte et le marque utilisé (usage unique, opération atomique en base).
+     */
     private boolean secoursValide(Integer idUser, String codeNormalise) {
         if (codeNormalise.length() != 10) {
             return false;
@@ -259,6 +307,9 @@ public class DeuxFacteursService {
         return codeSecoursRepository.consommer(idUser, hacher(codeNormalise), LocalDateTime.now()) > 0;
     }
 
+    /**
+     * Remplace les codes de secours par 10 codes aléatoires de 10 caractères : seules leurs empreintes sont stockées, les clairs sont renvoyés une seule fois.
+     */
     private List<String> genererCodesSecours(Integer idUser) {
         codeSecoursRepository.deleteByIdUser(idUser);
         codeSecoursRepository.flush();
@@ -275,6 +326,9 @@ public class DeuxFacteursService {
         return affiches;
     }
 
+    /**
+     * Remet la 2FA à zéro : secret et activation, codes de secours, appareils de confiance et compteur d'échecs.
+     */
     private void effacer(User user) {
         user.setTotpActif(false);
         user.setTotpSecret(null);
@@ -287,15 +341,29 @@ public class DeuxFacteursService {
         rateLimitService.reinitialiser("2fa-fail:" + user.getIdUser());
     }
 
+    /** Durée de confiance d'un appareil (paramètre admin, 12 h par défaut, au moins 1 h). */
+    public long dureeConfianceHeures() {
+        return Math.max(1, parametreService.getEntier(CleParametre.DUREE_CONFIANCE_APPAREIL_2FA_HEURES, 12));
+    }
+
+    /**
+     * Charge l'utilisateur ou lève une erreur 404.
+     */
     private User charger(Integer idUser) {
         return userRepository.findById(idUser)
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur", idUser));
     }
 
+    /**
+     * Vrai si le rôle de l'utilisateur peut utiliser la 2FA (tous sauf client et bailleur).
+     */
     private boolean estDisponiblePour(User user) {
         return user.getRole() != null && !ROLES_SANS_2FA.contains(user.getRole().getLibelleRole());
     }
 
+    /**
+     * Refuse l'opération (403) si le rôle ne peut pas utiliser la 2FA.
+     */
     private void exigerDisponible(User user) {
         if (!estDisponiblePour(user)) {
             throw new DeuxFacteursException(HttpStatus.FORBIDDEN, "TWO_FACTOR_NOT_AVAILABLE",
@@ -303,20 +371,32 @@ public class DeuxFacteursService {
         }
     }
 
+    /**
+     * Génère un jeton aléatoire de 256 bits encodé pour une adresse ou un cookie.
+     */
     private String jetonAleatoire() {
         byte[] octets = new byte[32];
         random.nextBytes(octets);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(octets);
     }
 
+    /**
+     * Clé Redis d'un jeton de défi (on stocke l'empreinte, jamais le jeton).
+     */
     private static String cleDefi(String jeton) {
         return "2fa-defi:" + hacher(jeton);
     }
 
+    /**
+     * Clé Redis d'un appareil de confiance : utilisateur + empreinte du jeton du cookie.
+     */
     private static String cleConfiance(Integer idUser, String jeton) {
         return "2fa-trust:" + idUser + ":" + hacher(jeton);
     }
 
+    /**
+     * Empreinte SHA-256 en hexadécimal, utilisée pour les jetons et les codes de secours.
+     */
     private static String hacher(String valeur) {
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")

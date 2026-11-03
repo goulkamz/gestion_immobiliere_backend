@@ -29,6 +29,10 @@ public class TotpService {
 
     private final SecureRandom random = new SecureRandom();
 
+    /**
+     * Génère un secret aléatoire de 20 octets (160 bits) encodé en base32 : c'est la clé partagée
+     * entre le serveur et l'application d'authentification de l'utilisateur.
+     */
     public String genererSecret() {
         byte[] octets = new byte[TAILLE_SECRET_OCTETS];
         random.nextBytes(octets);
@@ -59,6 +63,10 @@ public class TotpService {
         return calculer(decoderBase32(secretBase32), periode);
     }
 
+    /**
+     * Construit l'adresse otpauth:// que contient le QR code : émetteur, compte, secret et paramètres
+     * (SHA-1, 6 chiffres, pas de 30 s) que l'application d'authentification recopie au scan.
+     */
     public String urlOtpAuth(String emetteur, String compte, String secretBase32) {
         String label = encoderUrl(emetteur) + ":" + encoderUrl(compte);
         return "otpauth://totp/" + label + "?secret=" + secretBase32 + "&issuer=" + encoderUrl(emetteur)
@@ -77,6 +85,10 @@ public class TotpService {
         }
     }
 
+    /**
+     * Calcule le code à 6 chiffres d'une période : HMAC-SHA1(secret, numéro de période), puis
+     * troncature dynamique de la RFC 4226 (4 octets choisis par les 4 derniers bits) et réduction modulo 10^6.
+     */
     private String calculer(byte[] cle, long periode) {
         try {
             Mac mac = Mac.getInstance("HmacSHA1");
@@ -97,14 +109,24 @@ public class TotpService {
         }
     }
 
+    /**
+     * Compare deux chaînes sans s'arrêter à la première différence, pour ne pas révéler par le temps
+     * de réponse combien de chiffres du code étaient justes.
+     */
     private static boolean egalEnTempsConstant(String a, String b) {
         return MessageDigest.isEqual(a.getBytes(StandardCharsets.UTF_8), b.getBytes(StandardCharsets.UTF_8));
     }
 
+    /**
+     * Encode un texte pour une adresse (les espaces deviennent %20, comme l'attendent les applications).
+     */
     private static String encoderUrl(String valeur) {
         return URLEncoder.encode(valeur, StandardCharsets.UTF_8).replace("+", "%20");
     }
 
+    /**
+     * Encode des octets en base32 (alphabet de la RFC 4648), le format de secret lu par les applications d'authentification.
+     */
     static String encoderBase32(byte[] octets) {
         StringBuilder sb = new StringBuilder();
         int tampon = 0;
@@ -123,6 +145,9 @@ public class TotpService {
         return sb.toString();
     }
 
+    /**
+     * Décode un secret base32 en octets (insensible à la casse, ignore les caractères hors alphabet).
+     */
     static byte[] decoderBase32(String texte) {
         ByteArrayOutputStream sortie = new ByteArrayOutputStream();
         int tampon = 0;

@@ -24,10 +24,17 @@ public class ChiffrementSecretService {
     private final String cleBase64;
     private final SecureRandom random = new SecureRandom();
 
+    /**
+     * Reçoit la clé de chiffrement (base64) depuis la configuration ; elle n'est contrôlée qu'à l'usage.
+     */
     public ChiffrementSecretService(@Value("${app.security.twofa-key:}") String cleBase64) {
         this.cleBase64 = cleBase64;
     }
 
+    /**
+     * Chiffre un secret en AES-256-GCM avec un vecteur d'initialisation aléatoire placé devant le résultat,
+     * le tout encodé en base64 pour tenir dans une colonne texte.
+     */
     public String chiffrer(String clair) {
         SecretKeySpec cle = cle();
         try {
@@ -43,6 +50,10 @@ public class ChiffrementSecretService {
         }
     }
 
+    /**
+     * Opération inverse de chiffrer : relit le vecteur d'initialisation, déchiffre et vérifie l'intégrité
+     * (GCM refuse toute donnée altérée ou chiffrée avec une autre clé).
+     */
     public String dechiffrer(String chiffreBase64) {
         SecretKeySpec cle = cle();
         try {
@@ -55,6 +66,9 @@ public class ChiffrementSecretService {
         }
     }
 
+    /**
+     * Décode et contrôle la clé de configuration (présente, 32 octets) ; sans elle la 2FA est indisponible.
+     */
     private SecretKeySpec cle() {
         if (cleBase64 == null || cleBase64.isBlank()) {
             throw new IllegalStateException("TWOFA_ENCRYPTION_KEY n'est pas définie : double authentification indisponible");

@@ -16,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -154,6 +155,26 @@ class DeuxFacteursIntegrationTest extends AbstractIntegrationTest {
         mockMvc.perform(delete("/api/admin/users/" + idAgent + "/2fa").cookie(connexionSimple("admin@gestimmo.test")))
                 .andExpect(status().isOk());
         signin("agent@gestimmo.test").andExpect(jsonPath("$.code").value("LOGIN_SUCCESS"));
+    }
+
+    @Test
+    void dureeDeConfianceDeLAppareil_suitLeParametreModifieParLAdmin() throws Exception {
+        Cookie[] admin = connexionSimple("admin@gestimmo.test");
+        Cookie[] agent = connexionSimple("agent@gestimmo.test");
+        try {
+            mockMvc.perform(get("/api/users/me/2fa").cookie(agent))
+                    .andExpect(jsonPath("$.data.heuresConfiance").value(12));
+
+            mockMvc.perform(patch("/api/parametres/DUREE_CONFIANCE_APPAREIL_2FA_HEURES").cookie(admin)
+                            .contentType(MediaType.APPLICATION_JSON).content("{\"valeur\":\"24\"}"))
+                    .andExpect(status().isOk());
+
+            mockMvc.perform(get("/api/users/me/2fa").cookie(agent))
+                    .andExpect(jsonPath("$.data.heuresConfiance").value(24));
+        } finally {
+            mockMvc.perform(patch("/api/parametres/DUREE_CONFIANCE_APPAREIL_2FA_HEURES").cookie(admin)
+                    .contentType(MediaType.APPLICATION_JSON).content("{\"valeur\":\"12\"}"));
+        }
     }
 
     @Test
