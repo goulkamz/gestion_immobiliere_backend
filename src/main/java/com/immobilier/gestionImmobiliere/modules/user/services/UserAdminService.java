@@ -245,6 +245,7 @@ public class UserAdminService {
                 .role(u.getRole().getLibelleRole().name())
                 .dateCreate(u.getCreatedAt())
                 .dateLastLogin(u.getDateLastLogin())
+                .totpActif(u.isTotpActif())
                 .build();
     }
 }

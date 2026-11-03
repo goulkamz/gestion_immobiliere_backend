@@ -21,4 +21,5 @@ public class UserAdminResponseDTO {
     private String role;
     private LocalDateTime dateCreate;
     private LocalDateTime dateLastLogin;
+    private Boolean totpActif;
 }

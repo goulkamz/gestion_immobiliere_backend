@@ -7,6 +7,7 @@ import com.immobilier.gestionImmobiliere.donnees.user.repository.CodeSecours2faR
 import com.immobilier.gestionImmobiliere.donnees.user.repository.UserRepository;
 import com.immobilier.gestionImmobiliere.exceptions.DeuxFacteursException;
 import com.immobilier.gestionImmobiliere.exceptions.ResourceNotFoundException;
+import com.immobilier.gestionImmobiliere.modules.user.jwt.JwtUtils;
 import com.immobilier.gestionImmobiliere.modules.user.jwt.RateLimitService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -56,6 +57,7 @@ public class DeuxFacteursService {
     private final ChiffrementSecretService chiffrement;
     private final PasswordEncoder encoder;
     private final RateLimitService rateLimitService;
+    private final JwtUtils jwtUtils;
     private final Duration dureeConfiance;
     private final boolean cookieSecure;
     private final String cookieSameSite;
@@ -68,6 +70,7 @@ public class DeuxFacteursService {
                                ChiffrementSecretService chiffrement,
                                PasswordEncoder encoder,
                                RateLimitService rateLimitService,
+                               JwtUtils jwtUtils,
                                @Value("${app.security.twofa-trust-hours:12}") long heuresConfiance,
                                @Value("${jwt.cookie.secure:true}") boolean cookieSecure,
                                @Value("${jwt.cookie.same-site:Strict}") String cookieSameSite) {
@@ -78,6 +81,7 @@ public class DeuxFacteursService {
         this.chiffrement = chiffrement;
         this.encoder = encoder;
         this.rateLimitService = rateLimitService;
+        this.jwtUtils = jwtUtils;
         this.dureeConfiance = Duration.ofHours(heuresConfiance);
         this.cookieSecure = cookieSecure;
         this.cookieSameSite = cookieSameSite;
@@ -151,10 +155,15 @@ public class DeuxFacteursService {
         return genererCodesSecours(idUser);
     }
 
-    /** Réinitialisation par un administrateur (téléphone perdu) : l'utilisateur réactivera s'il le souhaite. */
+    /**
+     * Réinitialisation par un administrateur (téléphone perdu) : l'utilisateur réactivera s'il le souhaite.
+     * Ses sessions ouvertes sont révoquées : il devra se reconnecter.
+     */
     @Transactional
     public void reinitialiserParAdmin(Integer idCible) {
-        effacer(charger(idCible));
+        User user = charger(idCible);
+        effacer(user);
+        jwtUtils.revokeAllUserTokens(user.getEmail());
     }
 
     // ===================== Connexion =====================
