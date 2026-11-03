@@ -18,6 +18,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -96,6 +97,34 @@ class ResiliationMandatIntegrationTest extends AbstractIntegrationTest {
         assertThat(supprime(idMandat, moisCourant.plusMonths(4))).as("au-delà, payé : conservé").isFalse();
     }
 
+
+    // ---------- Suppression d'un mandat : agent et admin, mandat en attente seulement ----------
+
+    @Test
+    void suppression_estOuverteAuxAgentsEtAuxAdmins_pourUnMandatEnAttenteSeulement() throws Exception {
+        int idAgent = idAgent();
+        int enAttenteAgent = creerMandat("EN_ATTENTE", idAgent);
+        int enAttenteAdmin = creerMandat("EN_ATTENTE", idAgent);
+        int actif = creerMandat("ACTIF", idAgent);
+
+        mockMvc.perform(delete("/api/contrats-mandat/{id}", enAttenteAgent).cookie(connexion("agent@gestimmo.test")))
+                .andExpect(status().isOk());
+        mockMvc.perform(delete("/api/contrats-mandat/{id}", enAttenteAdmin).cookie(connexion("admin@gestimmo.test")))
+                .andExpect(status().isOk());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM contrat_mandat WHERE is_deleted = false AND id_mandat IN (?, ?)", Integer.class, enAttenteAgent, enAttenteAdmin)).isZero();
+
+        mockMvc.perform(delete("/api/contrats-mandat/{id}", actif).cookie(connexion("agent@gestimmo.test")))
+                .andExpect(status().isConflict());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM contrat_mandat WHERE is_deleted = false AND id_mandat = ?", Integer.class, actif)).isEqualTo(1);
+    }
+
+    @Test
+    void suppression_estRefuseeAUnBailleur() throws Exception {
+        int enAttente = creerMandat("EN_ATTENTE", idAgent());
+
+        mockMvc.perform(delete("/api/contrats-mandat/{id}", enAttente).cookie(connexion("bailleur@gestimmo.test")))
+                .andExpect(status().isForbidden());
+    }
 
     // ---------- Calcul mensuel, calcul cumulé et date de fin : même lecture du dernier mois ----------
 
@@ -178,6 +207,16 @@ class ResiliationMandatIntegrationTest extends AbstractIntegrationTest {
 
     private int idAgent() {
         return jdbc.queryForObject("SELECT id_user FROM users WHERE email = 'agent@gestimmo.test'", Integer.class);
+    }
+
+    /** Mandat de gestion mensuel sur la cour 3, au statut demandé (en attente ou actif). */
+    private int creerMandat(String statut, int idAgent) {
+        int id = jdbc.queryForObject(
+                "INSERT INTO contrat_mandat (id_cour, id_user, date_debut, type_mandat, commission, mode_facturation, statut) "
+                        + "VALUES (?, ?, ?, 'GESTION', 10, 'MENSUEL', ?) RETURNING id_mandat",
+                Integer.class, COUR_SANS_LOCATION_ACTIVE, idAgent, Date.valueOf(LocalDate.now().minusMonths(1)), statut);
+        mandatsCrees.add(id);
+        return id;
     }
 
     private int creerMandatActif(String modeFacturation, int idAgent) {

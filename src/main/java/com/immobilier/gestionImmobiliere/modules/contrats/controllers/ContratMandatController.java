@@ -76,7 +76,7 @@ public class ContratMandatController implements ContratMandatAPI {
     }
 
     @Override
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('AGENT','ADMIN')")
     public ResponseEntity<?> delete(Integer id) {
         return mandatService.delete(id);
     }
