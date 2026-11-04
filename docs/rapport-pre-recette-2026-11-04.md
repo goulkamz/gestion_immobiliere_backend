@@ -52,7 +52,7 @@ Aucun défaut bloquant. Un point de procédure corrigé, trois points à confirm
 
 **Dépôt public de photos sur une offre** (`POST /api/public/offres/{id}/medias`) : sans jeton ou avec un mauvais jeton 403 ; jeton d'une autre offre inutilisable ; images seules (HTML et exécutable refusés dans un lot mixte, les bonnes photos du lot passent) ; 10 fichiers maximum par envoi (400) ; 10 photos maximum par offre (400 au-delà). Les médias d'une offre sont invisibles pour un visiteur (400 sur la liste, 404 sur le fichier) et visibles pour un agent.
 
-**Point relevé (mineur, agent seulement)** : un agent peut téléverser un média sur un identifiant d'entité inexistant (maison 999999 : 201). Cela crée un média orphelin, sans effet visible ni risque d'accès. À corriger si l'on veut un contrôle d'existence de l'entité.
+**Point relevé (mineur, agent seulement)** : un agent peut téléverser un média sur un identifiant d'entité inexistant (maison 999999 : 201). Cela crée un média orphelin, sans effet visible ni risque d'accès. **Corrigé** : le service de médias vérifie désormais que l'entité existe (404 sinon), avec un test de non-régression. Le seul média orphelin déjà en base de développement (n° 4, déjà supprimé logiquement) sera purgé par la tâche quotidienne.
 
 Les médias créés pour les tests ont été supprimés (suppression logique). Deux offres de test restent en base de développement (ids 183 et suivante, "Test Recette").
 

@@ -1,5 +1,10 @@
 package com.immobilier.gestionImmobiliere.modules.medias.services;
 
+import com.immobilier.gestionImmobiliere.donnees.annonces.repository.AnnonceRepository;
+import com.immobilier.gestionImmobiliere.donnees.annonces.repository.OffreRepository;
+import com.immobilier.gestionImmobiliere.donnees.biens.repository.BienServiceRepository;
+import com.immobilier.gestionImmobiliere.donnees.biens.repository.CourRepository;
+import com.immobilier.gestionImmobiliere.donnees.biens.repository.MaisonRepository;
 import com.immobilier.gestionImmobiliere.donnees.medias.model.Media;
 import com.immobilier.gestionImmobiliere.donnees.medias.model.StatutThumbnail;
 import com.immobilier.gestionImmobiliere.donnees.medias.model.TypeEntiteMedia;
@@ -63,8 +68,22 @@ public class MediaService {
     private final MediaPersistenceService mediaPersistenceService;
     private final ApplicationEventPublisher eventPublisher;
 
+    private final CourRepository courRepository;
+    private final AnnonceRepository annonceRepository;
+    private final MaisonRepository maisonRepository;
+    private final BienServiceRepository bienServiceRepository;
+    private final OffreRepository offreRepository;
+
     public MediaService(MediaRepository mediaRepository, FileStorageService fileStorageService,
-                        MediaPersistenceService mediaPersistenceService, ApplicationEventPublisher eventPublisher) {
+                        MediaPersistenceService mediaPersistenceService, ApplicationEventPublisher eventPublisher,
+                        CourRepository courRepository, AnnonceRepository annonceRepository,
+                        MaisonRepository maisonRepository, BienServiceRepository bienServiceRepository,
+                        OffreRepository offreRepository) {
+        this.courRepository = courRepository;
+        this.annonceRepository = annonceRepository;
+        this.maisonRepository = maisonRepository;
+        this.bienServiceRepository = bienServiceRepository;
+        this.offreRepository = offreRepository;
         this.mediaRepository = mediaRepository;
         this.fileStorageService = fileStorageService;
         this.mediaPersistenceService = mediaPersistenceService;
@@ -96,6 +115,7 @@ public class MediaService {
      * MediaPersistenceService.enregistrerAvecRetry() est transactionnelle.
      */
     public ResponseEntity<?> upload(UploadMediaDTO dto) {
+        verifierEntiteExiste(dto.getEntiteType(), dto.getEntiteId());
         Media media = uploaderUnFichier(dto.getFichier(), dto.getEntiteType(), dto.getEntiteId(), dto.getIsPrincipal(), false);
         String message = media.getStatutThumbnail() == StatutThumbnail.EN_COURS
                 ? "Vidéo uploadée, génération de la miniature en cours"
@@ -110,6 +130,7 @@ public class MediaService {
      * s'applique qu'au premier fichier du lot.
      */
     public ResponseEntity<?> uploadMultiple(UploadMultipleMediaDTO dto) {
+        verifierEntiteExiste(dto.getEntiteType(), dto.getEntiteId());
         return uploaderLot(dto.getFichiers(), dto.getEntiteType(), dto.getEntiteId(), dto.getIsPrincipal(), false);
     }
 
@@ -119,6 +140,20 @@ public class MediaService {
      */
     public ResponseEntity<?> uploadPhotosOffre(Integer idOffre, List<MultipartFile> fichiers) {
         return uploaderLot(fichiers, TypeEntiteMedia.OFFRE, idOffre, false, true);
+    }
+
+    // Evite les medias orphelins : l'entite visee doit exister (et ne pas etre supprimee)
+    private void verifierEntiteExiste(TypeEntiteMedia entiteType, Integer entiteId) {
+        boolean existe = switch (entiteType) {
+            case COUR -> courRepository.existsById(entiteId);
+            case ANNONCE -> annonceRepository.existsById(entiteId);
+            case MAISON -> maisonRepository.existsById(entiteId);
+            case BIEN_SERVICE -> bienServiceRepository.existsById(entiteId);
+            case OFFRE -> offreRepository.existsById(entiteId);
+        };
+        if (!existe) {
+            throw new ResourceNotFoundException(entiteType.name().toLowerCase(), entiteId);
+        }
     }
 
     public long compterMedias(TypeEntiteMedia entiteType, Integer entiteId) {

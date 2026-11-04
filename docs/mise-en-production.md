@@ -249,3 +249,42 @@ docker compose exec postgres psql -U postgres -d gestion_immobiliere   console S
 - [ ] Ajouter le signal de vie `BACKUP_PING_URL` (section 9).
 - [ ] Remplacer les photos et images de démonstration par les vraies (dossier `images-a-fournir`).
 - [ ] Faire relire cette procédure en la déroulant une fois sur un serveur de test.
+
+## 15. Préproduction (recette externe et scans de sécurité)
+
+La préproduction est un second environnement, identique à la production dans sa construction, réservé à une équipe de test externe et aux scans de sécurité. Elle se monte avec les sections 2 à 8, avec les écarts ci-dessous. **Ne jamais y mettre de vraies données de clients.**
+
+### Serveur et domaines
+- Un serveur **distinct** de la production (VPS payant, 4 Go de RAM minimum : le build du backend et du frontend, Postgres, MinIO et nginx tournent ensemble).
+- Deux domaines **propres à la préproduction** (par exemple `recette.<domaine>` et `api-recette.<domaine>`), jamais ceux de la production. Les valeurs `WEB_DOMAIN`, `API_DOMAIN`, `BASE_URL` et `CORS_ALLOWED_ORIGINS` du `.env` pointent sur eux.
+- Tous les secrets du `.env` sont **générés à nouveau** (`generer-secrets.sh`) : aucune valeur partagée avec la production.
+
+### Écarts du `.env` par rapport à la production
+
+| Variable | Valeur en préproduction | Raison |
+|---|---|---|
+| `NOTIFICATIONS_EMAIL_REDIRECTION` | **Renseignée** (une boîte que vous contrôlez) | Les testeurs créent des comptes et déclenchent des e-mails : aucun message ne doit partir vers de vraies adresses. C'est l'inverse de la production |
+| `FLYWAY_LOCATIONS` | `classpath:db/migration,classpath:db/seed` si des données de démonstration sont voulues, sinon non définie | Voir « Données de test » |
+| `JWT_COOKIE_SECURE` | `true` | HTTPS reste obligatoire, comme en production |
+| `PROFILES_ACTIVE` | `prod` | On teste la configuration réelle, pas celle du développement |
+
+### Données de test
+- Le seed `R__seed_dev.sql` **vide les tables (TRUNCATE)** à chaque fois que son contenu change : une mise à jour qui le modifie effacerait tout ce que les testeurs ont saisi. Avant chaque mise à jour, vérifier si ce fichier a changé (`git diff <ancienne-version> -- src/main/resources/db/seed`) et prévenir les testeurs si c'est le cas.
+- Les comptes du seed utilisent le mot de passe `Password123!`, connu de tous les dépôts. **Ne pas le laisser tel quel** sur un serveur joignable depuis Internet : remplacer les mots de passe de chaque compte remis aux testeurs (depuis l'application, ou en leur faisant utiliser « mot de passe oublié »), et supprimer les comptes inutiles.
+- Donner à chaque testeur un compte nominatif par rôle utile (client, bailleur, agent, administrateur), avec un mot de passe distinct.
+- Les testeurs ne doivent pas avoir d'accès SSH ni Docker. Ils passent par le site.
+
+### Restreindre l'accès
+La préproduction ne doit pas être indexée ni ouverte à tout Internet. Au choix, devant `nginx` :
+- **Restriction par adresse IP** (à préférer si les testeurs ont des adresses fixes) : directives `allow <ip>;` puis `deny all;` dans les blocs `server` de `nginx/templates`.
+- **Authentification HTTP** : `auth_basic` avec un fichier `htpasswd`, un identifiant par testeur. Attention : elle s'ajoute à la connexion de l'application, et l'application mobile ou un scanner doivent aussi pouvoir la passer.
+- Dans tous les cas, ajouter l'en-tête `X-Robots-Tag: noindex, nofollow` pour que les moteurs de recherche ignorent le site.
+
+Les adresses des machines de scan de sécurité doivent être autorisées explicitement. La limite de connexion de l'application (blocage après échecs répétés) restera active pendant les scans : prévoir avec l'équipe quels comptes servent aux tests d'authentification, ou la desserrer temporairement pour eux seulement.
+
+### Avant d'ouvrir aux testeurs
+- [ ] Les contrôles de la section 8 sont passés, à l'exception de ceux sur les données de démonstration et sur l'e-mail réel (remplacés par : un e-mail de test arrive bien dans la boîte de redirection).
+- [ ] Aucun mot de passe `Password123!` ne reste sur un compte accessible.
+- [ ] L'accès est restreint (IP ou authentification HTTP) et le noindex est en place.
+- [ ] Une sauvegarde est configurée, ou la perte des données de test est acceptée par tous.
+- [ ] Un document partagé avec les testeurs précise : périmètre testé, comptes fournis, adresse de signalement des anomalies, et interdiction d'y saisir des données réelles.

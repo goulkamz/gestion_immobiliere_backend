@@ -60,6 +60,21 @@ class MediaIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void upload_surEntiteInexistante_estRefuse_sansMediaOrphelin() throws Exception {
+        MockMultipartFile image = new MockMultipartFile("fichier", "etoile.png", "image/png",
+                new ClassPathResource("image/etoile.png").getInputStream());
+
+        mockMvc.perform(multipart("/api/medias").file(image).cookie(agent)
+                        .param("entiteType", "MAISON")
+                        .param("entiteId", "999999"))
+                .andExpect(status().isNotFound());
+
+        Integer orphelins = jdbc.queryForObject(
+                "select count(*) from medias where entite_type = 'MAISON' and entite_id = 999999", Integer.class);
+        assertThat(orphelins).isZero();
+    }
+
+    @Test
     void reorder_permuteDeuxMedias() throws Exception {
         int a = uploader(4);
         int b = uploader(4);
