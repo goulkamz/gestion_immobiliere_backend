@@ -37,8 +37,8 @@ public class UserAdminController implements UserAdminAPI {
 
     @Override
     @PreAuthorize("hasAnyRole('ADMIN','AGENT')")
-    public ResponseEntity<?> getById(Integer id) {
-        return userAdminService.getById(id);
+    public ResponseEntity<?> getById(Integer id, @AuthenticationPrincipal UserDetailsImpl currentUser) {
+        return userAdminService.getById(id, currentUser.hasRole("ADMIN"));
     }
 
     // Ouvert a l'agent, mais limite aux roles client/bailleur (controle dans le service)

@@ -52,19 +52,26 @@ public class UserAdminService {
         this.jwtUtils = jwtUtils;
     }
 
+    // Un agent ne voit ni l'administrateur ni les autres rôles internes ; les fiches de ses collègues agents sont réduites
+    // à l'identité et à l'e-mail (il choisit un gestionnaire parmi eux, sans avoir besoin de leurs données personnelles).
+    private static final Set<ERole> ROLES_VISIBLES_PAR_AGENT = EnumSet.of(ERole.ROLE_CLIENT, ERole.ROLE_BAILLEUR, ERole.ROLE_AGENT);
+
     public ResponseEntity<?> getAll(ERole role, String recherche, boolean supprimes, boolean estAdmin, Pageable pageable) {
         // La liste des comptes supprimés (pour réactivation) est réservée à l'admin
         if (supprimes && !estAdmin) {
             throw new AccessDeniedException("Seul un administrateur peut consulter les comptes supprimés");
         }
         // Rôle et recherche (nom, prénom, email, téléphone) appliqués côté base avant la pagination
-        Page<User> page = userRepository.findAll(filtrer(role, recherche, supprimes), pageable);
-        return buildSuccessResponse(HttpStatus.OK, "Liste des utilisateurs", "USER_LIST", page.map(this::toDto));
+        Page<User> page = userRepository.findAll(filtrer(role, recherche, supprimes, estAdmin), pageable);
+        return buildSuccessResponse(HttpStatus.OK, "Liste des utilisateurs", "USER_LIST", page.map(u -> toDto(u, estAdmin)));
     }
 
-    private Specification<User> filtrer(ERole role, String recherche, boolean supprimes) {
+    private Specification<User> filtrer(ERole role, String recherche, boolean supprimes, boolean estAdmin) {
         return (root, query, cb) -> {
             List<Predicate> predicats = new ArrayList<>();
+            if (!estAdmin) {
+                predicats.add(root.get("role").get("libelleRole").in(ROLES_VISIBLES_PAR_AGENT));
+            }
             predicats.add(supprimes ? cb.isTrue(root.<Boolean>get("isDeleted")) : cb.isFalse(root.<Boolean>get("isDeleted")));
             if (role != null) {
                 predicats.add(cb.equal(root.get("role").get("libelleRole"), role));
@@ -81,8 +88,12 @@ public class UserAdminService {
         };
     }
 
-    public ResponseEntity<?> getById(Integer id) {
-        return buildSuccessResponse(HttpStatus.OK, "Utilisateur trouvé", "USER_FOUND", toDto(findOrThrow(id)));
+    public ResponseEntity<?> getById(Integer id, boolean estAdmin) {
+        User user = findOrThrow(id);
+        if (!estAdmin && !ROLES_VISIBLES_PAR_AGENT.contains(user.getRole().getLibelleRole())) {
+            throw new AccessDeniedException("Ce compte n'est pas consultable avec votre rôle");
+        }
+        return buildSuccessResponse(HttpStatus.OK, "Utilisateur trouvé", "USER_FOUND", toDto(user, estAdmin));
     }
 
     // Un agent ne peut creer que des comptes client ou bailleur (jamais agent, admin ni les autres roles internes)
@@ -228,6 +239,21 @@ public class UserAdminService {
 
     private User findOrThrow(Integer id) {
         return userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("utilisateur", id));
+    }
+
+    private UserAdminResponseDTO toDto(User u, boolean estAdmin) {
+        if (!estAdmin && u.getRole().getLibelleRole() == ERole.ROLE_AGENT) {
+            return UserAdminResponseDTO.builder()
+                    .idUser(u.getIdUser())
+                    .email(u.getEmail())
+                    .nom(u.getNom())
+                    .prenom(u.getPrenom())
+                    .flagActif(u.isFlagActif())
+                    .supprime(Boolean.TRUE.equals(u.getIsDeleted()))
+                    .role(u.getRole().getLibelleRole().name())
+                    .build();
+        }
+        return toDto(u);
     }
 
     private UserAdminResponseDTO toDto(User u) {

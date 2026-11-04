@@ -43,9 +43,11 @@ class RoleBasedAccessIntegrationTest extends AbstractIntegrationTest {
 
         mockMvc.perform(get("/api/admin/users").cookie(accessCookie))
                 .andExpect(status().isOk());
-        mockMvc.perform(get("/api/admin/users/1").cookie(accessCookie))
+        // Un compte client (visible par l'agent) : lecture autorisée, suppression refusée
+        int idClient = idDe("client@gestimmo.test");
+        mockMvc.perform(get("/api/admin/users/" + idClient).cookie(accessCookie))
                 .andExpect(status().isOk());
-        mockMvc.perform(delete("/api/admin/users/1").cookie(accessCookie))
+        mockMvc.perform(delete("/api/admin/users/" + idClient).cookie(accessCookie))
                 .andExpect(status().isForbidden());
     }
 
@@ -115,6 +117,13 @@ class RoleBasedAccessIntegrationTest extends AbstractIntegrationTest {
     @org.junit.jupiter.api.Test
     void statsNonPubliques_sansAuthentification_retourne401() throws Exception {
         mockMvc.perform(get("/api/stats/admin")).andExpect(status().isUnauthorized());
+    }
+
+    private int idDe(String email) throws Exception {
+        Cookie admin = seConnecterEtRecupererCookieAcces("admin@gestimmo.test");
+        String corps = mockMvc.perform(get("/api/admin/users").param("recherche", email).cookie(admin))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        return com.jayway.jsonpath.JsonPath.read(corps, "$.data.content[0].idUser");
     }
 
     private static String corpsCreation(String email, String role) {

@@ -19,7 +19,7 @@ public interface UserAdminAPI {
                              @AuthenticationPrincipal UserDetailsImpl currentUser, Pageable pageable);
 
     @GetMapping("/{id}")
-    ResponseEntity<?> getById(@PathVariable Integer id);
+    ResponseEntity<?> getById(@PathVariable Integer id, @AuthenticationPrincipal UserDetailsImpl currentUser);
 
     @PostMapping
     ResponseEntity<?> create(@Valid @RequestBody CreateUserByAdminDTO dto, @AuthenticationPrincipal UserDetailsImpl currentUser);
