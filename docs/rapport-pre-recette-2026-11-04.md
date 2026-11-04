@@ -35,3 +35,11 @@ Aucun défaut bloquant. Un point de procédure corrigé, trois points à confirm
 - Téléversement de fichiers (types refusés, taille, accès aux fichiers privés).
 - Flux financiers de bout en bout : paiement, quittance, reversement, rapport mensuel.
 - Équipement : mobile, autres navigateurs, délivrabilité des e-mails, charge.
+
+## Tranche 2 : parcours navigateur et écritures entre utilisateurs (2026-11-04)
+
+**Parcours navigateur** (Chrome headless, bureau 1366 px et mobile 390 px, 102 pages : public, client, bailleur, agent, admin) : aucune erreur d'API ni de JavaScript, aucune page vide. Un défaut trouvé et corrigé : la barre d'onglets de `/espace-admin/utilisateurs` débordait sur mobile (elle défile maintenant). Non couvert : pages détail avec identifiant.
+
+**Écritures par rôle** (51 endpoints PUT/PATCH/DELETE, id inexistant, visiteur / client / bailleur / agent / admin) : le visiteur reçoit toujours 401, les rôles non autorisés reçoivent 403, les rôles autorisés 404, aucune réponse 2xx ni 5xx. Note : la validation du corps (400) passe avant le contrôle de rôle, ce qui ne change aucun état. Re-testé avec des corps valides : 403 conforme.
+
+**Écritures croisées avec de vrais ids** (13 cas) : un client ne peut ni annuler ni confirmer la réservation ou la location d'un autre, ni résilier ou terminer un contrat de location ; un bailleur ne peut ni résilier, activer, modifier ni supprimer le mandat d'un autre bailleur, ni confirmer un virement. Tout renvoie 403. Aucun écart.
