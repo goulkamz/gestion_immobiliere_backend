@@ -65,14 +65,19 @@ public class PaiementService {
      */
     @Transactional
     public ResponseEntity<?> create(CreatePaiementDTO dto, Integer currentUserId) {
+        LocalDateTime datePaiement = dto.getDatePaiement() != null ? dto.getDatePaiement() : LocalDateTime.now();
+        if (datePaiement.isAfter(LocalDateTime.now().plusMinutes(5))) {
+            throw new IllegalArgumentException("La date du paiement ne peut pas être dans le futur");
+        }
+
         Paiement paiement = soldeEcheances(
-                dto.getIdEcheances(),
+                dto.getIdEcheances().stream().distinct().toList(),
                 dto.getMontantPaiement(),
                 dto.getModePaiement(),
                 dto.getReferencePaiement(),
                 SensPaiement.ENTREE,
                 currentUserId,
-                dto.getDatePaiement() != null ? dto.getDatePaiement() : LocalDateTime.now());
+                datePaiement);
 
         alerteUtilisateurService.paiementLoyerRecu(paiement, dto.getIdEcheances());
         return buildSuccessResponse(HttpStatus.CREATED, "Paiement enregistré avec succès", "PAIEMENT_CREATED",

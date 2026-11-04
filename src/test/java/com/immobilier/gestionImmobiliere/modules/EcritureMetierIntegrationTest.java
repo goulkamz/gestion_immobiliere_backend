@@ -187,6 +187,17 @@ class EcritureMetierIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void paiement_montantNulOuNegatif_modeVide_dateFuture_refuses() throws Exception {
+        payer(5, "0", status().isBadRequest());
+        payer(5, "-5000", status().isBadRequest());
+        appel(agent, post("/api/paiements"), """
+                {"montantPaiement":100,"modePaiement":"","idEcheances":[5]}""", status().isBadRequest());
+        appel(agent, post("/api/paiements"), """
+                {"montantPaiement":100,"modePaiement":"ESPECES","datePaiement":"2099-01-01T00:00:00","idEcheances":[5]}""",
+                status().isBadRequest());
+    }
+
+    @Test
     void paiementPartiel_surEcheanceEnRetard_laLaisseEnRetardJusquAuSoldePenaliteComprise() throws Exception {
         int id = jdbc.queryForObject("""
                 INSERT INTO echeance_loyer (entite_echeance_type, entite_echeance_id, date_echeance,
