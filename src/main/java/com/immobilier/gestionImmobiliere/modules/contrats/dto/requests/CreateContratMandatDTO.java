@@ -17,4 +17,6 @@ public class CreateContratMandatDTO {
     @NotNull private TypeMandat typeMandat;
     private BigDecimal commission;
     @NotNull private ModeFacturation modeFacturation;
+    /** Montant jusqu'auquel l'agence engage une dépense sans accord préalable du bailleur (facultatif). */
+    @jakarta.validation.constraints.PositiveOrZero private BigDecimal plafondDepenseSansAccord;
 }

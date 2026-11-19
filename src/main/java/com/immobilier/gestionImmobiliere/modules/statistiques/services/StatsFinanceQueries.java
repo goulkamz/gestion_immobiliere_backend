@@ -92,13 +92,13 @@ public class StatsFinanceQueries {
                 """).getSingleResult();
 
         // Avance de l'agence : pour chaque reversement PAYÉ, la part brute des loyers du même mois (même cour) non encaissée,
-        // ramenée au net reversé au bailleur.
+        // ramenée au net reversé au bailleur. Loyers bruts = net + commission + dépenses retenues sur ce reversement.
         Object[] avance = (Object[]) em.createNativeQuery("""
                 SELECT
-                  COALESCE(SUM(GREATEST((e.montant_du + COALESCE(e.commission_deduite, 0)) - COALESCE(lp.paye, 0), 0)
-                               * e.montant_du / NULLIF(e.montant_du + COALESCE(e.commission_deduite, 0), 0)), 0),
-                  COUNT(*) FILTER (WHERE (e.montant_du + COALESCE(e.commission_deduite, 0)) - COALESCE(lp.paye, 0) > 0)
+                  COALESCE(SUM(GREATEST(b.brut - COALESCE(lp.paye, 0), 0) * e.montant_du / NULLIF(b.brut, 0)), 0),
+                  COUNT(*) FILTER (WHERE b.brut - COALESCE(lp.paye, 0) > 0 AND e.montant_du > 0)
                 FROM echeance_loyer e
+                CROSS JOIN LATERAL (SELECT e.montant_du + COALESCE(e.commission_deduite, 0) + COALESCE(e.retenue_depenses, 0) AS brut) b
                 JOIN contrat_mandat m ON m.id_mandat = e.entite_echeance_id
                 LEFT JOIN LATERAL (
                     SELECT SUM(l.montant_paye) AS paye
@@ -110,7 +110,23 @@ public class StatsFinanceQueries {
                 WHERE e.entite_echeance_type = 'MANDAT' AND e.is_deleted = false AND e.statut = 'PAYE'
                 """).getSingleResult();
 
+        // Dépenses avancées pour les bailleurs : ce qui reste à retenir sur les reversements, et ce que les bailleurs
+        // doivent régler directement depuis la résiliation de leur mandat
+        Object[] depenses = (Object[]) em.createNativeQuery("""
+                SELECT
+                  COALESCE(SUM(CASE WHEN d.statut = 'EN_COURS' THEN d.montant - d.montant_impute - d.montant_regle - d.montant_abandonne END), 0),
+                  COUNT(*) FILTER (WHERE d.statut = 'EN_COURS'),
+                  COALESCE(SUM(CASE WHEN d.statut = 'A_REGLER' THEN d.montant - d.montant_impute - d.montant_regle - d.montant_abandonne END), 0),
+                  COUNT(*) FILTER (WHERE d.statut = 'A_REGLER')
+                FROM depense_bien d
+                WHERE d.is_deleted = false
+                """).getSingleResult();
+
         return ReversementsStatsDTO.builder()
+                .depensesResteARetenir(dec(depenses[0]))
+                .nombreDepensesEnCours(((Number) depenses[1]).longValue())
+                .depensesDuesParBailleurs(dec(depenses[2]))
+                .nombreDepensesDues(((Number) depenses[3]).longValue())
                 .avanceSansLoyer(dec(avance[0]).setScale(0, RoundingMode.HALF_UP))
                 .nombreAvances(((Number) avance[1]).longValue())
                 .effectue(dec(r[0]))

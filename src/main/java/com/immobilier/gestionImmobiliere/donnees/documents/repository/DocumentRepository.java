@@ -12,4 +12,8 @@ public interface DocumentRepository extends JpaRepository<Document, Integer> {
     List<Document> findByEntiteTypeAndEntiteIdOrderByCreatedAtDesc(TypeEntiteDocument type, Integer entiteId);
 
     Optional<Document> findByTypeDocumentAndPeriodeMois(TypeDocument type, LocalDate periodeMois);
+
+    Optional<Document> findFirstByTypeDocumentAndEntiteTypeAndEntiteId(TypeDocument type, TypeEntiteDocument entiteType, Integer entiteId);
+
+    boolean existsByTypeDocumentAndEntiteTypeAndEntiteId(TypeDocument type, TypeEntiteDocument entiteType, Integer entiteId);
 }

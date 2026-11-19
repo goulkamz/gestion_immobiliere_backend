@@ -24,4 +24,9 @@ public class BailleurStatsController implements BailleurStatsAPI {
     public ResponseEntity<?> getRevenus(UserDetailsImpl currentUser) {
         return bailleurStatsService.getRevenus(currentUser.getIdUser());
     }
+
+    @Override
+    public ResponseEntity<?> getDepenses(UserDetailsImpl currentUser) {
+        return bailleurStatsService.getDepenses(currentUser.getIdUser());
+    }
 }

@@ -19,4 +19,8 @@ public class ReversementsStatsDTO {
     private BigDecimal commissionsPrevues;  // commissions des reversements non encore payés
     private BigDecimal avanceSansLoyer;     // part des reversements PAYÉS dont les loyers du mois n'ont pas été encaissés (avance de l'agence)
     private long nombreAvances;             // nombre de reversements payés concernés
+    private BigDecimal depensesResteARetenir;    // dépenses avancées pour les bailleurs, pas encore retenues sur les reversements
+    private long nombreDepensesEnCours;
+    private BigDecimal depensesDuesParBailleurs; // solde dû directement par les bailleurs (mandats résiliés)
+    private long nombreDepensesDues;
 }

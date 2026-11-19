@@ -2,7 +2,12 @@ package com.immobilier.gestionImmobiliere.modules.statistiques.services;
 
 import com.immobilier.gestionImmobiliere.donnees.biens.repository.CourRepository;
 import com.immobilier.gestionImmobiliere.donnees.biens.repository.MaisonRepository;
+import com.immobilier.gestionImmobiliere.donnees.depenses.model.StatutDepense;
+import com.immobilier.gestionImmobiliere.donnees.depenses.model.StatutDevis;
+import com.immobilier.gestionImmobiliere.donnees.depenses.repository.DepenseBienRepository;
+import com.immobilier.gestionImmobiliere.donnees.depenses.repository.DevisTravauxRepository;
 import com.immobilier.gestionImmobiliere.donnees.paiements.repository.EcheanceLoyerRepository;
+import com.immobilier.gestionImmobiliere.modules.statistiques.dto.BailleurDepensesDTO;
 import com.immobilier.gestionImmobiliere.modules.statistiques.dto.BailleurPatrimoineDTO;
 import com.immobilier.gestionImmobiliere.modules.statistiques.dto.BailleurRevenuDTO;
 import org.springframework.http.HttpStatus;
@@ -22,9 +27,14 @@ public class BailleurStatsService {
     private final MaisonRepository maisonRepository;
     private final CourRepository courRepository;
     private final EcheanceLoyerRepository echeanceLoyerRepository;
+    private final DepenseBienRepository depenseRepository;
+    private final DevisTravauxRepository devisRepository;
 
     public BailleurStatsService(MaisonRepository maisonRepository, CourRepository courRepository,
-                                EcheanceLoyerRepository echeanceLoyerRepository) {
+                                EcheanceLoyerRepository echeanceLoyerRepository, DepenseBienRepository depenseRepository,
+                                DevisTravauxRepository devisRepository) {
+        this.depenseRepository = depenseRepository;
+        this.devisRepository = devisRepository;
         this.maisonRepository = maisonRepository;
         this.courRepository = courRepository;
         this.echeanceLoyerRepository = echeanceLoyerRepository;
@@ -61,5 +71,16 @@ public class BailleurStatsService {
                 .toList();
 
         return buildSuccessResponse(HttpStatus.OK, "Vos revenus locatifs", "BAILLEUR_REVENUS", result);
+    }
+
+    public ResponseEntity<?> getDepenses(Integer idBailleur) {
+        BailleurDepensesDTO result = BailleurDepensesDTO.builder()
+                .resteARetenir(depenseRepository.sumRestantPourBailleur(idBailleur, StatutDepense.EN_COURS))
+                .nombreEnCours(depenseRepository.countPourBailleur(idBailleur, StatutDepense.EN_COURS))
+                .duDirectement(depenseRepository.sumRestantPourBailleur(idBailleur, StatutDepense.A_REGLER))
+                .nombreDues(depenseRepository.countPourBailleur(idBailleur, StatutDepense.A_REGLER))
+                .devisEnAttente(devisRepository.countByCour_Proprietaire_IdUserAndStatut(idBailleur, StatutDevis.EN_ATTENTE))
+                .build();
+        return buildSuccessResponse(HttpStatus.OK, "Vos dépenses et devis", "BAILLEUR_DEPENSES", result);
     }
 }

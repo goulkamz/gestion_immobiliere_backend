@@ -52,6 +52,8 @@ import com.immobilier.gestionImmobiliere.modules.notifications.services.AlerteUt
 @Service
 public class EcheanceService {
 
+    private final com.immobilier.gestionImmobiliere.modules.depenses.services.DepenseService depenseService;
+
     private final EcheanceLoyerRepository echeanceRepository;
     private final ContratLocationRepository contratLocationRepository;
     private final ContratMandatRepository contratMandatRepository;
@@ -61,7 +63,8 @@ public class EcheanceService {
     private final AlerteUtilisateurService alerteUtilisateurService;
     private final AlerteAgentService alerteAgentService;
 
-    public EcheanceService(EcheanceLoyerRepository echeanceRepository, ContratLocationRepository contratLocationRepository, ContratMandatRepository contratMandatRepository, PaiementService paiementService, ParametreService parametreService, AlerteUtilisateurService alerteUtilisateurService, AlerteAgentService alerteAgentService) {
+    public EcheanceService(EcheanceLoyerRepository echeanceRepository, ContratLocationRepository contratLocationRepository, ContratMandatRepository contratMandatRepository, PaiementService paiementService, ParametreService parametreService, AlerteUtilisateurService alerteUtilisateurService, AlerteAgentService alerteAgentService, com.immobilier.gestionImmobiliere.modules.depenses.services.DepenseService depenseService) {
+        this.depenseService = depenseService;
         this.alerteAgentService = alerteAgentService;
         this.alerteUtilisateurService = alerteUtilisateurService;
         this.echeanceRepository = echeanceRepository;
@@ -338,6 +341,8 @@ public class EcheanceService {
                 .filter(e -> e.getMontantPaye() == null || e.getMontantPaye().signum() == 0)
                 .toList();
 
+        // Les dépenses retenues sur ces reversements redeviennent à retenir
+        depenseService.libererImputations(aSupprimer);
         echeanceRepository.deleteAll(aSupprimer);
     }
 
@@ -350,8 +355,9 @@ public class EcheanceService {
     public ResponseEntity<?> getEcheanceMandatEnRetard() {
         List<EcheanceLoyer> enRetard = echeanceRepository.findByEntiteEcheanceTypeAndStatutAndDateEcheanceBefore(TypeEcheance.MANDAT,StatutEcheance.EN_RETARD, LocalDate.now());
         return buildSuccessResponse(HttpStatus.OK, "Échéances en retard", "ECHEANCE_EN_RETARD_LIST",
-                enRetard.stream().map(e -> toMandatDto(e, e.getMontantDu().add(
-                        e.getCommissionDeduite() != null ? e.getCommissionDeduite() : BigDecimal.ZERO))).toList());
+                enRetard.stream().map(e -> toMandatDto(e, e.getMontantDu()
+                        .add(e.getCommissionDeduite() != null ? e.getCommissionDeduite() : BigDecimal.ZERO)
+                        .add(e.getRetenueDepenses() != null ? e.getRetenueDepenses() : BigDecimal.ZERO))).toList());
     }
 
     /**
@@ -499,6 +505,7 @@ public class EcheanceService {
         resultat.put("nombreMois", calculs.size());
         resultat.put("montantLoyersDus", totalLoyers);
         resultat.put("commissionDeduite", totalCommission);
+        resultat.put("retenueDepenses", calculs.stream().map(c -> c.echeance().getRetenueDepenses()).reduce(BigDecimal.ZERO, BigDecimal::add));
         resultat.put("montantNetAReverser", totalNet);
         resultat.put("echeances", calculs.stream().map(c -> toMandatDto(c.echeance(), c.loyersDus())).toList());
         return buildSuccessResponse(HttpStatus.CREATED, "Montant cumulé à reverser calculé", "ECHEANCES_MANDAT_CUMUL_CALCULEES", resultat);
@@ -592,6 +599,15 @@ public class EcheanceService {
                 .userCreate(currentAgentId)
                 .build();
         echeanceRepository.save(echeance);
+
+        // Dépenses à la charge du bailleur : retenues sur le net, sans jamais le rendre négatif
+        // (le surplus est rattrapé sur les reversements suivants). La commission reste calculée sur les loyers.
+        BigDecimal retenue = depenseService.imputerSurReversement(mandat, echeance, echeance.getMontantDu());
+        if (retenue.signum() > 0) {
+            echeance.setRetenueDepenses(retenue);
+            echeance.setMontantDu(echeance.getMontantDu().subtract(retenue));
+            echeanceRepository.save(echeance);
+        }
         return new CalculMois(echeance, loyersDus);
     }
 
@@ -685,6 +701,7 @@ public class EcheanceService {
                 .montantPaye(e.getMontantPaye())
                 .penalite(e.getPenalite())
                 .commissionDeduite(e.getCommissionDeduite())
+                .retenueDepenses(e.getRetenueDepenses())
                 .statut(e.getStatut())
                 .build();
     }
@@ -698,6 +715,7 @@ public class EcheanceService {
                 .periodeMois(e.getDateEcheance())
                 .montantLoyersDus(loyersDus)
                 .commissionDeduite(e.getCommissionDeduite())
+                .retenueDepenses(e.getRetenueDepenses())
                 .montantNetAReverser(e.getMontantDu())
                 .statut(e.getStatut())
                 .build();

@@ -4,7 +4,13 @@ import com.immobilier.gestionImmobiliere.donnees.annonces.model.Contact;
 import com.immobilier.gestionImmobiliere.donnees.annonces.model.Demande;
 import com.immobilier.gestionImmobiliere.donnees.annonces.model.Offre;
 import com.immobilier.gestionImmobiliere.donnees.annonces.model.Temoignage;
+import com.immobilier.gestionImmobiliere.donnees.contrats.model.ContratMandat;
+import com.immobilier.gestionImmobiliere.donnees.contrats.model.StatutMandat;
 import com.immobilier.gestionImmobiliere.donnees.contrats.repository.ContratMandatRepository;
+import com.immobilier.gestionImmobiliere.donnees.depenses.model.DepenseBien;
+import com.immobilier.gestionImmobiliere.donnees.depenses.model.DevisTravaux;
+import com.immobilier.gestionImmobiliere.donnees.depenses.model.StatutDepense;
+import com.immobilier.gestionImmobiliere.donnees.depenses.repository.DepenseBienRepository;
 import com.immobilier.gestionImmobiliere.donnees.paiements.model.EcheanceLoyer;
 import com.immobilier.gestionImmobiliere.utils.DateUtils;
 import com.immobilier.gestionImmobiliere.donnees.biens.model.LocationBienService;
@@ -41,14 +47,23 @@ public class AlerteAgentService {
     private static final String LIEN_REVERSEMENTS = "/espace-agent/reversements";
     private static final String LIEN_OFFRES = "/espace-agent/offres";
     private static final String LIEN_CONTACTS = "/espace-agent/contacts";
+    private static final String LIEN_DEVIS = "/espace-agent/devis";
+
+    private static final String LIEN_MANDATS = "/espace-agent/mandats";
+    // Un mandat qui se termine est signalé à l'agent dès ce nombre de jours, puis une seconde fois à l'approche de la fin
+    private static final int JOURS_PREAVIS_MANDAT_LONG = 30;
+    private static final int JOURS_PREAVIS_MANDAT_COURT = 7;
 
     private final NotificationInAppService notificationService;
     private final UserRepository userRepository;
     private final LocationBienServiceRepository locationRepository;
     private final ContratMandatRepository mandatRepository;
+    private final DepenseBienRepository depenseRepository;
 
     public AlerteAgentService(NotificationInAppService notificationService, UserRepository userRepository,
-                              LocationBienServiceRepository locationRepository, ContratMandatRepository mandatRepository) {
+                              LocationBienServiceRepository locationRepository, ContratMandatRepository mandatRepository,
+                              DepenseBienRepository depenseRepository) {
+        this.depenseRepository = depenseRepository;
         this.mandatRepository = mandatRepository;
         this.notificationService = notificationService;
         this.userRepository = userRepository;
@@ -164,6 +179,177 @@ public class AlerteAgentService {
                     depassee ? "Location à clôturer" : "Location bientôt terminée", message, cible(LIEN_LOCATIONS, l.getIdLocationBienService()), cle);
         }
         if (creees > 0) log.info("Alertes de fin de location : {} notification(s) creee(s)", creees);
+    }
+
+    /**
+     * Job quotidien : mandats ACTIF dont la date de fin approche ou est depassee. L'agent du mandat (ou tous les agents
+     * s'il n'y en a pas) et les admins sont prevenus a 30 jours, a 7 jours, puis chaque semaine tant que le mandat n'est
+     * ni resilie ni prolonge par avenant. Les cles portent la date de fin (une prolongation relance le cycle) et, apres
+     * l'echeance, la semaine en cours : un rappel par semaine, jamais de doublon dans la meme semaine.
+     */
+    @Transactional
+    public void alerterMandatsAEcheance() {
+        LocalDate aujourdhui = LocalDate.now();
+        int creees = 0;
+        for (ContratMandat m : mandatRepository.findByStatut(StatutMandat.ACTIF)) {
+            if (m.getDateFin() == null) continue;
+            LocalDate fin = m.getDateFin().toLocalDate();
+            long jours = java.time.temporal.ChronoUnit.DAYS.between(aujourdhui, fin);
+            if (jours > JOURS_PREAVIS_MANDAT_LONG) continue;
+
+            List<DepenseBien> enCours = depenseRepository.findByMandat_IdMandatAndStatutOrderByDateDepenseAscIdDepenseAsc(
+                    m.getIdMandat(), StatutDepense.EN_COURS);
+            java.math.BigDecimal reste = enCours.stream()
+                    .map(d -> d.getMontant().subtract(d.getMontantImpute()).subtract(d.getMontantRegle()).subtract(d.getMontantAbandonne()))
+                    .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+            String cour = m.getCour().getReferenceCour();
+            String depenses = enCours.isEmpty() ? ""
+                    : " " + enCours.size() + " dépense(s) sont en cours de retenue (" + reste.stripTrailingZeros().toPlainString()
+                            + " restant à retenir) : résilier le mandat retient ce solde d'un coup sur les derniers reversements.";
+
+            String titre;
+            String message;
+            String cle;
+            if (jours < 0) {
+                String semaine = aujourdhui.get(java.time.temporal.IsoFields.WEEK_BASED_YEAR) + "-S" + aujourdhui.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR);
+                titre = "Mandat échu à régulariser";
+                message = "Le mandat de la cour " + cour + " est arrivé à terme le " + fin.format(FORMAT_DATE)
+                        + " et reste actif. Résiliez-le ou prolongez-le par avenant." + depenses;
+                cle = "MANDAT_ECHU:" + m.getIdMandat() + ":" + fin + ":" + semaine;
+            } else if (jours <= JOURS_PREAVIS_MANDAT_COURT) {
+                titre = "Mandat bientôt terminé";
+                message = "Le mandat de la cour " + cour + " se termine " + (jours == 0 ? "aujourd'hui" : "le " + fin.format(FORMAT_DATE))
+                        + ". Prévoyez sa prolongation par avenant ou sa résiliation." + depenses;
+                cle = "MANDAT_FIN_J" + JOURS_PREAVIS_MANDAT_COURT + ":" + m.getIdMandat() + ":" + fin;
+            } else {
+                titre = "Mandat à renouveler";
+                message = "Le mandat de la cour " + cour + " se termine le " + fin.format(FORMAT_DATE) + " (dans " + jours
+                        + " jours). Prévoyez sa prolongation par avenant ou sa résiliation." + depenses;
+                cle = "MANDAT_FIN_J" + JOURS_PREAVIS_MANDAT_LONG + ":" + m.getIdMandat() + ":" + fin;
+            }
+
+            java.util.Map<Integer, User> destinataires = new java.util.LinkedHashMap<>();
+            userRepository.findByRole_LibelleRoleInAndIsDeletedFalse(List.of(ERole.ROLE_ADMIN)).forEach(u -> destinataires.put(u.getIdUser(), u));
+            if (m.getAgent() != null) {
+                destinataires.put(m.getAgent().getIdUser(), m.getAgent());
+            } else {
+                userRepository.findByRole_LibelleRoleInAndIsDeletedFalse(List.of(ERole.ROLE_AGENT)).forEach(u -> destinataires.put(u.getIdUser(), u));
+            }
+            for (User destinataire : destinataires.values()) {
+                if (notificationService.creer(destinataire.getIdUser(), TypeNotification.ECHEANCE, titre, message,
+                        cible(LIEN_MANDATS, m.getIdMandat()), cle)) creees++;
+            }
+        }
+        if (creees > 0) log.info("Alertes de fin de mandat : {} notification(s) creee(s)", creees);
+    }
+
+    // Le bailleur conteste une depense : l'agent du mandat (ou tous les agents sans agent attitre) et les admins doivent repondre
+    public void depenseContestee(DepenseBien d) {
+        try {
+            java.util.Map<Integer, User> destinataires = new java.util.LinkedHashMap<>();
+            userRepository.findByRole_LibelleRoleInAndIsDeletedFalse(List.of(ERole.ROLE_ADMIN)).forEach(u -> destinataires.put(u.getIdUser(), u));
+            if (d.getMandat().getAgent() != null) {
+                destinataires.put(d.getMandat().getAgent().getIdUser(), d.getMandat().getAgent());
+            } else {
+                userRepository.findByRole_LibelleRoleInAndIsDeletedFalse(List.of(ERole.ROLE_AGENT)).forEach(u -> destinataires.put(u.getIdUser(), u));
+            }
+            for (User destinataire : destinataires.values()) {
+                notificationService.creer(destinataire.getIdUser(), TypeNotification.DEMANDE, "Dépense contestée par le bailleur",
+                        nomComplet(d.getCour().getProprietaire()) + " conteste la dépense « " + d.getLibelle() + " » (cour "
+                                + d.getCour().getReferenceCour() + ") : " + d.getMotifContestation() + ". Répondez-lui depuis le détail de la dépense.",
+                        cible("/espace-agent/depenses", d.getIdDepense()), "DEPENSE_CONTESTEE:" + d.getIdDepense());
+            }
+        } catch (RuntimeException ex) {
+            log.warn("Alerte de depense contestee non creee : {}", ex.getMessage());
+        }
+    }
+
+    // Devis accepte par le bailleur mais jamais transforme en depense : rappel a l'agent (une fois par periode ecoulee)
+    public boolean devisAccepteNonRealise(DevisTravaux d, long jours, long periode) {
+        try {
+            java.util.Set<Integer> destinataires = new java.util.LinkedHashSet<>();
+            if (d.getMandat().getAgent() != null) destinataires.add(d.getMandat().getAgent().getIdUser());
+            if (d.getUserCreate() != null) destinataires.add(d.getUserCreate());
+            String cle = "DEVIS_ACCEPTE_RAPPEL:" + d.getIdDevis() + ":" + periode;
+            boolean creee = false;
+            for (Integer idUser : destinataires) {
+                creee |= notificationService.creer(idUser, TypeNotification.DEMANDE, "Devis accepté à concrétiser",
+                        "Le devis « " + d.getLibelle() + " » (cour " + d.getCour().getReferenceCour() + ") est accepté depuis " + jours
+                                + " jours sans dépense enregistrée. Enregistrez la dépense une fois les travaux faits, ou retirez le devis.",
+                        cible(LIEN_DEVIS, d.getIdDevis()), cle);
+            }
+            return creee;
+        } catch (RuntimeException ex) {
+            log.warn("Rappel d'un devis accepte non cree : {}", ex.getMessage());
+            return false;
+        }
+    }
+
+    // Reponse du bailleur a un devis de travaux : previent l'agent du mandat et l'auteur du devis (pas tous les agents)
+    public void devisRepondu(com.immobilier.gestionImmobiliere.donnees.depenses.model.DevisTravaux d) {
+        try {
+            String cour = d.getCour().getReferenceCour();
+            String titre;
+            String message;
+            switch (d.getStatut()) {
+                case ACCEPTE -> {
+                    titre = "Devis accepté par le bailleur";
+                    message = "Le devis « " + d.getLibelle() + " » (cour " + cour + ") a été accepté : la dépense peut être enregistrée.";
+                }
+                case A_RENEGOCIER -> {
+                    titre = "Devis à renégocier";
+                    message = "Le bailleur demande de revoir le devis « " + d.getLibelle() + " » (cour " + cour + ") : " + d.getCommentaireBailleur();
+                }
+                case REJETE -> {
+                    titre = "Devis rejeté par le bailleur";
+                    message = "Le devis « " + d.getLibelle() + " » (cour " + cour + ") a été rejeté : " + d.getCommentaireBailleur();
+                }
+                default -> {
+                    return;
+                }
+            }
+            java.util.Set<Integer> destinataires = new java.util.LinkedHashSet<>();
+            if (d.getMandat().getAgent() != null) destinataires.add(d.getMandat().getAgent().getIdUser());
+            if (d.getUserCreate() != null) destinataires.add(d.getUserCreate());
+            String cle = "DEVIS_REPONSE:" + d.getIdDevis() + ":" + d.getNombreSoumissions() + ":" + d.getStatut();
+            for (Integer idUser : destinataires) {
+                notificationService.creer(idUser, TypeNotification.DEMANDE, titre, message, cible(LIEN_DEVIS, d.getIdDevis()), cle);
+            }
+        } catch (RuntimeException ex) {
+            log.warn("Alerte de reponse a un devis non creee : {}", ex.getMessage());
+        }
+    }
+
+    // Devis reste sans reponse au-dela du delai : l'agent du mandat et l'auteur du devis peuvent le soumettre a nouveau
+    public void devisExpire(com.immobilier.gestionImmobiliere.donnees.depenses.model.DevisTravaux d) {
+        try {
+            java.util.Set<Integer> destinataires = new java.util.LinkedHashSet<>();
+            if (d.getMandat().getAgent() != null) destinataires.add(d.getMandat().getAgent().getIdUser());
+            if (d.getUserCreate() != null) destinataires.add(d.getUserCreate());
+            String cle = "DEVIS_EXPIRE:" + d.getIdDevis() + ":" + d.getNombreSoumissions();
+            for (Integer idUser : destinataires) {
+                notificationService.creer(idUser, TypeNotification.DEMANDE, "Devis expiré sans réponse",
+                        "Le bailleur n'a pas répondu au devis « " + d.getLibelle() + " » (cour " + d.getCour().getReferenceCour()
+                                + ") dans le délai : il a expiré. Modifiez-le pour le soumettre à nouveau, ou retirez-le.",
+                        cible(LIEN_DEVIS, d.getIdDevis()), cle);
+            }
+        } catch (RuntimeException ex) {
+            log.warn("Alerte d'expiration d'un devis non creee : {}", ex.getMessage());
+        }
+    }
+
+    // Mandat resilie avec un solde de depenses : l'agent du mandat doit suivre le reglement direct du bailleur
+    public void depensesDuesApresResiliation(com.immobilier.gestionImmobiliere.donnees.contrats.model.ContratMandat mandat, java.math.BigDecimal restant) {
+        try {
+            if (mandat.getAgent() == null) return;
+            notificationService.creer(mandat.getAgent().getIdUser(), TypeNotification.DEMANDE, "Dépenses dues par le bailleur",
+                    "Le mandat de la cour " + mandat.getCour().getReferenceCour() + " est résilié avec " + restant.stripTrailingZeros().toPlainString()
+                            + " de dépenses non soldées. Ce solde sera retenu sur les derniers reversements à calculer ; "
+                            + "enregistrez le règlement direct du bailleur pour le reste.",
+                    "/espace-agent/depenses", "DEPENSES_DUES:" + mandat.getIdMandat());
+        } catch (RuntimeException ex) {
+            log.warn("Alerte de depenses dues apres resiliation non creee : {}", ex.getMessage());
+        }
     }
 
     // Une ligne par agent ou admin actif ; retourne le nombre de notifications effectivement creees

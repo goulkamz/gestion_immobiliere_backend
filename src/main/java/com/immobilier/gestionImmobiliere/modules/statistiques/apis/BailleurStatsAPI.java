@@ -17,4 +17,9 @@ public interface BailleurStatsAPI {
     @PreAuthorize("hasAnyRole('BAILLEUR','ADMIN')")
     @GetMapping("/revenus")
     ResponseEntity<?> getRevenus(@AuthenticationPrincipal UserDetailsImpl currentUser);
+
+    /** Dépenses avancées par l'agence sur les cours du bailleur et devis en attente de sa réponse. */
+    @PreAuthorize("hasAnyRole('BAILLEUR','ADMIN')")
+    @GetMapping("/depenses")
+    ResponseEntity<?> getDepenses(@AuthenticationPrincipal UserDetailsImpl currentUser);
 }

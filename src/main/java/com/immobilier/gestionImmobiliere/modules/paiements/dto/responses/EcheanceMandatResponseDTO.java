@@ -15,6 +15,7 @@ public class EcheanceMandatResponseDTO {
     private LocalDate periodeMois;
     private BigDecimal montantLoyersDus;   // null si non recalculé (ex: liste getEnAttente)
     private BigDecimal commissionDeduite;
+    private BigDecimal retenueDepenses;    // dépenses du bailleur retenues sur ce reversement
     private BigDecimal montantNetAReverser;
     private StatutEcheance statut;
 }

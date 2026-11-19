@@ -1,6 +1,8 @@
 package com.immobilier.gestionImmobiliere.modules.documents.services;
 
 import com.immobilier.gestionImmobiliere.donnees.contrats.repository.DecompteSortieRepository;
+import com.immobilier.gestionImmobiliere.donnees.depenses.repository.DepenseBienRepository;
+import com.immobilier.gestionImmobiliere.donnees.depenses.repository.DepenseImputationRepository;
 import com.immobilier.gestionImmobiliere.donnees.documents.model.Document;
 import com.immobilier.gestionImmobiliere.donnees.documents.model.TypeDocument;
 import com.immobilier.gestionImmobiliere.donnees.documents.repository.DocumentRepository;
@@ -50,6 +52,8 @@ public class RapportMensuelDocumentService {
     private final LocationBienServiceRepository locationBienServiceRepository;
     private final StatsFinanceQueries financeQueries;
     private final DecompteSortieRepository decompteSortieRepository;
+    private final DepenseBienRepository depenseRepository;
+    private final DepenseImputationRepository imputationRepository;
     private final DocumentRepository documentRepository;
     private final DocumentRegistrar documentRegistrar;
     private final DocumentStorageService documentStorageService;
@@ -60,6 +64,8 @@ public class RapportMensuelDocumentService {
                                          LocationBienServiceRepository locationBienServiceRepository,
                                          StatsFinanceQueries financeQueries,
                                          DecompteSortieRepository decompteSortieRepository,
+                                         DepenseBienRepository depenseRepository,
+                                         DepenseImputationRepository imputationRepository,
                                          DocumentRepository documentRepository, DocumentRegistrar documentRegistrar,
                                          DocumentStorageService documentStorageService, Utils utils) {
         this.echeanceLoyerRepository = echeanceLoyerRepository;
@@ -67,6 +73,8 @@ public class RapportMensuelDocumentService {
         this.locationBienServiceRepository = locationBienServiceRepository;
         this.financeQueries = financeQueries;
         this.decompteSortieRepository = decompteSortieRepository;
+        this.depenseRepository = depenseRepository;
+        this.imputationRepository = imputationRepository;
         this.documentRepository = documentRepository;
         this.documentRegistrar = documentRegistrar;
         this.documentStorageService = documentStorageService;
@@ -163,6 +171,7 @@ public class RapportMensuelDocumentService {
             ajouterSectionChiffreAffaires(document, finances);
             ajouterSectionLoyers(document, periode, finances);
             ajouterSectionBiensServices(document, finances);
+            ajouterSectionDepenses(document, periode, finMois);
             ajouterSectionSituation(document);
             ajouterSectionDecomptesSortie(document, periode);
 
@@ -229,6 +238,30 @@ public class RapportMensuelDocumentService {
         ajouterLigneMontant(tableau, "Total encaissé", bs.getEncaisse(), fontLabel, fontValeur);
         ajouterLigneMontant(tableau, "Total remboursé", bs.getRembourse(), fontLabel, fontValeur);
         ajouterLigneMontant(tableau, "Net conservé par l'agence", bs.getNet(), fontLabel, fontValeur);
+
+        document.add(tableau);
+    }
+
+    /**
+     * Dépenses à la charge des bailleurs, avancées par l'agence : ce qui a été engagé dans le mois, ce qui a été
+     * retenu sur les reversements du mois (déjà déduit du net reversé, sans effet sur la commission) et ce qui
+     * reste à récupérer à la date de génération.
+     */
+    private void ajouterSectionDepenses(org.openpdf.text.Document document, LocalDate debutMois, LocalDate finMois) throws DocumentException {
+        ajouterTitreSection(document, "DÉPENSES AVANCÉES POUR LES BAILLEURS");
+
+        PdfPTable tableau = utils.creerTableauInfos();
+        Font fontLabel  = FontFactory.getFont(FontFactory.HELVETICA, 9, Font.BOLD, COULEUR_ENTETE);
+        Font fontValeur = FontFactory.getFont(FontFactory.HELVETICA, 9, Font.NORMAL, Color.DARK_GRAY);
+
+        utils.ajouterLigneTableau(tableau, "Dépenses engagées ce mois (hors annulées)",
+                String.valueOf(depenseRepository.countEngageesEntre(debutMois, finMois)), fontLabel, fontValeur);
+        ajouterLigneMontant(tableau, "Montant avancé par l'agence ce mois", depenseRepository.sumEngageesEntre(debutMois, finMois), fontLabel, fontValeur);
+        ajouterLigneMontant(tableau, "Retenu sur les reversements du mois", imputationRepository.sumRetenuesEntre(debutMois, finMois), fontLabel, fontValeur);
+        ajouterLigneMontant(tableau, "Reste à retenir à la date de génération", depenseRepository.sumResteARetenir(), fontLabel, fontValeur);
+        ajouterLigneMontant(tableau, "Dû par les bailleurs après résiliation (à la date de génération)", depenseRepository.sumDuParLesBailleurs(), fontLabel, fontValeur);
+        ajouterLigneMontant(tableau, "Créances abandonnées ce mois (perte pour l'agence)",
+                depenseRepository.sumAbandonneesEntre(debutMois.atStartOfDay(), finMois.plusDays(1).atStartOfDay()), fontLabel, fontValeur);
 
         document.add(tableau);
     }

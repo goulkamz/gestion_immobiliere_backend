@@ -38,6 +38,7 @@ public class Scheduler {
     private final AlerteAgentService alerteAgentService;
     private final AlerteUtilisateurService alerteUtilisateurService;
     private final AlerteSauvegardeService alerteSauvegardeService;
+    private final com.immobilier.gestionImmobiliere.modules.depenses.services.DevisService devisService;
 
     // Nettoyage tous les jours a 2h du matin
     @Scheduled(cron = "0 0 2 * * *")
@@ -133,6 +134,21 @@ public class Scheduler {
     @Scheduled(cron = "${app.notifications.cron-clients:0 15 7 * * *}")
     public void alerterClients() {
         alerteUtilisateurService.alerterClients();
+    }
+
+    // Tous les jours a 7h05 - alerte l'agent du mandat et les admins : mandat qui se termine (30 et 7 jours avant),
+    // puis rappel hebdomadaire tant qu'un mandat echu n'est ni resilie ni prolonge
+    @Scheduled(cron = "${app.notifications.cron-mandats:0 5 7 * * *}")
+    public void alerterMandatsAEcheance() {
+        alerteAgentService.alerterMandatsAEcheance();
+    }
+
+    // Devis de travaux restes sans reponse du bailleur : rappel puis expiration (delai = parametre DELAI_REPONSE_DEVIS_JOURS),
+    // et rappel a l'agent pour un devis accepte jamais transforme en depense (DELAI_RAPPEL_DEVIS_ACCEPTE_JOURS)
+    @Scheduled(cron = "0 20 1 * * *")
+    public void expirerDevisSansReponse() {
+        devisService.expirerDevisSansReponse();
+        devisService.rappelerDevisAcceptesNonRealises();
     }
 
     // Tous les jours a 3h30 - purge les notifications lues depuis plus de 30 jours (les non lues sont conservees)

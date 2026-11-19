@@ -36,4 +36,6 @@ public interface ContratMandatRepository extends JpaRepository<ContratMandat, In
 
     List<ContratMandat> findByAgent_IdUser(Integer idAgent);
 
+    java.util.Optional<ContratMandat> findFirstByCour_IdCourAndStatutAndTypeMandat(Integer idCour, StatutMandat statut, TypeMandat typeMandat);
+
 }

@@ -48,6 +48,8 @@ public class AlerteUtilisateurService {
     private static final String LIEN_CONTRATS = "/espace-client/contrats";
     private static final String LIEN_BAILLEUR_CONTRATS = "/espace-bailleur/contrats";
     private static final String LIEN_BAILLEUR_REVENUS = "/espace-bailleur/revenus";
+    private static final String LIEN_BAILLEUR_DEPENSES = "/espace-bailleur/depenses";
+    private static final String LIEN_BAILLEUR_DEVIS = "/espace-bailleur/devis";
 
     private final NotificationInAppService notificationService;
     private final EcheanceLoyerRepository echeanceRepository;
@@ -220,6 +222,171 @@ public class AlerteUtilisateurService {
                 "Le montant à vous reverser pour " + periode + " est de " + montantNet.stripTrailingZeros().toPlainString()
                         + " (cour " + mandat.getCour().getReferenceCour() + ").",
                 cible(LIEN_BAILLEUR_REVENUS, idDepuisCle(cle)), cle);
+    }
+
+    // ---- Dépenses à la charge du bailleur ----
+
+    public void depenseEnregistree(com.immobilier.gestionImmobiliere.donnees.depenses.model.DepenseBien d) {
+        User bailleur = d.getCour().getProprietaire();
+        if (bailleur == null) return;
+        String etalement = d.getNombreMois() > 1 ? "en " + d.getNombreMois() + " fois" : "en une fois";
+        envoyer(bailleur, false, TypeNotification.INFO, "Dépense enregistrée sur votre bien",
+                "Une dépense de " + d.getMontant().stripTrailingZeros().toPlainString() + " (" + d.getLibelle()
+                        + ") a été enregistrée sur la cour " + d.getCour().getReferenceCour()
+                        + ". Elle sera retenue " + etalement + " sur vos reversements."
+                        + (d.getAccordMotif() != null
+                                ? " L'agence indique avoir obtenu votre accord (" + d.getAccordMotif()
+                                        + "). Si ce n'est pas le cas, contactez l'agence."
+                                : ""),
+                cible(LIEN_BAILLEUR_DEPENSES, d.getIdDepense()), "DEPENSE:" + d.getIdDepense());
+    }
+
+    public void depenseAnnulee(com.immobilier.gestionImmobiliere.donnees.depenses.model.DepenseBien d) {
+        User bailleur = d.getCour().getProprietaire();
+        if (bailleur == null) return;
+        envoyer(bailleur, false, TypeNotification.INFO, "Dépense annulée",
+                "La dépense de " + d.getMontant().stripTrailingZeros().toPlainString() + " (" + d.getLibelle()
+                        + ") sur la cour " + d.getCour().getReferenceCour() + " a été annulée : rien ne sera retenu.",
+                cible(LIEN_BAILLEUR_DEPENSES, d.getIdDepense()), "DEPENSE_ANNULEE:" + d.getIdDepense());
+    }
+
+    public void depenseReechelonnee(com.immobilier.gestionImmobiliere.donnees.depenses.model.DepenseBien d, int anciensMois, int nouveauxMois) {
+        User bailleur = d.getCour().getProprietaire();
+        if (bailleur == null) return;
+        BigDecimal solde = d.getMontant().subtract(d.getMontantImpute()).subtract(d.getMontantRegle()).subtract(d.getMontantAbandonne());
+        envoyer(bailleur, false, TypeNotification.INFO, "Étalement d'une dépense modifié",
+                "Le solde de " + solde.stripTrailingZeros().toPlainString() + " de la dépense « " + d.getLibelle()
+                        + " » (cour " + d.getCour().getReferenceCour() + ") sera retenu sur " + nouveauxMois
+                        + " reversement(s) au lieu de " + anciensMois + ". Motif : " + d.getMotifReechelonnement(),
+                cible(LIEN_BAILLEUR_DEPENSES, d.getIdDepense()), "DEPENSE_REECHELONNEE:" + d.getIdDepense() + ":" + d.getDateReechelonnement());
+    }
+
+    // Résiliation du mandat avec des dépenses non soldées : ce qui a été retenu d'office et ce qui reste dû
+    public void depensesApresResiliation(ContratMandat mandat, BigDecimal retenu, BigDecimal restant) {
+        User bailleur = mandat.getCour().getProprietaire();
+        if (bailleur == null) return;
+        StringBuilder message = new StringBuilder("Suite à la résiliation du mandat de la cour ")
+                .append(mandat.getCour().getReferenceCour()).append(", l'étalement des dépenses avancées par l'agence s'arrête.");
+        if (retenu.signum() > 0) {
+            message.append(" ").append(retenu.stripTrailingZeros().toPlainString())
+                    .append(" ont été retenus sur vos reversements en attente.");
+        }
+        message.append(restant.signum() > 0
+                ? " Il reste " + restant.stripTrailingZeros().toPlainString()
+                        + " à régler : ce solde sera retenu sur vos derniers reversements, ou à défaut réglé directement à l'agence."
+                : " Elles sont entièrement soldées.");
+        envoyer(bailleur, false, TypeNotification.INFO, "Dépenses à solder après la résiliation", message.toString(),
+                LIEN_BAILLEUR_DEPENSES, "DEPENSES_RESILIATION:" + mandat.getIdMandat());
+    }
+
+    public void depenseReglee(com.immobilier.gestionImmobiliere.donnees.depenses.model.DepenseBien d, BigDecimal montant) {
+        User bailleur = d.getCour().getProprietaire();
+        if (bailleur == null) return;
+        BigDecimal solde = d.getMontant().subtract(d.getMontantImpute()).subtract(d.getMontantRegle()).subtract(d.getMontantAbandonne());
+        envoyer(bailleur, false, TypeNotification.INFO, "Règlement enregistré",
+                "L'agence a enregistré votre règlement de " + montant.stripTrailingZeros().toPlainString() + " pour la dépense « "
+                        + d.getLibelle() + " » (cour " + d.getCour().getReferenceCour() + "). "
+                        + (solde.signum() > 0 ? "Reste dû : " + solde.stripTrailingZeros().toPlainString() + "." : "Elle est soldée."),
+                cible(LIEN_BAILLEUR_DEPENSES, d.getIdDepense()),
+                "DEPENSE_REGLEMENT:" + d.getIdDepense() + ":" + d.getMontantRegle().stripTrailingZeros().toPlainString());
+    }
+
+    // Règlement saisi par erreur puis annulé : le bailleur doit savoir que sa dette a été corrigée
+    public void reglementAnnule(com.immobilier.gestionImmobiliere.donnees.depenses.model.DepenseBien d,
+                                com.immobilier.gestionImmobiliere.donnees.depenses.model.DepenseReglement r) {
+        User bailleur = d.getCour().getProprietaire();
+        if (bailleur == null) return;
+        BigDecimal solde = d.getMontant().subtract(d.getMontantImpute()).subtract(d.getMontantRegle()).subtract(d.getMontantAbandonne());
+        envoyer(bailleur, false, TypeNotification.INFO, "Règlement annulé",
+                "Le règlement de " + r.getMontant().stripTrailingZeros().toPlainString() + " enregistré pour la dépense « " + d.getLibelle()
+                        + " » (cour " + d.getCour().getReferenceCour() + ") a été annulé : " + r.getMotifAnnulation() + ". "
+                        + (solde.signum() > 0 ? "Reste dû : " + solde.stripTrailingZeros().toPlainString() + "." : "Elle reste soldée."),
+                cible(LIEN_BAILLEUR_DEPENSES, d.getIdDepense()), "DEPENSE_REGLEMENT_ANNULE:" + r.getIdReglement());
+    }
+
+    // Abandon de créance : l'agence renonce à réclamer le reste dû
+    public void creanceAbandonnee(com.immobilier.gestionImmobiliere.donnees.depenses.model.DepenseBien d, BigDecimal montant) {
+        User bailleur = d.getCour().getProprietaire();
+        if (bailleur == null) return;
+        envoyer(bailleur, false, TypeNotification.INFO, "Reste dû abandonné par l'agence",
+                "L'agence renonce à vous réclamer " + montant.stripTrailingZeros().toPlainString() + " pour la dépense « " + d.getLibelle()
+                        + " » (cour " + d.getCour().getReferenceCour() + "). Elle est soldée. Motif : " + d.getMotifAbandon(),
+                cible(LIEN_BAILLEUR_DEPENSES, d.getIdDepense()), "DEPENSE_ABANDON:" + d.getIdDepense());
+    }
+
+    // Creance abandonnee puis retablie par l'admin : le reste redevient du
+    public void creanceRetablie(com.immobilier.gestionImmobiliere.donnees.depenses.model.DepenseBien d, BigDecimal montant) {
+        User bailleur = d.getCour().getProprietaire();
+        if (bailleur == null) return;
+        envoyer(bailleur, false, TypeNotification.INFO, "Reste dû rétabli",
+                "L'abandon de " + montant.stripTrailingZeros().toPlainString() + " sur la dépense « " + d.getLibelle() + " » (cour "
+                        + d.getCour().getReferenceCour() + ") est annulé : ce montant redevient dû à l'agence. Motif : " + d.getMotifRetablissement(),
+                cible(LIEN_BAILLEUR_DEPENSES, d.getIdDepense()), "DEPENSE_RETABLIE:" + d.getIdDepense() + ":" + d.getDateRetablissement());
+    }
+
+    // L'agence a repondu a la contestation du bailleur
+    public void contestationRepondue(com.immobilier.gestionImmobiliere.donnees.depenses.model.DepenseBien d) {
+        User bailleur = d.getCour().getProprietaire();
+        if (bailleur == null) return;
+        envoyer(bailleur, false, TypeNotification.INFO, "Réponse à votre contestation",
+                "L'agence a répondu à votre contestation de la dépense « " + d.getLibelle() + " » (cour " + d.getCour().getReferenceCour()
+                        + ") : " + d.getReponseContestation(),
+                cible(LIEN_BAILLEUR_DEPENSES, d.getIdDepense()), "DEPENSE_CONTESTATION_REPONSE:" + d.getIdDepense());
+    }
+
+    // ---- Devis de travaux ----
+
+    // Accord donné hors plateforme et enregistré par l'agent : le bailleur peut le contester tant que la dépense n'existe pas
+    public void devisAccordHorsPlateforme(com.immobilier.gestionImmobiliere.donnees.depenses.model.DevisTravaux d) {
+        User bailleur = d.getCour().getProprietaire();
+        if (bailleur == null) return;
+        envoyer(bailleur, false, TypeNotification.DEMANDE, "Accord enregistré sur un devis",
+                "L'agence a enregistré votre accord, donné hors plateforme le " + d.getAccordDate().format(FORMAT_DATE)
+                        + ", sur le devis de " + d.getMontant().stripTrailingZeros().toPlainString() + " (" + d.getLibelle()
+                        + ") pour la cour " + d.getCour().getReferenceCour() + " : " + d.getAccordMotif()
+                        + ". Si vous ne le reconnaissez pas, contestez-le depuis vos devis avant que la dépense soit enregistrée.",
+                cible(LIEN_BAILLEUR_DEVIS, d.getIdDevis()), "DEVIS_ACCORD_HORS_PLATEFORME:" + d.getIdDevis() + ":" + d.getNombreSoumissions());
+    }
+
+    // Rappel avant l'expiration d'un devis resté sans réponse (une fois par soumission)
+    public boolean devisRappel(com.immobilier.gestionImmobiliere.donnees.depenses.model.DevisTravaux d, java.time.LocalDateTime dateLimite) {
+        User bailleur = d.getCour().getProprietaire();
+        if (bailleur == null) return false;
+        return envoyer(bailleur, false, TypeNotification.DEMANDE, "Devis en attente de votre réponse",
+                "Le devis de " + d.getMontant().stripTrailingZeros().toPlainString() + " (" + d.getLibelle() + ") pour la cour "
+                        + d.getCour().getReferenceCour() + " attend votre réponse. Sans réponse avant le "
+                        + dateLimite.format(FORMAT_DATE) + ", il expirera.",
+                cible(LIEN_BAILLEUR_DEVIS, d.getIdDevis()), "DEVIS_RAPPEL:" + d.getIdDevis() + ":" + d.getNombreSoumissions());
+    }
+
+    public void devisExpire(com.immobilier.gestionImmobiliere.donnees.depenses.model.DevisTravaux d) {
+        User bailleur = d.getCour().getProprietaire();
+        if (bailleur == null) return;
+        envoyer(bailleur, false, TypeNotification.INFO, "Devis expiré",
+                "Le devis de " + d.getMontant().stripTrailingZeros().toPlainString() + " (" + d.getLibelle() + ") pour la cour "
+                        + d.getCour().getReferenceCour() + " est resté sans réponse : il a expiré. L'agence peut vous le soumettre à nouveau.",
+                cible(LIEN_BAILLEUR_DEVIS, d.getIdDevis()), "DEVIS_EXPIRE:" + d.getIdDevis() + ":" + d.getNombreSoumissions());
+    }
+
+    // Devis soumis (ou soumis a nouveau apres renegociation) : le bailleur doit repondre
+    public void devisSoumis(com.immobilier.gestionImmobiliere.donnees.depenses.model.DevisTravaux d) {
+        User bailleur = d.getCour().getProprietaire();
+        if (bailleur == null) return;
+        boolean revise = d.getNombreSoumissions() > 1;
+        envoyer(bailleur, false, TypeNotification.DEMANDE, revise ? "Devis révisé à valider" : "Devis de travaux à valider",
+                "L'agence vous soumet " + (revise ? "une nouvelle version du devis" : "un devis") + " de "
+                        + d.getMontant().stripTrailingZeros().toPlainString() + " (" + d.getLibelle()
+                        + ") pour la cour " + d.getCour().getReferenceCour() + ". Votre réponse est attendue.",
+                cible(LIEN_BAILLEUR_DEVIS, d.getIdDevis()), "DEVIS_SOUMIS:" + d.getIdDevis() + ":" + d.getNombreSoumissions());
+    }
+
+    public void devisAnnule(com.immobilier.gestionImmobiliere.donnees.depenses.model.DevisTravaux d) {
+        User bailleur = d.getCour().getProprietaire();
+        if (bailleur == null) return;
+        envoyer(bailleur, false, TypeNotification.INFO, "Devis retiré par l'agence",
+                "Le devis de " + d.getMontant().stripTrailingZeros().toPlainString() + " (" + d.getLibelle()
+                        + ") pour la cour " + d.getCour().getReferenceCour() + " a été retiré : aucune dépense ne sera engagée.",
+                cible(LIEN_BAILLEUR_DEVIS, d.getIdDevis()), "DEVIS_ANNULE:" + d.getIdDevis());
     }
 
     // ---- Job quotidien ----

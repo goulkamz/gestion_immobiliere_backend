@@ -45,6 +45,11 @@ public class EcheanceLoyer extends Model {
     @Column(name = "commission_deduite")
     private BigDecimal commissionDeduite;
 
+    /** Reversement (MANDAT) : dépenses du bailleur retenues, déjà déduites de montantDu. */
+    @Column(name = "retenue_depenses", nullable = false)
+    @Builder.Default
+    private BigDecimal retenueDepenses = BigDecimal.ZERO;
+
     @Column(name = "penalite", nullable = false)
     @Builder.Default
     private BigDecimal penalite = BigDecimal.ZERO;

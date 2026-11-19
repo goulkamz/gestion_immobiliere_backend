@@ -22,6 +22,7 @@ public class ContratMandatResponseDTO {
     private TypeMandat typeMandat;
     private BigDecimal commission;
     private ModeFacturation modeFacturation;
+    private BigDecimal plafondDepenseSansAccord;
     private StatutMandat statut;
     private String motifResiliation;
     // Renseignes uniquement par la reponse d'une modification qui a cree un avenant

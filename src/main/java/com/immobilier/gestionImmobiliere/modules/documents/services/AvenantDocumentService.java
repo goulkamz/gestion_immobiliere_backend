@@ -252,12 +252,14 @@ public class AvenantDocumentService {
             case "commission" -> "Commission";
             case "modeFacturation" -> "Mode de facturation";
             case "typeMandat" -> "Type de mandat";
+            case "plafondDepenseSansAccord" -> "Plafond des dépenses sans accord préalable";
             default -> champ;
         };
     }
 
     private String formaterValeur(String champ, String valeur) {
         if (valeur == null || valeur.isBlank()) {
+            if (champ.equals("plafondDepenseSansAccord")) return "Aucun plafond";
             return champ.startsWith("date") ? "Durée indéterminée" : "—";
         }
         try {

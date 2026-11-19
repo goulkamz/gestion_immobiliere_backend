@@ -61,9 +61,13 @@ public class ContratMandatService {
     private final AvenantService avenantService;
     private final AlerteUtilisateurService alerteUtilisateurService;
     private final ContratMandatDocumentService contratMandatDocumentService;
+    private final com.immobilier.gestionImmobiliere.modules.depenses.services.DepenseService depenseService;
+    private final com.immobilier.gestionImmobiliere.modules.depenses.services.DevisService devisService;
 
 
-    public ContratMandatService(ContratMandatRepository mandatRepository, CourRepository courRepository, UserRepository userRepository, EcheanceService echeanceService, ContratLocationRepository contratLocationRepository, AvenantService avenantService, ContratMandatDocumentService contratMandatDocumentService, AlerteUtilisateurService alerteUtilisateurService) {
+    public ContratMandatService(ContratMandatRepository mandatRepository, CourRepository courRepository, UserRepository userRepository, EcheanceService echeanceService, ContratLocationRepository contratLocationRepository, AvenantService avenantService, ContratMandatDocumentService contratMandatDocumentService, AlerteUtilisateurService alerteUtilisateurService, com.immobilier.gestionImmobiliere.modules.depenses.services.DepenseService depenseService, com.immobilier.gestionImmobiliere.modules.depenses.services.DevisService devisService) {
+        this.depenseService = depenseService;
+        this.devisService = devisService;
         this.mandatRepository = mandatRepository;
         this.courRepository = courRepository;
         this.userRepository = userRepository;
@@ -139,6 +143,7 @@ public class ContratMandatService {
                 .typeMandat(dto.getTypeMandat())
                 .commission(dto.getCommission())
                 .modeFacturation(dto.getModeFacturation())
+                .plafondDepenseSansAccord(dto.getPlafondDepenseSansAccord())
                 .statut(StatutMandat.EN_ATTENTE)
                 .build();
         mandatRepository.save(mandat);
@@ -193,6 +198,10 @@ public class ContratMandatService {
 
         // Les reversements déjà calculés au-delà du mois de résiliation n'ont plus lieu d'être (celui qui paie le mois de résiliation reste)
         echeanceService.supprimerReversementsFuturs(mandat.getIdMandat(), LocalDate.now());
+        // Dépenses non soldées : l'étalement s'arrête, le solde est retenu sur les reversements en attente, le reste devient dû par le bailleur
+        depenseService.solderApresResiliation(mandat);
+        // Devis encore ouverts : plus aucune dépense ne peut être retenue sur ce mandat
+        devisService.retirerApresResiliation(mandat);
         alerteUtilisateurService.mandatResilie(mandat);
 
         return buildSuccessResponse(HttpStatus.OK, "Mandat résilié", "MANDAT_RESILIE", toDto(mandat));
@@ -245,6 +254,24 @@ public class ContratMandatService {
                     mandat.getCommission() != null ? mandat.getCommission().toPlainString() : null,
                     dto.getCommission().toPlainString()));
         }
+        if (dto.getPlafondDepenseSansAccord() != null
+                && (mandat.getPlafondDepenseSansAccord() == null
+                || dto.getPlafondDepenseSansAccord().compareTo(mandat.getPlafondDepenseSansAccord()) != 0)) {
+            modifications.add(new AvenantService.Modification("plafondDepenseSansAccord",
+                    mandat.getPlafondDepenseSansAccord() != null ? mandat.getPlafondDepenseSansAccord().toPlainString() : null,
+                    dto.getPlafondDepenseSansAccord().toPlainString()));
+        }
+        boolean retirerPlafond = Boolean.TRUE.equals(dto.getRetirerPlafond());
+        if (retirerPlafond) {
+            if (dto.getPlafondDepenseSansAccord() != null) {
+                throw new IllegalArgumentException("Indiquez un nouveau plafond ou demandez son retrait, pas les deux");
+            }
+            if (mandat.getPlafondDepenseSansAccord() == null) {
+                throw new IllegalArgumentException("Ce mandat n'a pas de plafond à retirer");
+            }
+            modifications.add(new AvenantService.Modification("plafondDepenseSansAccord",
+                    mandat.getPlafondDepenseSansAccord().toPlainString(), null));
+        }
         if (modifications.isEmpty()) {
             throw new IllegalArgumentException("Aucune modification à enregistrer");
         }
@@ -275,6 +302,8 @@ public class ContratMandatService {
 
         if (dto.getDateFin() != null) mandat.setDateFin(dto.getDateFin());
         if (dto.getCommission() != null) mandat.setCommission(dto.getCommission());
+        if (dto.getPlafondDepenseSansAccord() != null) mandat.setPlafondDepenseSansAccord(dto.getPlafondDepenseSansAccord());
+        if (retirerPlafond) mandat.setPlafondDepenseSansAccord(null);
         mandat.setModeFacturation(mode);
         mandat.setTypeMandat(type);
 
@@ -346,6 +375,7 @@ public class ContratMandatService {
                 .typeMandat(m.getTypeMandat())
                 .commission(m.getCommission())
                 .modeFacturation(m.getModeFacturation())
+                .plafondDepenseSansAccord(m.getPlafondDepenseSansAccord())
                 .statut(m.getStatut())
                 .motifResiliation(m.getMotifResiliation())
                 .build();

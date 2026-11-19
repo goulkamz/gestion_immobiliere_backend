@@ -19,6 +19,7 @@ public class EcheanceResponseDTO {
     private BigDecimal montantPaye;
     private BigDecimal penalite;
     private BigDecimal commissionDeduite;
+    private BigDecimal retenueDepenses;
     private StatutEcheance statut;
     // Libelles de l'entite liee (evite de joindre plusieurs listes dans le navigateur)
     // LOCATION : maison et locataire ; MANDAT : cour, proprietaire et commission du mandat

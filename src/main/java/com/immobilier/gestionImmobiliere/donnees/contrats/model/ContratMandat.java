@@ -50,6 +50,10 @@ public class ContratMandat extends Model {
     @Column(name = "mode_facturation")
     private ModeFacturation modeFacturation;
 
+    /** Montant jusqu'auquel l'agence engage une dépense sans accord préalable du bailleur ; null = aucun plafond convenu. */
+    @Column(name = "plafond_depense_sans_accord")
+    private BigDecimal plafondDepenseSansAccord;
+
     @Column(name = "date_resiliation")
     private LocalDateTime dateResiliation;
 

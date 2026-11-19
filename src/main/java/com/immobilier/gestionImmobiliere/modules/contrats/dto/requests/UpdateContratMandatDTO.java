@@ -14,6 +14,9 @@ public class UpdateContratMandatDTO {
     private BigDecimal commission;
     private ModeFacturation modeFacturation;
     private TypeMandat typeMandat;
+    @jakarta.validation.constraints.PositiveOrZero private BigDecimal plafondDepenseSansAccord;
+    /** Vrai pour supprimer le plafond des dépenses sans accord (toute dépense devient libre) ; incompatible avec une nouvelle valeur. */
+    private Boolean retirerPlafond;
 
     // Avenant : obligatoires pour modifier un contrat ACTIF (le client doit avoir accepte la modification)
     private String motif;

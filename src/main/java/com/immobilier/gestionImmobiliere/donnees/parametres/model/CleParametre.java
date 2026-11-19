@@ -12,6 +12,8 @@ public final class CleParametre {
     public static final String PENALITE_RETARD_MONTANT = "PENALITE_RETARD_MONTANT";
     public static final String DELAI_EXPIRATION_RESERVATION_HEURES = "DELAI_EXPIRATION_RESERVATION_HEURES";
     public static final String DUREE_CONFIANCE_APPAREIL_2FA_HEURES = "DUREE_CONFIANCE_APPAREIL_2FA_HEURES";
+    public static final String DELAI_REPONSE_DEVIS_JOURS = "DELAI_REPONSE_DEVIS_JOURS";
+    public static final String DELAI_RAPPEL_DEVIS_ACCEPTE_JOURS = "DELAI_RAPPEL_DEVIS_ACCEPTE_JOURS";
     // les clés de pénalité seront ajoutées une fois le mode de calcul confirmé
 
     /**
